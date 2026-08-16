@@ -1,0 +1,115 @@
+/* ===========================================================================
+   Ambience - modgui behaviour
+
+   GENERATED: lv2/tools/gen_bundle.py substitutes the algorithm table below
+   from PRESET_DEFAULTS in Source/AlgorithmPresets.h. Edit javascript.js.in,
+   never javascript.js.
+
+   ---------------------------------------------------------------------------
+   What this reproduces and why it lives here
+
+   In the VST3, selecting an algorithm re-seeds seven other parameters from
+   that algorithm's own defaults (FDNReverbAudioProcessor::loadPresetDefaults,
+   Source/PluginProcessor.cpp:186) so you land on something that sounds like
+   the room you just picked instead of the previous room's settings.
+
+   An LV2 plugin cannot write its own control ports, so the DSP cannot do this.
+   mod-ui can: the modgui javascript hook is called as jsCallback(event, funcs)
+   and funcs.set_port_value(symbol, value) exists for exactly this purpose
+   ("added in v1: allow plugin js code to change plugin controls",
+   html/js/modgui.js:1682). This build is api_version 3.
+
+   ---------------------------------------------------------------------------
+   The trap this code is shaped around
+
+   mod-ui fires a 'change' event for EVERY port when a preset or a pedalboard
+   loads (modgui.js:507 and :523), in no defined order. A handler that simply
+   reacted to 'algorithm' would therefore overwrite each of the 28 presets'
+   Room Size / Decay / Diffusion / Mod / ER / Saturation with the algorithm's
+   generic defaults, at load, every time - silently ruining every preset.
+
+   So changes are batched into a microtask and only a LONE algorithm change is
+   treated as the user turning the knob. Several ports moving in one tick is a
+   bulk load and is left alone. This mirrors the VST3's own guard, which skips
+   the re-seed on the first call (`if (lastAlgorithmIndex >= 0)`).
+
+   State lives on event.data, not in closure variables: mod-ui caches one
+   compiled callback per plugin and shares it across instances
+   (modgui.js:156), so closure state would leak between two Ambiences on the
+   same pedalboard. event.data is per instance.
+   =========================================================================== */
+
+function (event, funcs) {
+
+    /* [ALGORITHM_DEFAULTS] */
+
+    function applyDefaults(data, index) {
+        var def = ALGORITHM_DEFAULTS[index];
+        if (!def) {
+            return;
+        }
+
+        /* set_port_value re-enters this callback with a 'change' event per
+           port. That is harmless - 16 symbols in one tick is not a lone
+           algorithm change, so the guard below rejects it - but flagging it
+           keeps the intent obvious and the batch clean. */
+        data.applying = true;
+        try {
+            for (var symbol in def) {
+                if (Object.prototype.hasOwnProperty.call(def, symbol)) {
+                    funcs.set_port_value(symbol, def[symbol]);
+                }
+            }
+        } finally {
+            data.applying = false;
+        }
+    }
+
+    function flush(data) {
+        var symbols = Object.keys(data.pending);
+        var value = data.pending.algorithm;
+
+        data.pending = {};
+        data.timer = null;
+
+        /* The whole guard: exactly one port changed, and it was algorithm. */
+        if (data.started && symbols.length === 1 && symbols[0] === 'algorithm') {
+            applyDefaults(data, Math.round(value));
+        }
+    }
+
+    var data = event.data;
+
+    if (!data.pending) {
+        data.pending = {};
+        data.timer = null;
+        data.applying = false;
+        data.started = false;
+    }
+
+    if (event.type === 'start') {
+        /* The opening sweep reports every port's current value. Seeding the
+           algorithm here without applying anything is what stops a freshly
+           loaded pedalboard from being re-seeded out from under itself. */
+        data.started = true;
+        return;
+    }
+
+    if (event.type !== 'change' || data.applying) {
+        return;
+    }
+
+    /* Patch-parameter changes arrive with a uri instead of a symbol. */
+    if (typeof event.symbol !== 'string') {
+        return;
+    }
+
+    data.pending[event.symbol] = event.value;
+
+    if (data.timer) {
+        clearTimeout(data.timer);
+    }
+    data.timer = setTimeout(function () {
+        flush(data);
+    }, 0);
+}

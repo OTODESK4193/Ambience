@@ -1,0 +1,268 @@
+/* ===========================================================================
+   Ambience - MOD pedal stylesheet
+
+   Palette is AmbienceColors from Source/GUI/AmbienceUI.h, so the pedal reads
+   as the same product as the desktop plugin:
+
+     background #1A1A1A   surface #242424   panel  #2C2C2C   border #3C3C3C
+     accent     #FF6B00   blue    #4090FF   text   #E8E8E8 / #888888
+
+   {{{cns}}} is mod-ui's per-instance class namespace and {{{ns}}} the
+   cache-busting suffix on resource URLs; both are substituted at render time.
+   Fonts are served by mod-ui itself, so they are @import-ed, not bundled.
+   =========================================================================== */
+
+@import url(/fonts/questrial/stylesheet.css);
+@import url(/fonts/nexa/stylesheet.css);
+
+/* = CONTAINER
+================================================ */
+.mod-pedal-ambience{{{cns}}} {
+    position: absolute;
+    width: 560px;
+    height: 470px;
+    background-image: url(/resources/assets/background.png{{{ns}}});
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-size: 560px 470px;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    line-height: 1.1;
+    color: #E8E8E8;
+    font-family: 'Questrial', sans-serif;
+}
+
+/* = HEADER
+================================================ */
+.mod-pedal-ambience{{{cns}}} .ambience-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    padding: 0 24px;
+    box-sizing: border-box;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-brand {
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #888888;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-title {
+    font-family: 'Nexa', 'Questrial', sans-serif;
+    font-size: 22px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #FF6B00;
+}
+
+/* = ALGORITHM SELECT
+================================================ */
+.mod-pedal-ambience{{{cns}}} .algorithm-row {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-enumerated.ambience-algorithm {
+    position: relative;
+    width: 220px;
+    height: 30px;
+    background-color: #242424;
+    border: 1px solid rgba(255, 107, 0, 0.75);
+    border-radius: 5px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-algorithm-value {
+    height: 28px;
+    line-height: 28px;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #E8E8E8;
+}
+
+/* Closed by default; customSelect toggles it (modgui.js:2593). z-index keeps
+   the open list above the knob panel below it. */
+.mod-pedal-ambience{{{cns}}} .mod-enumerated-list {
+    display: none;
+    position: absolute;
+    top: 30px;
+    left: -1px;
+    width: 220px;
+    background-color: #242424;
+    border: 1px solid #3C3C3C;
+    border-radius: 5px;
+    overflow: hidden;
+    z-index: 10;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-enumerated-list > div {
+    height: 24px;
+    line-height: 24px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #888888;
+    cursor: pointer;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-enumerated-list > div:hover {
+    background-color: #2C2C2C;
+    color: #E8E8E8;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-enumerated-list > div.selected {
+    background-color: #FF6B00;
+    color: #1A1A1A;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-algorithm-label {
+    margin-top: 4px;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #888888;
+}
+
+/* = KNOB PANELS
+================================================ */
+/* The two recessed wells are painted into background.png, so these paddings
+   are what line the knobs up with them. Panel tops there are y=112 (h=172)
+   and y=296 (h=104); see PANEL_RECTS in lv2/tools/make_gui_assets.py. */
+.mod-pedal-ambience{{{cns}}} .knob-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+}
+
+.mod-pedal-ambience{{{cns}}} .panel-space {
+    height: 172px;
+    margin-top: 8px;
+}
+
+.mod-pedal-ambience{{{cns}}} .panel-mix {
+    height: 104px;
+    margin-top: 12px;
+}
+
+.mod-pedal-ambience{{{cns}}} .knob-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 71px;
+}
+
+/* = KNOBS
+================================================ */
+/* 65-frame horizontal filmstrip. mod-ui derives the frame count from the
+   sprite's aspect ratio against this box (modgui.js:2151) and shifts
+   background-position by -width px per step, so the box MUST stay square and
+   background-size MUST be `auto <height>`. */
+.mod-pedal-ambience{{{cns}}} .mod-knob {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 60px;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-knob > .mod-knob-image {
+    background-image: url(/resources/assets/knob.png{{{ns}}});
+    background-repeat: no-repeat;
+    background-size: auto 54px;
+    height: 54px;
+    width: 54px;
+    margin: 0 auto;
+    cursor: pointer;
+}
+
+.mod-pedal-ambience{{{cns}}} div.mod-param-title {
+    margin-top: 4px;
+    width: 74px;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #888888;
+}
+
+/* = FOOTER / BYPASS
+================================================ */
+.mod-pedal-ambience{{{cns}}} .ambience-footer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 14px;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-strapline {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    color: #888888;
+    margin-bottom: 6px;
+}
+
+/* Drawn in CSS rather than shipped as a sprite - it is a disc and a dot, and
+   the stock MOD footswitch art belongs to MOD's own bundles. */
+.mod-pedal-ambience{{{cns}}} .mod-footswitch-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-footswitch {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 32%, #3A3A3A 0%, #202020 72%, #141414 100%);
+    border: 2px solid #3C3C3C;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-footswitch:active {
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* mod-ui adds .on / .off to [mod-role=bypass-light] (modgui.js:1349).
+   NOTE the inversion: the port is :bypass, so .on means BYPASSED, i.e. the
+   effect is off. The lamp therefore lights on .off. */
+.mod-pedal-ambience{{{cns}}} .mod-light {
+    margin-top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #2C2C2C;
+    border: 1px solid #3C3C3C;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-light.off {
+    background-color: #FF6B00;
+    border-color: #FF6B00;
+    box-shadow: 0 0 8px 2px rgba(255, 107, 0, 0.7);
+}
+
+/* = AUDIO PORTS
+================================================ */
+.mod-pedal-ambience{{{cns}}} .mod-pedal-input,
+.mod-pedal-ambience{{{cns}}} .mod-pedal-output {
+    transform: translate(0, -50%);
+    top: 50%;
+}

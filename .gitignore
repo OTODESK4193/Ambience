@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# LV2 port build output (cross-compiled bundle, tarball, logs)
+lv2/build/
+lv2/tools/__pycache__/

@@ -61,3 +61,13 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# The LV2 port is built and run on Linux only (cross-compiled for a Raspberry
+# Pi). "* text=auto" above would hand a Windows checkout CRLF line endings,
+# which breaks the shell scripts outright and ships CRLF into the bundle that
+# gets untarred onto the device. Pin them.
+lv2/**/*.sh  text eol=lf
+lv2/**/*.py  text eol=lf
+lv2/**/*.js  text eol=lf
+lv2/**/*.ttl text eol=lf
+lv2/**/*.in  text eol=lf
