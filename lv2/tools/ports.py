@@ -105,17 +105,22 @@ CONTROL_PORTS = [
 ]
 
 # Everything above is a SOUND port: one of the 36 parameters that make up a
-# preset. Everything below is machinery - preset slots and their buttons - and
+# preset. Everything below is machinery - preset slots and their button - and
 # is deliberately NOT part of a preset. Presets are emitted over SOUND_PORTS
-# only; a preset that reassigned the buttons, or worse wrote a *_select
+# only; a preset that reassigned the slots, or worse wrote the slot_next
 # trigger, would be circular.
 SOUND_PORTS = list(CONTROL_PORTS)
 NUM_SOUND_PORTS = len(SOUND_PORTS)
 
 # --- preset slots ----------------------------------------------------------
-# Four buttons, each holding a preset. Pressing one recalls it, with no browser
-# involved - which is the whole point, and why the DSP applies the values
-# itself instead of going through the modgui the way the algorithm re-seed does.
+# Four slots, each holding a preset, and ONE button that steps through them.
+# Pressing it recalls the next assigned slot with no browser involved - which is
+# the whole point, and why the DSP applies the values itself instead of going
+# through the modgui the way the algorithm re-seed does.
+#
+# One button rather than four because pads are scarce: four of them for presets
+# is most of a pedalboard's hardware. Which slot is live is carried by the pad's
+# LED COLOUR instead of by which of four pads is lit.
 NUM_SLOTS = 4
 
 # Defaults: one per algorithm family, so the buttons do something useful before
@@ -137,23 +142,23 @@ def slot_preset(n):
                 kind="slot_preset", points=None)
 
 
-def slot_select(n):
-    # toggled + trigger is what mod-ui offers to a footswitch as a momentary
-    # button: the host returns the port to its default after the press, so
-    # run() only ever sees a rising edge. connectionOptional because a host
-    # that ignores these should still load the plugin.
-    return dict(sym="slot%d_select" % n, name="Select Slot %d" % n,
-                lo=0, hi=1, default=0, skew=1.0, unit=None,
-                kind="trigger", points=None)
+# toggled + trigger is what mod-ui offers to a footswitch as a momentary
+# button: the host returns the port to its default after the press, so run()
+# only ever sees a rising edge. connectionOptional because a host that ignores
+# it should still load the plugin.
+#
+# NOTE the kind: gen_bundle.py emits pprops:trigger, not lv2:trigger. The
+# latter is an undefined term that mod-ui accepts and mod-host does not, which
+# makes the pad latch and need two presses per selection.
+SLOT_NEXT_PORT = dict(sym="slot_next", name="Next Preset",
+                      lo=0, hi=1, default=0, skew=1.0, unit=None,
+                      kind="trigger", points=None)
 
-
-# The two blocks must each stay contiguous: the HMI addressed() callback maps
-# an actuator to a slot as (port index - first select port index), and
-# connect_port() resolves both blocks by range.
+# The preset block must stay contiguous: connect_port() resolves it by range,
+# and the DSP walks it to find the next assigned slot.
 SLOT_PRESET_PORTS = [slot_preset(n) for n in range(1, NUM_SLOTS + 1)]
-SLOT_SELECT_PORTS = [slot_select(n) for n in range(1, NUM_SLOTS + 1)]
 
-CONTROL_PORTS = CONTROL_PORTS + SLOT_PRESET_PORTS + SLOT_SELECT_PORTS
+CONTROL_PORTS = CONTROL_PORTS + SLOT_PRESET_PORTS + [SLOT_NEXT_PORT]
 
 # --- output ports ----------------------------------------------------------
 # Which slot is lit, 0 for none. An output control port is the only way plugin
@@ -175,7 +180,7 @@ GUI_PORTS = [
     "hfdamping", "lfabsorption", "diffusion",
     "modamount", "modrate", "stereowidth",
     "erlevel", "wetlevel", "drylevel",
-] + [p["sym"] for p in SLOT_PRESET_PORTS + SLOT_SELECT_PORTS]
+] + [p["sym"] for p in SLOT_PRESET_PORTS] + ["slot_next"]
 
 
 FIRST_OUTPUT_INDEX = FIRST_CONTROL_INDEX + len(CONTROL_PORTS)

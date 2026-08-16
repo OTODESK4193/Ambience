@@ -52,14 +52,39 @@ static constexpr double kGainRampSeconds = 0.05;
 static constexpr uint32_t kFallbackMaxBlock = 8192;
 
 // ----------------------------------------------------------------------------
-//  Preset-slot LEDs
+//  Preset-slot LED
 // ----------------------------------------------------------------------------
-//  The plugin's accent orange, #FF6B00. Full brightness marks the slot whose
-//  preset is playing; the other assigned slots sit dim so you can find them in
-//  the dark; unassigned slots are off.
+//  There is one button and therefore one LED, so it cannot say which slot is
+//  live by being the lit one out of four. It says it by COLOUR: a hue per slot,
+//  at full brightness, and off before anything has been recalled.
+//
+//  EVERY CHANNEL IS 0 OR 255, and that is not a stylistic choice. The 4x4
+//  pad's channels are three levels, not 256: padd.c's pad_intensity() maps
+//  exactly 255 to LED_BRIGHT, 1..254 to LED_DIM and 0 to LED_OFF. Anything
+//  in between therefore collapses. A first attempt used designer hues -
+//  #FFC000 and #FF1000 for slots 3 and 4 - and both quantised to
+//  (BRIGHT, DIM, OFF), i.e. the same orange, so the pedal showed three
+//  colours for four slots.
+//
+//  Restricting to the saturated corners also lands each slot squarely on one
+//  of the eight LV2_HMI_LED_Colour entries, which is what stock MOD firmware
+//  gets when there is no set_led_rgb at all - kSlotLedFallback records which.
+//  So the two paths show the same four colours rather than merely similar
+//  ones.
 // ----------------------------------------------------------------------------
-static constexpr uint8_t kLedActive[3]   = { 0xFF, 0x6B, 0x00 };
-static constexpr uint8_t kLedAssigned[3] = { 0x28, 0x11, 0x00 };
+static constexpr uint8_t kSlotLed[ambience::kNumSlots][3] = {
+    { 0x00, 0xFF, 0x00 },   // slot 1 - green
+    { 0x00, 0x00, 0xFF },   // slot 2 - blue
+    { 0xFF, 0xFF, 0x00 },   // slot 3 - yellow
+    { 0xFF, 0x00, 0x00 },   // slot 4 - red
+};
+
+static constexpr LV2_HMI_LED_Colour kSlotLedFallback[ambience::kNumSlots] = {
+    LV2_HMI_LED_Colour_Green,
+    LV2_HMI_LED_Colour_Blue,
+    LV2_HMI_LED_Colour_Yellow,
+    LV2_HMI_LED_Colour_Red,
+};
 
 // How often the LED thread wakes. It sends nothing when nothing changed, so
 // this is an upper bound on latency, not on traffic.
@@ -113,12 +138,12 @@ private:
 };
 
 // ----------------------------------------------------------------------------
-//  Optional trace of what the host actually presents on the slot ports.
+//  Optional trace of what the host actually presents on the slot_next port.
 // ----------------------------------------------------------------------------
 //  Build with -DAMBIENCE_TRACE=1 to get /tmp/ambience-trace.log. Off by
 //  default and compiled out entirely.
 //
-//  This exists because the slot ports' behaviour is decided by the HOST, not
+//  This exists because the port's behaviour is decided by the HOST, not
 //  by this plugin: mod-host resets a trigger port to its default after run()
 //  (effects.c:2267), but only when it saw the trigger property, and it ignores
 //  a set request whose value equals what it last set (effects.c:3760). Whether
@@ -158,11 +183,11 @@ struct TraceRing
                 std::fprintf (f, "%.4f HMI addressed port=%d caps=0x%x\n",
                               e.t, (int) e.value, e.active);
             else if (e.slot <= -2)
-                std::fprintf (f, "%.4f HMI paint slot%d rgb=%06x wc=%d\n",
-                              e.t, -e.slot - 1, (unsigned) e.value, e.active);
+                std::fprintf (f, "%.4f HMI paint rgb=%06x slot=%d\n",
+                              e.t, (unsigned) e.value, e.active);
             else
-                std::fprintf (f, "%.4f slot%d value=%.3f active=%d\n",
-                              e.t, e.slot, e.value, e.active);
+                std::fprintf (f, "%.4f slot_next value=%.3f active=%d\n",
+                              e.t, e.value, e.active);
             ++tail;
         }
         std::fflush (f);
@@ -203,7 +228,7 @@ struct Ambience
     // ------------------------------------------------------------------
     //  Preset slots
     // ------------------------------------------------------------------
-    //  A slot press cannot move the control ports - an LV2 plugin may not
+    //  A recall cannot move the control ports - an LV2 plugin may not
     //  write its own - so the recalled values are held here and take
     //  precedence over the ports until the user moves a knob.
     //
@@ -220,7 +245,7 @@ struct Ambience
     // visible as a change. The first block records a baseline and fires
     // nothing: a host restoring a pedalboard may present any value, and that
     // is not someone pressing a button.
-    float slotLast[ambience::kNumSlots] {};
+    float nextLast { 0.0f };
     bool  primed { false };
 
     std::atomic<int> activeSlot { 0 };   // 0 = none, 1..kNumSlots
@@ -233,22 +258,22 @@ struct Ambience
     //  short-circuits and the plugin is otherwise unaffected.
     const LV2_HMI_WidgetControl* hmiWc { nullptr };
 
-    // Addressing handle per slot, or 0 for "not addressed".
+    // The addressing handle for the one button, or 0 for "not addressed".
     //
     // Atomic because addressed()/unaddressed() run on mod-host's command
-    // thread while the LED thread reads them, and because mod-host REUSES
-    // these slots: it clears the actuator on unmap and hands the same slot to
+    // thread while the LED thread reads it, and because mod-host REUSES these
+    // handles: it clears the actuator on unmap and hands the same handle to
     // the next mapping. Painting through a stale handle would colour someone
     // else's actuator, which is exactly what the extension forbids after
     // unaddressed().
-    std::atomic<uintptr_t> hmiAddr[ambience::kNumSlots] {};
-    unsigned int           hmiCaps[ambience::kNumSlots] {};
+    std::atomic<uintptr_t> hmiAddr {};
+    unsigned int           hmiCaps { 0 };
 
-    // Last colour actually sent per slot, so an unchanged LED sends nothing.
-    // This is the entire rate limit: an idle plugin puts no traffic on the
+    // Last colour actually sent, so an unchanged LED sends nothing. This is
+    // the entire rate limit: an idle plugin puts no traffic on the
     // shared-memory ring at all.
-    uint8_t hmiLast[ambience::kNumSlots][3] {};
-    bool    hmiLastValid[ambience::kNumSlots] {};
+    uint8_t hmiLast[3] {};
+    bool    hmiLastValid { false };
 
 #if AMBIENCE_TRACE
     TraceRing trace;
@@ -376,7 +401,7 @@ static DSPParams gatherParams (const Ambience* self)
 //
 // This is the whole reason the override array exists. mod-ui's preset menu
 // works by writing all 36 control ports, which a plugin cannot do to itself,
-// so a slot button applies the values here instead - and that is what makes a
+// so a recall applies the values here instead - and that is what makes a
 // footswitch work with no browser open.
 //
 // RT-safe: a 36-float copy plus the setParams() the next block would run
@@ -419,35 +444,57 @@ static void releaseTouchedControls (Ambience* self)
     }
 }
 
-// Rising edge on any slot button.
+// Step to the next assigned slot and recall it.
 //
-// These are lv2:trigger ports, so the host returns them to 0 after the press;
-// the edge test is what protects a host that does not. The plugin never writes
-// them - they are const float* here.
-static void pollSlotButtons (Ambience* self)
+// Slots set to "(None)" are skipped rather than stopped on: a button that
+// sometimes does nothing when pressed reads as a broken button, and a player
+// who wants two sounds should be able to leave slots 3 and 4 empty and have
+// the pad toggle. At most one lap, so with nothing assigned this does nothing
+// and leaves the active slot where it was.
+//
+// From "nothing recalled yet" (active 0) the first press lands on slot 1.
+static void advanceSlot (Ambience* self)
 {
-    for (int s = 0; s < ambience::kNumSlots; ++s)
+    const int start = self->activeSlot.load (std::memory_order_relaxed);
+
+    for (int k = 1; k <= ambience::kNumSlots; ++k)
     {
-        const float v = self->rawCtl (ambience::kFirstSlotSelectCtl + s);
+        const int cand = ((start - 1 + k) % ambience::kNumSlots) + 1;
+
+        if (self->ctlInt (ambience::kFirstSlotPresetCtl + cand - 1) > 0)
+        {
+            recallSlot (self, cand);
+            return;
+        }
+    }
+}
+
+// Rising edge on the one preset button.
+//
+// This is a pprops:trigger port, so the host returns it to 0 after the press;
+// the edge test is what protects a host that does not. The plugin never writes
+// it - it is a const float* here.
+static void pollNextButton (Ambience* self)
+{
+    const float v = self->rawCtl (ambience::CTL_SLOT_NEXT);
 
 #if AMBIENCE_TRACE
-        if (v != self->slotLast[s])
-            self->trace.push (traceNow(), s + 1, v,
-                              self->activeSlot.load (std::memory_order_relaxed));
+    if (v != self->nextLast)
+        self->trace.push (traceNow(), 1, v,
+                          self->activeSlot.load (std::memory_order_relaxed));
 #endif
 
-        if (self->primed && v > 0.5f && self->slotLast[s] <= 0.5f)
-            recallSlot (self, s + 1);
+    if (self->primed && v > 0.5f && self->nextLast <= 0.5f)
+        advanceSlot (self);
 
-        self->slotLast[s] = v;
-    }
-
+    self->nextLast = v;
     self->primed = true;
 }
 
 // ----------------------------------------------------------------------------
 //  HMI LEDs
 // ----------------------------------------------------------------------------
+// `slot` is 1..kNumSlots, or 0 for "nothing recalled" - the LED is off.
 static void hmiPaint (Ambience* self, int slot, LV2_HMI_Addressing a,
                       const uint8_t rgb[3])
 {
@@ -463,17 +510,18 @@ static void hmiPaint (Ambience* self, int slot, LV2_HMI_Addressing a,
         return;
     }
 
-    // Stock MOD firmware: eight fixed colours, no RGB. Fall back to
-    // set_led_with_brightness rather than set_led_with_blink, because
-    // brightness is what carries our signal - which slot is live. The exact
-    // hue is the part we can afford to lose.
-    const bool active = (slot == self->activeSlot.load (std::memory_order_acquire));
-    const bool assigned = (rgb[0] | rgb[1] | rgb[2]) != 0;
+    // Stock MOD firmware: eight fixed colours, no RGB. With one button, hue is
+    // the whole signal - it is the only thing distinguishing slot 2 from slot
+    // 3 - so send each slot's nearest fixed colour at full brightness rather
+    // than modulating brightness the way the four-button version did.
+    // set_led_with_brightness and not set_led_with_blink because a footswitch
+    // that blinks continuously is a distraction, not information.
+    const bool lit = (slot >= 1 && slot <= ambience::kNumSlots);
 
     wc->set_led_with_brightness (wc->handle, a,
-                                 assigned ? LV2_HMI_LED_Colour_Yellow
-                                          : LV2_HMI_LED_Colour_Off,
-                                 assigned ? (active ? 100 : 20) : 0);
+                                 lit ? kSlotLedFallback[slot - 1]
+                                     : LV2_HMI_LED_Colour_Off,
+                                 lit ? 100 : 0);
 }
 
 static void hmiUpdateLeds (Ambience* self)
@@ -481,50 +529,45 @@ static void hmiUpdateLeds (Ambience* self)
     if (self->hmiWc == nullptr)
         return;
 
+    LV2_HMI_Addressing a = reinterpret_cast<LV2_HMI_Addressing> (
+        self->hmiAddr.load (std::memory_order_acquire));
+
+    if (a == nullptr)
+        return;
+
+    if ((self->hmiCaps & LV2_HMI_AddressingCapability_LED) == 0)
+        return;
+
     const int active = self->activeSlot.load (std::memory_order_acquire);
 
-    for (int s = 0; s < ambience::kNumSlots; ++s)
+    // Before the first recall there is no slot to name, so the LED is dark
+    // rather than guessing at slot 1: the pad should not claim a sound the
+    // engine is not playing.
+    uint8_t rgb[3] = { 0, 0, 0 };
+    if (active >= 1 && active <= ambience::kNumSlots)
     {
-        LV2_HMI_Addressing a = reinterpret_cast<LV2_HMI_Addressing> (
-            self->hmiAddr[s].load (std::memory_order_acquire));
+        const uint8_t* src = kSlotLed[active - 1];
+        rgb[0] = src[0]; rgb[1] = src[1]; rgb[2] = src[2];
+    }
 
-        if (a == nullptr)
-            continue;
+    if (self->hmiLastValid
+        && self->hmiLast[0] == rgb[0]
+        && self->hmiLast[1] == rgb[1]
+        && self->hmiLast[2] == rgb[2])
+        return;
 
-        if ((self->hmiCaps[s] & LV2_HMI_AddressingCapability_LED) == 0)
-            continue;
-
-        // An unassigned slot has nothing to recall, so its button stays dark
-        // rather than advertising itself as useful.
-        const bool assigned =
-            self->ctlInt (ambience::kFirstSlotPresetCtl + s) > 0;
-
-        uint8_t rgb[3] = { 0, 0, 0 };
-        if (assigned)
-        {
-            const uint8_t* src = (active == s + 1) ? kLedActive : kLedAssigned;
-            rgb[0] = src[0]; rgb[1] = src[1]; rgb[2] = src[2];
-        }
-
-        if (self->hmiLastValid[s]
-            && self->hmiLast[s][0] == rgb[0]
-            && self->hmiLast[s][1] == rgb[1]
-            && self->hmiLast[s][2] == rgb[2])
-            continue;
-
-        self->hmiLast[s][0] = rgb[0];
-        self->hmiLast[s][1] = rgb[1];
-        self->hmiLast[s][2] = rgb[2];
-        self->hmiLastValid[s] = true;
+    self->hmiLast[0] = rgb[0];
+    self->hmiLast[1] = rgb[1];
+    self->hmiLast[2] = rgb[2];
+    self->hmiLastValid = true;
 
 #if AMBIENCE_TRACE
-        self->trace.push (traceNow(), -2 - s,
-                          (float) ((rgb[0] << 16) | (rgb[1] << 8) | rgb[2]),
-                          self->hmiWc != nullptr ? 1 : 0);
+    self->trace.push (traceNow(), -2,
+                      (float) ((rgb[0] << 16) | (rgb[1] << 8) | rgb[2]),
+                      active);
 #endif
 
-        hmiPaint (self, s + 1, a, rgb);
-    }
+    hmiPaint (self, active, a, rgb);
 }
 
 // Painting runs here and never in run(): set_led_rgb takes a mutex inside
@@ -580,42 +623,38 @@ static void hmiAddressed (LV2_Handle handle, uint32_t index,
 {
     Ambience* self = static_cast<Ambience*> (handle);
 
-    if (index < static_cast<uint32_t> (ambience::kFirstSlotSelectPort)
-        || index >= static_cast<uint32_t> (ambience::kFirstSlotSelectPort
-                                           + ambience::kNumSlots))
+    // One button, so this is an equality test rather than a range. Any other
+    // port of ours can be addressed too - a knob to an encoder, say - and we
+    // have nothing to paint for it.
+    if (index != static_cast<uint32_t> (ambience::PORT_SLOT_NEXT))
         return;
 
-    const int s = static_cast<int> (index) - ambience::kFirstSlotSelectPort;
-
-    self->hmiCaps[s] = (info != nullptr) ? info->caps : 0u;
+    self->hmiCaps = (info != nullptr) ? info->caps : 0u;
 
 #if AMBIENCE_TRACE
-    self->trace.push (traceNow(), -1, (float) index, (int) self->hmiCaps[s]);
+    self->trace.push (traceNow(), -1, (float) index, (int) self->hmiCaps);
 #endif
 
     // Invalidate the cache so the next pass repaints unconditionally: the
     // actuator has just been bound and is showing whatever the surface
     // decided, not what we last sent.
-    self->hmiLastValid[s] = false;
+    self->hmiLastValid = false;
 
     // Released last, so a reader that sees the handle also sees the caps.
-    self->hmiAddr[s].store (reinterpret_cast<uintptr_t> (addressing),
-                            std::memory_order_release);
+    self->hmiAddr.store (reinterpret_cast<uintptr_t> (addressing),
+                         std::memory_order_release);
 }
 
 static void hmiUnaddressed (LV2_Handle handle, uint32_t index)
 {
     Ambience* self = static_cast<Ambience*> (handle);
 
-    if (index < static_cast<uint32_t> (ambience::kFirstSlotSelectPort)
-        || index >= static_cast<uint32_t> (ambience::kFirstSlotSelectPort
-                                           + ambience::kNumSlots))
+    if (index != static_cast<uint32_t> (ambience::PORT_SLOT_NEXT))
         return;
 
     // Store first thing: once this returns, the host is free to hand the same
     // addressing to another plugin.
-    self->hmiAddr[static_cast<int> (index) - ambience::kFirstSlotSelectPort]
-        .store (0, std::memory_order_release);
+    self->hmiAddr.store (0, std::memory_order_release);
 }
 
 // ----------------------------------------------------------------------------
@@ -746,12 +785,12 @@ static void run (LV2_Handle instance, uint32_t nSamples)
 
     // --- preset slots ------------------------------------------------------
     // Order matters. Release first, so a control the user moved since the last
-    // block escapes its override; then poll the buttons, so a press in this
+    // block escapes its override; then poll the button, so a press in this
     // same block re-baselines every control and wins. Doing it the other way
     // round would have a fresh recall immediately undone by its own values
     // reading as "changed".
     releaseTouchedControls (self);
-    pollSlotButtons (self);
+    pollNextButton (self);
 
     if (self->activeSlotPort != nullptr)
         *self->activeSlotPort =

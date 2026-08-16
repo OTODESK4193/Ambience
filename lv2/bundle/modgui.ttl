@@ -224,22 +224,7 @@
         ] ,
         [
             lv2:index 44 ;
-            lv2:symbol "slot1_select" ;
-            lv2:name "Select Slot 1"
-        ] ,
-        [
-            lv2:index 45 ;
-            lv2:symbol "slot2_select" ;
-            lv2:name "Select Slot 2"
-        ] ,
-        [
-            lv2:index 46 ;
-            lv2:symbol "slot3_select" ;
-            lv2:name "Select Slot 3"
-        ] ,
-        [
-            lv2:index 47 ;
-            lv2:symbol "slot4_select" ;
-            lv2:name "Select Slot 4"
+            lv2:symbol "slot_next" ;
+            lv2:name "Next Preset"
         ] ;
     ] .

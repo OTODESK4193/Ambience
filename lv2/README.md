@@ -3,8 +3,8 @@
 A native LV2 build of Ambience for the MOD environment in
 [`LoopPad_Jack`](https://github.com/) — aarch64 / Cortex-A72 (Raspberry Pi 4),
 Buildroot 2025.02.6, gcc 13.4, LV2 1.18.10 — with a MOD pedal UI, all 21
-factory presets plus 7 per-algorithm defaults in the preset menu, and four
-assignable preset buttons with hardware LEDs.
+factory presets plus 7 per-algorithm defaults in the preset menu, and a preset
+button that cycles four assignable slots with a hardware LED colour for each.
 
 ```sh
 lv2/build.sh                        # build + package the tar
@@ -102,32 +102,65 @@ so a closure would cross-talk between two Ambiences on one pedalboard.
 `lv2/tools/test_modgui_js.js` reproduces mod-ui's dispatch and asserts all of
 this, including the preset-clobber case and the two-instance case.
 
-## Four preset buttons
+## The preset button
 
-`slot1_select`…`slot4_select` recall the preset named by `slot1_preset`…
-`slot4_preset`. Address a select port to a pad in mod-ui and that pad becomes a
-preset button; only the active one's LED is at full brightness, the other
-assigned ones sit dim, unassigned ones are dark.
+One button, `slot_next`, steps through four slots. Each slot names a preset in
+`slot1_preset`…`slot4_preset`. Address `slot_next` to a pad in mod-ui and that
+pad becomes the preset button.
+
+One button rather than four because pads are scarce — four of them for presets
+is most of a pedalboard's hardware. Which slot is live is therefore carried by
+the pad's LED **colour**, not by which of four pads is lit:
+
+| slot | colour | stock-firmware fallback |
+|------|--------|-------------------------|
+| 1    | `#00FF00` green  | `LV2_HMI_LED_Colour_Green`  |
+| 2    | `#0000FF` blue   | `LV2_HMI_LED_Colour_Blue`   |
+| 3    | `#FFFF00` yellow | `LV2_HMI_LED_Colour_Yellow` |
+| 4    | `#FF0000` red    | `LV2_HMI_LED_Colour_Red`    |
+
+**Every channel is 0 or 255, and that is load bearing.** The 4x4 pad's channels
+are three levels, not 256: `pad_intensity()` in LoopPad_Jack's `padd.c` maps
+exactly 255 to `LED_BRIGHT`, 1..254 to `LED_DIM` and 0 to `LED_OFF`. Designer
+hues do not survive it — `#FFC000` and `#FF1000` both quantise to
+`(BRIGHT, DIM, OFF)`, so slots 3 and 4 showed the *same* orange and the pedal
+had three colours for four slots. Staying on the saturated corners also lands
+each slot on one of the eight `LV2_HMI_LED_Colour` entries, so the RGB path and
+the stock-firmware fallback show the same four colours rather than similar ones.
+
+Before the first press nothing has been recalled and the LED is dark. The same
+four colours are used by the on-screen LEDs (`stylesheet-ambience.css`) and the
+screenshot (`make_gui_assets.py`), so the pedal and the browser never disagree.
+
+Slots left at `(None)` are **skipped**, not stopped on: a button that sometimes
+does nothing when pressed reads as a broken button. Assign two slots and the
+pad toggles between two sounds; assign none and a press changes nothing.
 
 The constraint that shapes all of this: **an LV2 plugin cannot load its own
 presets and cannot write its own control ports.** The algorithm re-seed above
-dodges that in the browser, which is useless for a footswitch. So a slot press
+dodges that in the browser, which is useless for a footswitch. So a press
 applies the preset values *inside the DSP*, held in an override array that
 takes precedence over the ports until you move a knob — recall, then tweak, and
 moving one control frees only that one.
 
 When the web UI is open, `javascript.js` additionally pushes all 36 values via
-`set_port_value` so the knobs follow. Both paths write the same numbers, so
-they agree; the override is what covers the browser-closed case, which is the
-whole point.
+`set_port_value` so the knobs follow. It hangs that off the `active_slot`
+**output** port rather than off `slot_next`: the DSP owns the cycle, so
+watching the button would mean reimplementing the skip rule in a second place
+where it could disagree. The first `active_slot` report after a load is a
+baseline, never a recall — otherwise reopening a pedalboard would push preset
+values over the knob positions the state restore just brought back.
 
 `state:interface` persists the override array and the active slot. Without it a
 pedalboard saved after a headless recall would store the *stale knob values* and
-reload the wrong sound.
+reload the wrong sound. The cycle also resumes from the restored slot rather
+than restarting at 1.
 
-Presets deliberately do **not** set the nine slot ports — a preset that
-reassigned the buttons would be circular. `validate_bundle.py` enforces the
-split, and will complain if a preset ever grows one.
+Presets deliberately do **not** set the six slot ports — a preset that
+reassigned the slots would be circular. `validate_bundle.py` enforces the
+split, and will complain if a preset ever grows one. It also asserts there is
+exactly one trigger port: a second one reappearing means `ports.py` and the DSP
+have drifted, and the extra pad would address cleanly but be wired to nothing.
 
 ### LEDs
 
@@ -144,8 +177,10 @@ go through the wrong vtable slot. Re-diff it after a mod-host bump.
 Painting runs on a 20 Hz thread, never `run()`: `set_led_rgb` takes a mutex
 inside mod-host and writes a shared-memory ring. A last-sent cache means an
 idle plugin puts no traffic on that ring at all. On stock MOD firmware, which
-has no `set_led_rgb`, the size guard falls back to `set_led_with_brightness` —
-chosen over `set_led_with_blink` because brightness is what carries our signal.
+has no `set_led_rgb`, the size guard falls back to `set_led_with_brightness`,
+sending each slot's nearest fixed colour at full brightness — chosen over
+`set_led_with_blink` because a footswitch that blinks continuously is a
+distraction, not information.
 
 **If no LED ever lights but addressing appears to succeed**, suspect mod-host
 before the plugin. Standalone mod-host without
@@ -163,9 +198,9 @@ looks exactly like a plugin bug. This device's build has the patch; verify with
 
 ```
 src/ports.h            port indices, ranges and defaults for the C++ wrapper
-src/preset_table.h     the preset VALUES, so a slot button can recall one
+src/preset_table.h     the preset VALUES, so the preset button can recall one
 bundle/AmbienceReverb.ttl   the port descriptions lilv and mod-ui read
-bundle/modgui.ttl           modgui:port entries for all 49 ports
+bundle/modgui.ttl           modgui:port entries for all 41 control ports
 bundle/modgui/javascript.js the algorithm and slot-preset tables
 bundle/presets.ttl          29 presets
 bundle/default-preset.ttl

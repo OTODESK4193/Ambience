@@ -121,16 +121,19 @@
   </section>
 
   <!--
-    Preset slots. Each button recalls the preset its dropdown names, and can be
-    addressed to a hardware pad in mod-ui. The LED is driven by the active_slot
-    OUTPUT port via javascript.js, not by the button's own value: the button is
-    a trigger that the host resets to 0 straight after the press, so its value
-    says nothing about which preset is playing.
+    Preset slots. Four slots, each naming a preset, and ONE button that steps
+    through them - address it to a hardware pad in mod-ui and that pad becomes
+    the preset button. Slots left at "(None)" are skipped.
+
+    The LEDs are driven by the active_slot OUTPUT port via javascript.js, not
+    by the button's own value: the button is a trigger that the host resets to
+    0 straight after the press, so its value says nothing about which preset is
+    playing. Each slot's LED colour matches the colour the hardware pad shows
+    for that slot, so the screen and the pedal agree.
   -->
   <section class="slot-row mod-control-group">
     <div class="ambience-slot">
       <div class="ambience-slot-led" data-slot="1"></div>
-      <div class="mod-slot-button" mod-role="input-control-port" mod-port-symbol="slot1_select"></div>
       <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
            mod-port-symbol="slot1_preset" mod-widget="custom-select">
         <div class="ambience-slot-value" mod-role="input-control-value"></div>
@@ -139,7 +142,6 @@
 
     <div class="ambience-slot">
       <div class="ambience-slot-led" data-slot="2"></div>
-      <div class="mod-slot-button" mod-role="input-control-port" mod-port-symbol="slot2_select"></div>
       <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
            mod-port-symbol="slot2_preset" mod-widget="custom-select">
         <div class="ambience-slot-value" mod-role="input-control-value"></div>
@@ -148,7 +150,6 @@
 
     <div class="ambience-slot">
       <div class="ambience-slot-led" data-slot="3"></div>
-      <div class="mod-slot-button" mod-role="input-control-port" mod-port-symbol="slot3_select"></div>
       <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
            mod-port-symbol="slot3_preset" mod-widget="custom-select">
         <div class="ambience-slot-value" mod-role="input-control-value"></div>
@@ -157,11 +158,15 @@
 
     <div class="ambience-slot">
       <div class="ambience-slot-led" data-slot="4"></div>
-      <div class="mod-slot-button" mod-role="input-control-port" mod-port-symbol="slot4_select"></div>
       <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
            mod-port-symbol="slot4_preset" mod-widget="custom-select">
         <div class="ambience-slot-value" mod-role="input-control-value"></div>
       </div>
+    </div>
+
+    <div class="ambience-slot ambience-slot-next">
+      <div class="mod-slot-button" mod-role="input-control-port" mod-port-symbol="slot_next"></div>
+      <div class="ambience-slot-caption">NEXT</div>
     </div>
   </section>
 

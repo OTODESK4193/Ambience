@@ -57,6 +57,18 @@ TEXT_PRIMARY = (0xE8, 0xE8, 0xE8)
 TEXT_SECONDARY = (0x88, 0x88, 0x88)
 ARC_TRACK = (0x3A, 0x3A, 0x3A)
 
+# One colour per preset slot, matching kSlotLed[] in lv2/src/ambience_lv2.cpp
+# and the .ambience-slot-led rules in stylesheet-ambience.css. With a single
+# button, colour is how the hardware pad says which slot is live, so the
+# screenshot has to show the same four. Fully saturated because the pad
+# quantises each channel to three levels - see kSlotLed[] for the details.
+SLOT_LEDS = [
+    (0x00, 0xFF, 0x00),
+    (0x00, 0x00, 0xFF),
+    (0xFF, 0xFF, 0x00),
+    (0xFF, 0x00, 0x00),
+]
+
 FRAMES = 65
 FRAME = 128
 
@@ -259,39 +271,47 @@ def make_screenshot(path, thumb_path):
             draw_knob(cr, cx, cy, 27, t)
             text(cr, p["name"].upper(), cx, cy + 42, 9, TEXT_SECONDARY, bold=True)
 
-    # Preset slots. Four buttons, each with its LED and the preset it recalls;
-    # only the active one is lit, which here is slot 1.
+    # Preset slots: four slots naming a preset, then the ONE button that steps
+    # through them. Each slot's LED carries that slot's colour and only the
+    # active one is lit, which here is slot 1. Widths and the 12px gap match
+    # .slot-row in stylesheet-ambience.css.
     slot_defaults = [p["default"] for p in P.SLOT_PRESET_PORTS]
+    SLOT_W, NEXT_W, GAP, ROW_Y, ROW_H = 104, 54, 12, 428, 22
+    row_x = (PEDAL_W - (P.NUM_SLOTS * SLOT_W + NEXT_W + P.NUM_SLOTS * GAP)) / 2.0
+
     for i in range(P.NUM_SLOTS):
-        x = 20 + i * 134
+        x = row_x + i * (SLOT_W + GAP)
         active = (i == 0)
 
-        # Button.
-        set_rgb(cr, (0x2E, 0x2E, 0x2E))
-        rounded_rect(cr, x, 420, 122, 22, 4)
-        cr.fill()
-        set_rgb(cr, BORDER)
-        cr.set_line_width(1)
-        rounded_rect(cr, x + 0.5, 420.5, 121, 21, 4)
-        cr.stroke()
-
-        # LED.
-        set_rgb(cr, ACCENT if active else PANEL)
-        cr.new_path()
-        cr.arc(x + 12, 431, 4, 0, 2 * math.pi)
-        cr.fill()
-
-        # Preset name.
+        # Preset name, with the LED inside it on the left.
         set_rgb(cr, SURFACE)
-        rounded_rect(cr, x, 442, 122, 20, 4)
+        rounded_rect(cr, x, ROW_Y, SLOT_W, ROW_H, 4)
         cr.fill()
         set_rgb(cr, BORDER)
         cr.set_line_width(1)
-        rounded_rect(cr, x + 0.5, 442.5, 121, 19, 4)
+        rounded_rect(cr, x + 0.5, ROW_Y + 0.5, SLOT_W - 1, ROW_H - 1, 4)
         cr.stroke()
+
+        set_rgb(cr, SLOT_LEDS[i] if active else PANEL)
+        cr.new_path()
+        cr.arc(x + 11, ROW_Y + 11, 4, 0, 2 * math.pi)
+        cr.fill()
 
         label = PRESET_LABELS[int(slot_defaults[i])]
-        text(cr, label[:18], x + 61, 456, 9, TEXT_SECONDARY)
+        text(cr, label[:14], x + 18 + (SLOT_W - 22) / 2.0, ROW_Y + 15, 9,
+             TEXT_SECONDARY)
+
+    # The button.
+    bx = row_x + P.NUM_SLOTS * (SLOT_W + GAP)
+    set_rgb(cr, (0x2E, 0x2E, 0x2E))
+    rounded_rect(cr, bx, ROW_Y, NEXT_W, ROW_H, 4)
+    cr.fill()
+    set_rgb(cr, BORDER)
+    cr.set_line_width(1)
+    rounded_rect(cr, bx + 0.5, ROW_Y + 0.5, NEXT_W - 1, ROW_H - 1, 4)
+    cr.stroke()
+    text(cr, "NEXT", bx + NEXT_W / 2.0, ROW_Y + ROW_H + 12, 8, TEXT_SECONDARY,
+         bold=True)
 
     text(cr, "16-CHANNEL FDN REVERB", PEDAL_W / 2.0, PEDAL_H - 26, 9,
          TEXT_SECONDARY)

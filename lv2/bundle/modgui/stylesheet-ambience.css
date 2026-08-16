@@ -215,16 +215,21 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 122px;
+    width: 104px;
+}
+
+/* One button for all four slots, so it is a column of its own rather than a
+   cap on each dropdown. */
+.mod-pedal-ambience{{{cns}}} .ambience-slot-next {
+    width: 54px;
 }
 
 .mod-pedal-ambience{{{cns}}} .mod-slot-button {
     width: 100%;
     height: 22px;
-    border-radius: 4px 4px 0 0;
+    border-radius: 4px;
     background: linear-gradient(180deg, #3A3A3A 0%, #242424 100%);
     border: 1px solid #3C3C3C;
-    border-bottom: none;
     box-sizing: border-box;
     cursor: pointer;
 }
@@ -233,13 +238,20 @@
     background: linear-gradient(180deg, #1E1E1E 0%, #2C2C2C 100%);
 }
 
+.mod-pedal-ambience{{{cns}}} .ambience-slot-caption {
+    margin-top: 3px;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    color: #888888;
+}
+
 /* Driven by the active_slot output port through javascript.js, never by the
    button's own value - the button is a trigger the host resets to 0 straight
    after the press. */
 .mod-pedal-ambience{{{cns}}} .ambience-slot-led {
     position: absolute;
     top: 6px;
-    left: 8px;
+    left: 6px;
     width: 8px;
     height: 8px;
     border-radius: 50%;
@@ -249,33 +261,58 @@
     pointer-events: none;
 }
 
-.mod-pedal-ambience{{{cns}}} .ambience-slot-led.on {
-    background-color: #FF6B00;
-    border-color: #FF6B00;
-    box-shadow: 0 0 8px 2px rgba(255, 107, 0, 0.7);
+/* One colour per slot, matching kSlotLed[] in lv2/src/ambience_lv2.cpp: with a
+   single button the hardware pad says which slot is live by its colour, and
+   the screen would be lying if it used a different one. Fully saturated
+   because the pad quantises each channel to three levels - see the comment on
+   kSlotLed[] for why anything in between collapses. */
+.mod-pedal-ambience{{{cns}}} .ambience-slot-led[data-slot="1"].on {
+    background-color: #00FF00;
+    border-color: #00FF00;
+    box-shadow: 0 0 8px 2px rgba(0, 255, 0, 0.7);
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-slot-led[data-slot="2"].on {
+    background-color: #0000FF;
+    border-color: #0000FF;
+    box-shadow: 0 0 8px 2px rgba(0, 0, 255, 0.7);
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-slot-led[data-slot="3"].on {
+    background-color: #FFFF00;
+    border-color: #FFFF00;
+    box-shadow: 0 0 8px 2px rgba(255, 255, 0, 0.7);
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-slot-led[data-slot="4"].on {
+    background-color: #FF0000;
+    border-color: #FF0000;
+    box-shadow: 0 0 8px 2px rgba(255, 0, 0, 0.7);
 }
 
 .mod-pedal-ambience{{{cns}}} .mod-enumerated.ambience-slot-preset {
     position: relative;
     width: 100%;
-    height: 20px;
+    height: 22px;
     background-color: #242424;
     border: 1px solid #3C3C3C;
-    border-radius: 0 0 4px 4px;
+    border-radius: 4px;
     box-sizing: border-box;
     cursor: pointer;
 }
 
 .mod-pedal-ambience{{{cns}}} .ambience-slot-value {
-    height: 18px;
-    line-height: 18px;
+    height: 20px;
+    line-height: 20px;
     font-size: 9px;
     letter-spacing: 0.03em;
     color: #888888;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    padding: 0 4px;
+    /* Left padding clears the LED, which sits inside the dropdown now that
+       there is no per-slot button above it to sit on. */
+    padding: 0 4px 0 18px;
 }
 
 /* = FOOTER / BYPASS

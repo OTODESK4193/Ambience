@@ -393,11 +393,12 @@ int main (int argc, char** argv)
             d->connect_port (inst.h, (uint32_t) (kFirstControlPort + i), &inst.controls[i]);
     }
 
-    // -- 7. preset slots -----------------------------------------------------
+    // -- 7. the preset button ------------------------------------------------
     // The whole point of the slots is that they work with no browser and no
-    // host preset machinery: the DSP applies the values itself. So these run
-    // against the raw plugin, exactly as a footswitch press would arrive.
-    std::printf ("\nPreset slots:\n");
+    // host preset machinery: the DSP applies the values itself, and it picks
+    // the next slot itself too. So these run against the raw plugin, exactly
+    // as a footswitch press would arrive.
+    std::printf ("\nPreset button:\n");
     {
         Instance inst (d);
 
@@ -416,19 +417,24 @@ int main (int argc, char** argv)
             for (int b = 0; b < blocks; ++b) { fillNoise(); inst.run(); }
         };
 
+        // One press of the one button: 1 -> 0 -> 1 so there is a rising edge.
+        auto press = [&] () {
+            inst.controls[CTL_SLOT_NEXT] = 0.0f;
+            inst.run();
+            inst.controls[CTL_SLOT_NEXT] = 1.0f;
+            inst.run();
+        };
+
         // The first block must only baseline. A host restoring a pedalboard
         // can present any value on a trigger port, and that is not a press.
-        inst.controls[CTL_SLOT1_SELECT] = 1.0f;
+        inst.controls[CTL_SLOT_NEXT] = 1.0f;
         inst.run();
         check (inst.activeSlot() == 0,
-               "a slot port already high on the first block does not recall");
+               "a button already high on the first block does not recall");
 
-        // A real press: 1 -> 0 -> 1 so there is an edge after priming.
-        inst.controls[CTL_SLOT1_SELECT] = 0.0f;
-        inst.run();
-        inst.controls[CTL_SLOT1_SELECT] = 1.0f;
-        inst.run();
-        check (inst.activeSlot() == 1, "a rising edge on slot 1 recalls it");
+        // Nothing recalled yet, so the first real press lands on slot 1.
+        press();
+        check (inst.activeSlot() == 1, "the first press recalls slot 1");
 
         // The recall must reach the ENGINE, not just the bookkeeping. Measure
         // the tail one second after the input stops, and compare against the
@@ -482,25 +488,36 @@ int main (int argc, char** argv)
         check (inst.activeSlot() == 1,
                "tweaking a knob does not clear the active slot");
 
-        // Slot set to "(None)" is inert.
+        // A slot set to "(None)" is stepped over, not stopped on: a button
+        // that sometimes does nothing reads as a broken button.
         inst.controls[CTL_SLOT2_PRESET] = 0.0f;
-        inst.controls[CTL_SLOT2_SELECT] = 0.0f;
-        inst.run();
-        inst.controls[CTL_SLOT2_SELECT] = 1.0f;
-        inst.run();
-        check (inst.activeSlot() == 1,
-               "pressing a slot set to (None) changes nothing");
+        press();
+        check (inst.activeSlot() == 3,
+               "the cycle skips a slot set to (None)");
 
-        // Every slot recalls.
+        press();
+        check (inst.activeSlot() == 4, "and carries on to slot 4");
+
+        press();
+        check (inst.activeSlot() == 1, "then wraps from the last slot to the first");
+
+        // With every slot unassigned there is nowhere to go, and the button
+        // must leave the sound alone rather than clearing what is playing.
         for (int s = 0; s < kNumSlots; ++s)
-        {
-            inst.controls[kFirstSlotPresetCtl + s] = 1.0f;
-            inst.controls[kFirstSlotSelectCtl + s] = 0.0f;
-            inst.run();
-            inst.controls[kFirstSlotSelectCtl + s] = 1.0f;
-            inst.run();
-            check (inst.activeSlot() == s + 1, "each slot recalls in turn");
-        }
+            inst.controls[kFirstSlotPresetCtl + s] = 0.0f;
+        press();
+        check (inst.activeSlot() == 1,
+               "with no slot assigned a press changes nothing");
+
+        // Two assigned slots: the button is a toggle between them.
+        inst.controls[kFirstSlotPresetCtl + 1] = 1.0f;
+        inst.controls[kFirstSlotPresetCtl + 3] = 2.0f;
+        press();
+        check (inst.activeSlot() == 2, "two assigned slots: forward to the first");
+        press();
+        check (inst.activeSlot() == 4, "then to the second");
+        press();
+        check (inst.activeSlot() == 2, "and back again");
     }
 
     // -- 8. state round-trip -------------------------------------------------
@@ -521,9 +538,9 @@ int main (int argc, char** argv)
         {
             Instance a (d);
             a.controls[CTL_SLOT1_PRESET] = 3.0f;
-            a.controls[CTL_SLOT1_SELECT] = 0.0f;
+            a.controls[CTL_SLOT_NEXT] = 0.0f;
             a.run();
-            a.controls[CTL_SLOT1_SELECT] = 1.0f;
+            a.controls[CTL_SLOT_NEXT] = 1.0f;
             a.run();
             check (a.activeSlot() == 1, "recalled before saving");
 
@@ -549,6 +566,15 @@ int main (int argc, char** argv)
 
             for (int i = 0; i < 8; ++i) { fillNoise(); b.run(); }
             check (b.activeSlot() == 1, "and it is still there eight blocks on");
+
+            // The cycle resumes from the restored slot rather than restarting
+            // at 1 - otherwise reloading a pedalboard would silently repeat a
+            // sound the player had already stepped past.
+            b.controls[CTL_SLOT_NEXT] = 0.0f;
+            b.run();
+            b.controls[CTL_SLOT_NEXT] = 1.0f;
+            b.run();
+            check (b.activeSlot() == 2, "the cycle resumes from the restored slot");
         }
     }
 

@@ -98,7 +98,7 @@ function (event, funcs) {
         }
     }
 
-    /* Move the knobs to match a slot the user just pressed.
+    /* Move the knobs to match the slot the DSP just stepped to.
 
        The DSP has already applied these values internally - that is what makes
        a footswitch work with no browser open. This exists only so the
@@ -124,23 +124,32 @@ function (event, funcs) {
         }
     }
 
-    /* A slot button is a trigger port: the host returns it to 0 after the
-       press, so only the rising edge means anything. */
-    function handleSlotPress(data, slot, value) {
-        var wasDown = data.slotDown[slot] === true;
-        var isDown = value > 0.5;
+    /* The DSP owns the cycle - it decides which slot a press lands on, and
+       says so on active_slot. So the knob sync hangs off that rather than off
+       the button: watching slot_next would mean reimplementing the skip rule
+       here, in a second place, where it could disagree.
 
-        data.slotDown[slot] = isDown;
+       The first report is a baseline, never a recall. active_slot is an output
+       port, so its value arrives shortly after load carrying whatever slot the
+       restored state named; treating that as a fresh step would push preset
+       values over the knob positions the pedalboard just restored. */
+    function handleActiveSlot(data, active) {
+        showActiveSlot(active);
 
-        if (!data.started || !isDown || wasDown) {
+        var first = data.activeSlot === null || data.activeSlot === undefined;
+        var moved = data.activeSlot !== active;
+
+        data.activeSlot = active;
+
+        if (!data.started || first || !moved) {
             return;
         }
 
-        syncKnobs(data, Math.round(data.slotPreset[slot] || 0));
+        syncKnobs(data, Math.round(data.slotPreset[active] || 0));
     }
 
-    /* Returns the slot number for slotN_select / slotN_preset, else 0.
-       "slot1_select" is slot + digit + _ + suffix, i.e. 6 + suffix.length. */
+    /* Returns the slot number for slotN_preset, else 0.
+       "slot1_preset" is slot + digit + _ + suffix, i.e. 6 + suffix.length. */
     function slotOf(symbol, suffix) {
         if (symbol.length !== 6 + suffix.length ||
             symbol.slice(0, 4) !== 'slot' ||
@@ -159,8 +168,8 @@ function (event, funcs) {
         data.timer = null;
         data.applying = false;
         data.started = false;
-        data.slotDown = {};
         data.slotPreset = {};
+        data.activeSlot = null;
     }
 
     if (event.type === 'start') {
@@ -168,7 +177,7 @@ function (event, funcs) {
            algorithm here without applying anything is what stops a freshly
            loaded pedalboard from being re-seeded out from under itself. The
            same reasoning covers the slots: record which preset each holds and
-           whether its button is down, but recall nothing. */
+           which one is lit, but recall nothing. */
         var ports = event.ports || {};
         for (var i in ports) {
             var sym = ports[i].symbol;
@@ -177,13 +186,9 @@ function (event, funcs) {
                 data.slotPreset[slot] = ports[i].value;
                 continue;
             }
-            slot = slotOf(sym, 'select');
-            if (slot) {
-                data.slotDown[slot] = ports[i].value > 0.5;
-                continue;
-            }
             if (sym === 'active_slot') {
-                showActiveSlot(Math.round(ports[i].value));
+                data.activeSlot = Math.round(ports[i].value);
+                showActiveSlot(data.activeSlot);
             }
         }
 
@@ -204,7 +209,7 @@ function (event, funcs) {
        It is the DSP telling us which slot is live - never a user action, so
        it does not go through the algorithm batch below. */
     if (event.symbol === 'active_slot') {
-        showActiveSlot(Math.round(event.value));
+        handleActiveSlot(data, Math.round(event.value));
         return;
     }
 
@@ -214,9 +219,10 @@ function (event, funcs) {
         return;
     }
 
-    var selectSlot = slotOf(event.symbol, 'select');
-    if (selectSlot) {
-        handleSlotPress(data, selectSlot, event.value);
+    /* slot_next is a trigger the user pressed on screen. The DSP acts on it
+       and answers on active_slot; there is nothing to do here, and it must
+       not reach the algorithm batch as a stray port change. */
+    if (event.symbol === 'slot_next') {
         return;
     }
 

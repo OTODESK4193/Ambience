@@ -244,25 +244,28 @@ async function main() {
         check(a.icon.lit.size === 0, 'active_slot=0 unlights everything');
     }
 
-    /* -- 8. a slot press moves the knobs -------------------------------- */
+    /* -- 8. a step to a new slot moves the knobs ------------------------ */
+    /* The DSP owns the cycle and reports where it landed on active_slot; the
+       browser follows that, not the button. */
     {
         const a = new Instance('a');
         a.start(Object.assign({ slot1_preset: 2, active_slot: 0 }, INITIAL));
         await tick();
 
-        a.change('slot1_select', 1);   // press
+        a.change('active_slot', 1);
         await tick();
 
         const written = new Map(a.writes);
         check(written.size >= 30,
-              'a slot press writes the whole preset to the knobs');
-        check(!written.has('slot1_select') && !written.has('slot1_preset'),
+              'a step to a new slot writes the whole preset to the knobs');
+        check(!written.has('slot_next') && !written.has('slot1_preset') &&
+              !written.has('active_slot'),
               'it does not write the slot ports back');
         check(a.ports.algorithm !== undefined,
               'the algorithm port is among them');
     }
 
-    /* -- 9. a slot press must NOT trigger the algorithm re-seed --------- */
+    /* -- 9. a recall must NOT trigger the algorithm re-seed ------------- */
     /* This is the same hazard as case 3, from the other direction: syncKnobs
        writes 36 ports including algorithm, and if that were mistaken for a
        user turning the algorithm knob the preset would be immediately
@@ -272,7 +275,7 @@ async function main() {
         a.start(Object.assign({ slot1_preset: 2, active_slot: 0 }, INITIAL));
         await tick();
 
-        a.change('slot1_select', 1);
+        a.change('active_slot', 1);
         await tick();
 
         const roomsizeWrites = a.writes.filter(([s]) => s === 'roomsize');
@@ -282,51 +285,75 @@ async function main() {
               'roomsize is the preset value, not ROOM1 Default 0.85');
     }
 
-    /* -- 10. a trigger port only fires on the rising edge ---------------- */
+    /* -- 10. the button itself writes nothing --------------------------- */
+    /* slot_next is a trigger the DSP acts on. The browser must not recall
+       from it as well, or it would have to reimplement the skip-empty-slots
+       rule and could disagree with the DSP about where the cycle landed. */
     {
         const a = new Instance('a');
         a.start(Object.assign({ slot1_preset: 2, active_slot: 0 }, INITIAL));
         await tick();
 
-        a.change('slot1_select', 0);   // host resetting the trigger
+        a.change('slot_next', 1);
         await tick();
-        check(a.writes.length === 0, 'a release (1->0) recalls nothing');
+        check(a.writes.length === 0, 'pressing the button writes nothing by itself');
 
-        a.change('slot1_select', 1);
+        a.change('slot_next', 0);      // host resetting the trigger
         await tick();
-        const afterPress = a.writes.length;
-        check(afterPress > 0, 'the press recalls');
+        check(a.writes.length === 0, 'and neither does the host resetting it');
 
-        a.change('slot1_select', 1);   // repeated level, not a new press
+        // Only the DSP's answer moves the knobs.
+        a.change('active_slot', 1);
         await tick();
-        check(a.writes.length === afterPress,
-              'a repeated 1 without a release does not recall again');
+        check(a.writes.length > 0, 'the DSP reporting the new slot does');
     }
 
-    /* -- 11. an unassigned slot does nothing ---------------------------- */
+    /* -- 11. a repeated active_slot does not recall again --------------- */
+    /* The port is monitored, so the same value can be reported more than
+       once. Re-running syncKnobs would undo a knob the player had tweaked
+       since the recall. */
     {
         const a = new Instance('a');
-        a.start(Object.assign({ slot1_preset: 0, active_slot: 0 }, INITIAL));
+        a.start(Object.assign({ slot1_preset: 2, active_slot: 0 }, INITIAL));
         await tick();
 
-        a.change('slot1_select', 1);
+        a.change('active_slot', 1);
         await tick();
-        check(a.writes.length === 0,
-              'pressing a slot set to "(None)" writes nothing');
+        const afterStep = a.writes.length;
+        check(afterStep > 0, 'the step recalls');
+
+        a.change('active_slot', 1);
+        await tick();
+        check(a.writes.length === afterStep,
+              'the same active_slot reported again recalls nothing');
     }
 
-    /* -- 12. a pedalboard load with a button already down --------------- */
-    /* The start sweep reports whatever the host restored. A slot port that
-       comes back as 1 is not someone standing on the footswitch. */
+    /* -- 12. a pedalboard load with a slot already active --------------- */
+    /* The start sweep reports whatever the host restored. active_slot coming
+       back as 1 means the state restore already put those values in the DSP,
+       and the knobs are the restored ones - writing the preset over them
+       would discard whatever the player had tweaked before saving. */
     {
         const a = new Instance('a');
-        a.start(Object.assign({ slot1_preset: 2, slot1_select: 1,
+        a.start(Object.assign({ slot1_preset: 2, slot_next: 1,
                                 active_slot: 1 }, INITIAL));
         await tick();
         check(a.writes.length === 0,
-              'a restored slot_select of 1 does not recall on load');
+              'a restored active_slot does not recall on load');
         check(a.icon.lit.has(1),
               'the restored active_slot still lights its LED');
+
+        // Same again for a host that only reports the output port after the
+        // sweep, which is the usual case - active_slot is monitored, not part
+        // of the start sweep.
+        const b = new Instance('b');
+        b.start(Object.assign({ slot1_preset: 2 }, INITIAL));
+        await tick();
+        b.change('active_slot', 1);
+        await tick();
+        check(b.writes.length === 0,
+              'the first active_slot report after load is a baseline, not a step');
+        check(b.icon.lit.has(1), 'and it still lights the LED');
     }
 
     console.log(`\n${failures === 0 ? 'PASS' : 'FAILED'}`);

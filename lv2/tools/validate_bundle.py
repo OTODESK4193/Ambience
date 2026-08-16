@@ -97,7 +97,7 @@ def main():
         fail("port indices are not contiguous from 0: %s" % sorted(ports))
 
     # A preset is made of the SOUND ports only. The preset-slot ports are
-    # machinery - a preset that reassigned the buttons would be circular - so
+    # machinery - a preset that reassigned the slots would be circular - so
     # they are excluded from the completeness check below rather than making
     # every preset fail it.
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -167,6 +167,21 @@ def main():
     print("  port properties    %d distinct, all correctly namespaced"
           % len(seen_properties))
 
+    # Exactly one trigger port, and it is the preset button. There used to be
+    # four; a second one reappearing means ports.py and the DSP have drifted,
+    # and the extra pad would be addressable but wired to nothing - which is
+    # not an error anywhere else in the toolchain.
+    TRIGGER = rdflib.URIRef("http://lv2plug.in/ns/ext/port-props#trigger")
+    triggers = sorted(str(graph.value(node, SYMBOL))
+                      for node in graph.objects(URI, PORT)
+                      if TRIGGER in set(graph.objects(node, PORT_PROPERTY)))
+
+    if triggers != ["slot_next"]:
+        fail("expected exactly one trigger port, slot_next, but the TTL has: %s"
+             % (triggers or "none"))
+    else:
+        print("  trigger ports      1 (slot_next, the preset button)")
+
     # --- modgui ------------------------------------------------------------
     gui = graph.value(URI, MODGUI.gui)
     if gui is None:
@@ -225,7 +240,7 @@ def main():
             extra = unknown & controls
             if extra:
                 fail("preset %s sets preset-slot ports, which would make "
-                     "loading it reassign the buttons: %s"
+                     "loading it reassign the slots: %s"
                      % (label, sorted(extra)))
             if unknown - controls:
                 fail("preset %s sets ports that do not exist: %s"

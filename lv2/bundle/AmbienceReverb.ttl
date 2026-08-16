@@ -31,7 +31,7 @@
     # hardware actuator silently does nothing.
     lv2:extensionData hmi:PluginNotification ;
 
-    # A slot button recalls a preset by writing the engine directly, not the
+    # The preset button recalls a slot by writing the engine directly, not the
     # control ports - a plugin cannot write its own ports. Without state, a
     # pedalboard saved after a recall would store the stale knob values and
     # reload the wrong sound.
@@ -588,44 +588,8 @@ ISM early reflections, ADAA saturation, ducking and a brick-wall limiter.""" ;
     [
         a lv2:InputPort , lv2:ControlPort ;
         lv2:index 44 ;
-        lv2:symbol "slot1_select" ;
-        lv2:name "Select Slot 1" ;
-        lv2:portProperty lv2:toggled ;
-        lv2:portProperty pprops:trigger ;
-        lv2:portProperty lv2:connectionOptional ;
-        lv2:default 0 ;
-        lv2:minimum 0 ;
-        lv2:maximum 1
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 45 ;
-        lv2:symbol "slot2_select" ;
-        lv2:name "Select Slot 2" ;
-        lv2:portProperty lv2:toggled ;
-        lv2:portProperty pprops:trigger ;
-        lv2:portProperty lv2:connectionOptional ;
-        lv2:default 0 ;
-        lv2:minimum 0 ;
-        lv2:maximum 1
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 46 ;
-        lv2:symbol "slot3_select" ;
-        lv2:name "Select Slot 3" ;
-        lv2:portProperty lv2:toggled ;
-        lv2:portProperty pprops:trigger ;
-        lv2:portProperty lv2:connectionOptional ;
-        lv2:default 0 ;
-        lv2:minimum 0 ;
-        lv2:maximum 1
-    ] ,
-    [
-        a lv2:InputPort , lv2:ControlPort ;
-        lv2:index 47 ;
-        lv2:symbol "slot4_select" ;
-        lv2:name "Select Slot 4" ;
+        lv2:symbol "slot_next" ;
+        lv2:name "Next Preset" ;
         lv2:portProperty lv2:toggled ;
         lv2:portProperty pprops:trigger ;
         lv2:portProperty lv2:connectionOptional ;
@@ -635,7 +599,7 @@ ISM early reflections, ADAA saturation, ducking and a brick-wall limiter.""" ;
     ] ,
     [
         a lv2:OutputPort , lv2:ControlPort ;
-        lv2:index 48 ;
+        lv2:index 45 ;
         lv2:symbol "active_slot" ;
         lv2:name "Active Slot" ;
         lv2:portProperty lv2:integer , lv2:connectionOptional ;
