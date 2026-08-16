@@ -211,7 +211,18 @@ ISM early reflections, ADAA saturation, ducking and a brick-wall limiter.\"\"\" 
             # host returns the port to its default after the press, so run()
             # only ever sees a rising edge. connectionOptional so a host that
             # ignores these still loads the plugin.
-            props += ["lv2:toggled", "lv2:trigger", "lv2:connectionOptional"]
+            #
+            # NOTE the namespace: trigger lives in port-props, NOT lv2core.
+            # `lv2:trigger` is an undefined term, and writing it is silently
+            # half-broken rather than an error - mod-ui matches port properties
+            # on their local name alone (utils_lilv.cpp: strrchr(uri, '#') + 1)
+            # so it still displays as a trigger, while mod-host matches the
+            # real URI (LV2_PORT_PROPS__trigger) and does not. Without
+            # HINT_TRIGGER mod-host falls through to its HINT_TOGGLE branch,
+            # "toggle, always min or max", and the pad LATCHES: press, press
+            # again to unlatch, press a third time to fire. That is the
+            # two-pushes-per-recall bug.
+            props += ["lv2:toggled", "pprops:trigger", "lv2:connectionOptional"]
         elif p["skew"] < 1.0:
             # LV2's only nonlinear taper. Not identical to a JUCE skew but the
             # same intent: put the useful range under the first half of the

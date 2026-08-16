@@ -117,6 +117,56 @@ def main():
              len(controls), len(outputs)))
     print("  sound ports        %d (what a preset is made of)" % len(sound))
 
+    # --- port properties ---------------------------------------------------
+    # A property in the wrong namespace is the nastiest kind of TTL bug,
+    # because it is not an error anywhere: mod-ui matches port properties on
+    # their LOCAL NAME alone (utils_lilv.cpp does strrchr(uri, '#') + 1), so
+    # `lv2:trigger` displays as a trigger and looks right, while mod-host
+    # matches the real URI and silently treats the port as a plain toggle.
+    # That shipped once already - the pads latched and every recall took two
+    # presses. Check every property against the term it is actually meant to
+    # be.
+    KNOWN_PROPERTIES = {
+        # lv2core
+        "http://lv2plug.in/ns/lv2core#toggled",
+        "http://lv2plug.in/ns/lv2core#integer",
+        "http://lv2plug.in/ns/lv2core#enumeration",
+        "http://lv2plug.in/ns/lv2core#connectionOptional",
+        "http://lv2plug.in/ns/lv2core#reportsLatency",
+        "http://lv2plug.in/ns/lv2core#sampleRate",
+        # port-props - note trigger and logarithmic live HERE, not in lv2core
+        "http://lv2plug.in/ns/ext/port-props#trigger",
+        "http://lv2plug.in/ns/ext/port-props#logarithmic",
+        "http://lv2plug.in/ns/ext/port-props#hasStrictBounds",
+        "http://lv2plug.in/ns/ext/port-props#notOnGUI",
+        "http://lv2plug.in/ns/ext/port-props#expensive",
+        "http://lv2plug.in/ns/ext/port-props#rangeSteps",
+    }
+
+    PORT_PROPERTY = LV2["portProperty"]
+    seen_properties = set()
+    for node in graph.objects(URI, PORT):
+        for prop in graph.objects(node, PORT_PROPERTY):
+            seen_properties.add(str(prop))
+
+    for prop in sorted(seen_properties):
+        if prop in KNOWN_PROPERTIES:
+            continue
+
+        local = prop.rsplit("#", 1)[-1]
+        alternatives = [k for k in KNOWN_PROPERTIES if k.rsplit("#", 1)[-1] == local]
+        if alternatives:
+            fail("port property %s is in the wrong namespace - it is defined "
+                 "as %s. mod-ui will accept it (it matches the local name) and "
+                 "mod-host will not, which fails silently."
+                 % (prop, alternatives[0]))
+        else:
+            fail("unrecognised port property %s - if it is genuinely correct, "
+                 "add it to KNOWN_PROPERTIES here" % prop)
+
+    print("  port properties    %d distinct, all correctly namespaced"
+          % len(seen_properties))
+
     # --- modgui ------------------------------------------------------------
     gui = graph.value(URI, MODGUI.gui)
     if gui is None:
