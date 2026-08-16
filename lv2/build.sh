@@ -159,8 +159,12 @@ done
 # Wrapper: plain -O3, so the NaN guard survives.
 compile "${HERE}/src/ambience_lv2.cpp" -fno-math-errno -fno-trapping-math
 
-if ! "${CXX}" --sysroot="${SYSROOT}" -shared "${OBJECTS[@]}" \
-        -o "${BUNDLE}/${SO_NAME}" -lm >>"${LOG}" 2>&1; then
+# -lpthread for the LED thread: painting an HMI LED takes a mutex inside
+# mod-host and writes a shared-memory ring, so it cannot run on the audio
+# thread. --no-undefined because a shared object links happily with undefined
+# symbols and only fails at dlopen, on the device.
+if ! "${CXX}" --sysroot="${SYSROOT}" -shared -Wl,--no-undefined "${OBJECTS[@]}" \
+        -o "${BUNDLE}/${SO_NAME}" -lm -lpthread >>"${LOG}" 2>&1; then
     cat "${LOG}" >&2
     die "link failed (see ${LOG})"
 fi

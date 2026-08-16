@@ -22,10 +22,79 @@
 #include <vector>
 
 #include <lv2/core/lv2.h>
+#include <lv2/atom/atom.h>
+#include <lv2/state/state.h>
+#include <lv2/urid/urid.h>
 
+#include "lv2-hmi.h"
 #include "ports.h"
+#include "preset_table.h"
+
+#include <map>
+#include <string>
+#include <vector>
 
 using namespace ambience;
+
+// ---------------------------------------------------------------------------
+//  A minimal urid:map, needed by save()/restore().
+// ---------------------------------------------------------------------------
+static std::map<std::string, LV2_URID> g_urids;
+
+static LV2_URID mapUri (LV2_URID_Map_Handle, const char* uri)
+{
+    auto it = g_urids.find (uri);
+    if (it != g_urids.end())
+        return it->second;
+
+    const LV2_URID id = (LV2_URID) (g_urids.size() + 1);
+    g_urids[uri] = id;
+    return id;
+}
+
+static const LV2_Feature* const* stateFeatures()
+{
+    static LV2_URID_Map map = { nullptr, mapUri };
+    static LV2_Feature mapFeature = { LV2_URID__map, &map };
+    static const LV2_Feature* features[] = { &mapFeature, nullptr };
+    return features;
+}
+
+// ---------------------------------------------------------------------------
+//  A one-property store, which is all this plugin uses.
+// ---------------------------------------------------------------------------
+struct StateStore
+{
+    std::vector<uint8_t> blob;
+    size_t   size { 0 };
+    uint32_t key { 0 }, type { 0 }, flags { 0 };
+
+    static LV2_State_Status put (LV2_State_Handle handle, uint32_t key,
+                                 const void* value, size_t size,
+                                 uint32_t type, uint32_t flags)
+    {
+        auto* self = static_cast<StateStore*> (handle);
+        self->key = key;
+        self->type = type;
+        self->flags = flags;
+        self->size = size;
+        self->blob.assign ((const uint8_t*) value, (const uint8_t*) value + size);
+        return LV2_STATE_SUCCESS;
+    }
+
+    static const void* get (LV2_State_Handle handle, uint32_t key,
+                            size_t* size, uint32_t* type, uint32_t* flags)
+    {
+        auto* self = static_cast<StateStore*> (handle);
+        if (key != self->key || self->blob.empty())
+            return nullptr;
+
+        *size = self->size;
+        *type = self->type;
+        *flags = self->flags;
+        return self->blob.data();
+    }
+};
 
 static constexpr int    BLOCK = 256;
 static constexpr double SAMPLE_RATE = 48000.0;
@@ -75,6 +144,11 @@ struct Instance
     const LV2_Descriptor* d;
     LV2_Handle h;
     std::vector<float> controls;
+    float activeSlotPort { 0.0f };
+
+    // Which slot the plugin says is live. Read from the output port rather
+    // than from any internal state, so this tests what a host would see.
+    int activeSlot() const { return (int) (activeSlotPort + 0.5f); }
 
     Instance (const LV2_Descriptor* desc)
         : d (desc), controls (kNumControlPorts)
@@ -94,6 +168,8 @@ struct Instance
         d->connect_port (h, PORT_OUT_R, out_r);
         for (int i = 0; i < kNumControlPorts; ++i)
             d->connect_port (h, (uint32_t) (kFirstControlPort + i), &controls[i]);
+
+        d->connect_port (h, PORT_ACTIVE_SLOT, &activeSlotPort);
 
         d->activate (h);
     }
@@ -315,6 +391,165 @@ int main (int argc, char** argv)
         // Reconnect before the destructor runs.
         for (int i = 0; i < kNumControlPorts; ++i)
             d->connect_port (inst.h, (uint32_t) (kFirstControlPort + i), &inst.controls[i]);
+    }
+
+    // -- 7. preset slots -----------------------------------------------------
+    // The whole point of the slots is that they work with no browser and no
+    // host preset machinery: the DSP applies the values itself. So these run
+    // against the raw plugin, exactly as a footswitch press would arrive.
+    std::printf ("\nPreset slots:\n");
+    {
+        Instance inst (d);
+
+        // Slot 1 -> a preset with an unmistakable decay, so a recall is
+        // audible in the numbers rather than having to be inferred.
+        int gothic = -1;
+        for (int i = 0; i < kNumPresets; ++i)
+            if (std::strcmp (kPresetNames[i], "Gothic Cathedral") == 0)
+                gothic = i;
+        check (gothic >= 0, "the Gothic Cathedral preset exists");
+
+        inst.controls[CTL_SLOT1_PRESET] = (float) (gothic + 1);
+        inst.controls[CTL_DECAYTIME] = 0.5f;      // nothing like the preset
+
+        auto settle = [&] (int blocks) {
+            for (int b = 0; b < blocks; ++b) { fillNoise(); inst.run(); }
+        };
+
+        // The first block must only baseline. A host restoring a pedalboard
+        // can present any value on a trigger port, and that is not a press.
+        inst.controls[CTL_SLOT1_SELECT] = 1.0f;
+        inst.run();
+        check (inst.activeSlot() == 0,
+               "a slot port already high on the first block does not recall");
+
+        // A real press: 1 -> 0 -> 1 so there is an edge after priming.
+        inst.controls[CTL_SLOT1_SELECT] = 0.0f;
+        inst.run();
+        inst.controls[CTL_SLOT1_SELECT] = 1.0f;
+        inst.run();
+        check (inst.activeSlot() == 1, "a rising edge on slot 1 recalls it");
+
+        // The recall must reach the ENGINE, not just the bookkeeping. Measure
+        // the tail one second after the input stops, and compare against the
+        // identical run with no recall: the port says decay 0.5 s, the preset
+        // says 8 s, so a working recall rings far longer.
+        auto measureTail = [&] () {
+            settle ((int) (SAMPLE_RATE / BLOCK));
+            std::memset (in_l, 0, sizeof in_l);
+            std::memset (in_r, 0, sizeof in_r);
+            Stats tail;
+            for (int b = 0; b < (int) (SAMPLE_RATE / BLOCK); ++b)
+            {
+                inst.run();
+                tail.add (out_l, BLOCK);
+            }
+            return tail;
+        };
+
+        const Stats recalled = measureTail();
+
+        Instance plain (d);                        // same ports, no press
+        plain.controls[CTL_DECAYTIME] = 0.5f;
+        Stats bare;
+        {
+            for (int b = 0; b < (int) (SAMPLE_RATE / BLOCK); ++b)
+            {
+                fillNoise();
+                plain.run();
+            }
+            std::memset (in_l, 0, sizeof in_l);
+            std::memset (in_r, 0, sizeof in_r);
+            for (int b = 0; b < (int) (SAMPLE_RATE / BLOCK); ++b)
+            {
+                plain.run();
+                bare.add (out_l, BLOCK);
+            }
+        }
+
+        std::printf ("  tail rms: recalled %.6f vs not-recalled %.6f (%.0fx)\n",
+                     recalled.rms(), bare.rms(),
+                     bare.rms() > 0 ? recalled.rms() / bare.rms() : 0.0);
+
+        check (! recalled.bad(), "no NaN/Inf after a recall");
+        check (recalled.rms() > bare.rms() * 4.0,
+               "the recalled 8 s decay rings far longer than the port's 0.5 s, "
+               "i.e. the recall reached the DSP");
+
+        // Tweak one knob: it must escape the preset, and only it.
+        inst.controls[CTL_STEREOWIDTH] = 0.0f;
+        inst.run();
+        check (inst.activeSlot() == 1,
+               "tweaking a knob does not clear the active slot");
+
+        // Slot set to "(None)" is inert.
+        inst.controls[CTL_SLOT2_PRESET] = 0.0f;
+        inst.controls[CTL_SLOT2_SELECT] = 0.0f;
+        inst.run();
+        inst.controls[CTL_SLOT2_SELECT] = 1.0f;
+        inst.run();
+        check (inst.activeSlot() == 1,
+               "pressing a slot set to (None) changes nothing");
+
+        // Every slot recalls.
+        for (int s = 0; s < kNumSlots; ++s)
+        {
+            inst.controls[kFirstSlotPresetCtl + s] = 1.0f;
+            inst.controls[kFirstSlotSelectCtl + s] = 0.0f;
+            inst.run();
+            inst.controls[kFirstSlotSelectCtl + s] = 1.0f;
+            inst.run();
+            check (inst.activeSlot() == s + 1, "each slot recalls in turn");
+        }
+    }
+
+    // -- 8. state round-trip -------------------------------------------------
+    // Without this a pedalboard saved after a headless recall would store the
+    // stale knob positions and reload the wrong sound.
+    std::printf ("\nState:\n");
+    {
+        const LV2_State_Interface* iface =
+            (const LV2_State_Interface*) d->extension_data (LV2_STATE__interface);
+        check (iface != nullptr, "state:interface is exported");
+
+        const LV2_HMI_PluginNotification* notif =
+            (const LV2_HMI_PluginNotification*) d->extension_data (LV2_HMI__PluginNotification);
+        check (notif != nullptr && notif->addressed != nullptr,
+               "hmi:PluginNotification is exported");
+
+        if (iface != nullptr)
+        {
+            Instance a (d);
+            a.controls[CTL_SLOT1_PRESET] = 3.0f;
+            a.controls[CTL_SLOT1_SELECT] = 0.0f;
+            a.run();
+            a.controls[CTL_SLOT1_SELECT] = 1.0f;
+            a.run();
+            check (a.activeSlot() == 1, "recalled before saving");
+
+            StateStore store;
+            iface->save (a.h, StateStore::put, &store, 0, stateFeatures());
+            check (store.size > 0, "save() stored a blob");
+
+            Instance b (d);
+            fillNoise();
+            b.run();
+            check (b.activeSlot() == 0, "a fresh instance starts with no slot");
+
+            iface->restore (b.h, StateStore::get, &store, 0, stateFeatures());
+
+            // The output port only carries a value once run() has published
+            // it, so this checks the restore AND that the restored override
+            // survives a block rather than being cleared by ports that never
+            // moved.
+            fillNoise();
+            b.run();
+            check (b.activeSlot() == 1,
+                   "restore() brings the active slot back, and it survives a block");
+
+            for (int i = 0; i < 8; ++i) { fillNoise(); b.run(); }
+            check (b.activeSlot() == 1, "and it is still there eight blocks on");
+        }
     }
 
     dlclose (lib);

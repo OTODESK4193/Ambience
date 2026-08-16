@@ -37,6 +37,14 @@ ASSETS = os.path.join(OUT, "assets")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ports as P
+import gen_bundle as G
+
+# The slot ports carry no preset list until the presets have been read, so do
+# that here too rather than hardcoding names the screenshot would then get
+# wrong the moment a preset is added.
+_PRESETS = G.collect_presets()
+G.resolve_slot_presets(_PRESETS)
+PRESET_LABELS = ["(None)"] + [label for label, _ in _PRESETS]
 
 # --- AmbienceColors, Source/GUI/AmbienceUI.h --------------------------------
 BACKGROUND = (0x1A, 0x1A, 0x1A)
@@ -141,10 +149,12 @@ def rounded_rect(cr, x, y, w, h, r):
     cr.close_path()
 
 
-PEDAL_W, PEDAL_H = 560, 470
+PEDAL_W, PEDAL_H = 560, 548
 
-# (top, height) of the two recessed knob panels.
-PANEL_RECTS = ((112, 172), (296, 104))
+# (top, height) of the recessed panels: two knob wells and the preset-slot
+# strip at the bottom. Shared with make_screenshot so the render and the
+# chassis cannot drift apart.
+PANEL_RECTS = ((112, 172), (296, 104), (410, 66))
 
 # Knob row centres, and the row -> panel mapping they imply.
 ROW_CY = (160, 232, 336)
@@ -248,6 +258,40 @@ def make_screenshot(path, thumb_path):
             t = (float(p["default"]) - float(p["lo"])) / span if span else 0.0
             draw_knob(cr, cx, cy, 27, t)
             text(cr, p["name"].upper(), cx, cy + 42, 9, TEXT_SECONDARY, bold=True)
+
+    # Preset slots. Four buttons, each with its LED and the preset it recalls;
+    # only the active one is lit, which here is slot 1.
+    slot_defaults = [p["default"] for p in P.SLOT_PRESET_PORTS]
+    for i in range(P.NUM_SLOTS):
+        x = 20 + i * 134
+        active = (i == 0)
+
+        # Button.
+        set_rgb(cr, (0x2E, 0x2E, 0x2E))
+        rounded_rect(cr, x, 420, 122, 22, 4)
+        cr.fill()
+        set_rgb(cr, BORDER)
+        cr.set_line_width(1)
+        rounded_rect(cr, x + 0.5, 420.5, 121, 21, 4)
+        cr.stroke()
+
+        # LED.
+        set_rgb(cr, ACCENT if active else PANEL)
+        cr.new_path()
+        cr.arc(x + 12, 431, 4, 0, 2 * math.pi)
+        cr.fill()
+
+        # Preset name.
+        set_rgb(cr, SURFACE)
+        rounded_rect(cr, x, 442, 122, 20, 4)
+        cr.fill()
+        set_rgb(cr, BORDER)
+        cr.set_line_width(1)
+        rounded_rect(cr, x + 0.5, 442.5, 121, 19, 4)
+        cr.stroke()
+
+        label = PRESET_LABELS[int(slot_defaults[i])]
+        text(cr, label[:18], x + 61, 456, 9, TEXT_SECONDARY)
 
     text(cr, "16-CHANNEL FDN REVERB", PEDAL_W / 2.0, PEDAL_H - 26, 9,
          TEXT_SECONDARY)

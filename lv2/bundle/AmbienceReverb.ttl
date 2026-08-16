@@ -2,10 +2,12 @@
 
 @prefix doap:   <http://usefulinc.com/ns/doap#> .
 @prefix foaf:   <http://xmlns.com/foaf/0.1/> .
+@prefix hmi:    <http://moddevices.com/ns/hmi#> .
 @prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
 @prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
 @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix state:  <http://lv2plug.in/ns/ext/state#> .
 @prefix units:  <http://lv2plug.in/ns/extensions/units#> .
 
 <https://github.com/OTODESK4193/Ambience1.0.1>
@@ -19,6 +21,21 @@
     lv2:minorVersion 1 ;
     lv2:microVersion 1 ;
     lv2:optionalFeature lv2:hardRTCapable ;
+
+    # Optional on purpose: without it the plugin still loads and simply drives
+    # no LEDs, which is what happens under jalv, lv2chain and any non-MOD host.
+    lv2:optionalFeature hmi:WidgetControl ;
+
+    # Load bearing. mod-host only asks a plugin for its notification interface
+    # if the plugin advertises it here; without this line every addressing to a
+    # hardware actuator silently does nothing.
+    lv2:extensionData hmi:PluginNotification ;
+
+    # A slot button recalls a preset by writing the engine directly, not the
+    # control ports - a plugin cannot write its own ports. Without state, a
+    # pedalboard saved after a recall would store the stale knob values and
+    # reload the wrong sound.
+    lv2:extensionData state:interface ;
     rdfs:comment """16-channel Feedback Delay Network algorithmic reverb.
 
 FWHT feedback matrix with coprime prime-number delay allocation, seven
@@ -407,4 +424,222 @@ ISM early reflections, ADAA saturation, ducking and a brick-wall limiter.""" ;
         lv2:minimum 1000.0 ;
         lv2:maximum 20000.0 ;
         units:unit units:hz
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 40 ;
+        lv2:symbol "slot1_preset" ;
+        lv2:name "Slot 1 Preset" ;
+        lv2:portProperty lv2:integer ;
+        lv2:portProperty lv2:enumeration ;
+        lv2:default 2 ;
+        lv2:minimum 0 ;
+        lv2:maximum 28 ;
+        lv2:scalePoint [ rdfs:label "(None)" ; rdf:value 0 ] ,
+                       [ rdfs:label "ROOM1 Default" ; rdf:value 1 ] ,
+                       [ rdfs:label "Abbey Road" ; rdf:value 2 ] ,
+                       [ rdfs:label "Drums in a Box" ; rdf:value 3 ] ,
+                       [ rdfs:label "Tracking Room" ; rdf:value 4 ] ,
+                       [ rdfs:label "ROOM2 Default" ; rdf:value 5 ] ,
+                       [ rdfs:label "Abbey Road 2" ; rdf:value 6 ] ,
+                       [ rdfs:label "Capitol Studio A" ; rdf:value 7 ] ,
+                       [ rdfs:label "Skywalker Sound" ; rdf:value 8 ] ,
+                       [ rdfs:label "HALL1 Default" ; rdf:value 9 ] ,
+                       [ rdfs:label "Berlin Konzerthaus" ; rdf:value 10 ] ,
+                       [ rdfs:label "Carnegie Hall" ; rdf:value 11 ] ,
+                       [ rdfs:label "Tokyo Opera City" ; rdf:value 12 ] ,
+                       [ rdfs:label "HALL2 Default" ; rdf:value 13 ] ,
+                       [ rdfs:label "Boston Symphony" ; rdf:value 14 ] ,
+                       [ rdfs:label "Concertgebouw" ; rdf:value 15 ] ,
+                       [ rdfs:label "Vienna Musikverein" ; rdf:value 16 ] ,
+                       [ rdfs:label "PLATE Default" ; rdf:value 17 ] ,
+                       [ rdfs:label "Dark Plate" ; rdf:value 18 ] ,
+                       [ rdfs:label "EMT140 Snare" ; rdf:value 19 ] ,
+                       [ rdfs:label "EMT140 Vocal" ; rdf:value 20 ] ,
+                       [ rdfs:label "Surf Guitar" ; rdf:value 21 ] ,
+                       [ rdfs:label "Vintage Studio" ; rdf:value 22 ] ,
+                       [ rdfs:label "SPRING Default" ; rdf:value 23 ] ,
+                       [ rdfs:label "Deep Tank" ; rdf:value 24 ] ,
+                       [ rdfs:label "GOLDFOIL Default" ; rdf:value 25 ] ,
+                       [ rdfs:label "Gothic Cathedral" ; rdf:value 26 ] ,
+                       [ rdfs:label "Infinite Space" ; rdf:value 27 ] ,
+                       [ rdfs:label "Stone Chamber" ; rdf:value 28 ]
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 41 ;
+        lv2:symbol "slot2_preset" ;
+        lv2:name "Slot 2 Preset" ;
+        lv2:portProperty lv2:integer ;
+        lv2:portProperty lv2:enumeration ;
+        lv2:default 11 ;
+        lv2:minimum 0 ;
+        lv2:maximum 28 ;
+        lv2:scalePoint [ rdfs:label "(None)" ; rdf:value 0 ] ,
+                       [ rdfs:label "ROOM1 Default" ; rdf:value 1 ] ,
+                       [ rdfs:label "Abbey Road" ; rdf:value 2 ] ,
+                       [ rdfs:label "Drums in a Box" ; rdf:value 3 ] ,
+                       [ rdfs:label "Tracking Room" ; rdf:value 4 ] ,
+                       [ rdfs:label "ROOM2 Default" ; rdf:value 5 ] ,
+                       [ rdfs:label "Abbey Road 2" ; rdf:value 6 ] ,
+                       [ rdfs:label "Capitol Studio A" ; rdf:value 7 ] ,
+                       [ rdfs:label "Skywalker Sound" ; rdf:value 8 ] ,
+                       [ rdfs:label "HALL1 Default" ; rdf:value 9 ] ,
+                       [ rdfs:label "Berlin Konzerthaus" ; rdf:value 10 ] ,
+                       [ rdfs:label "Carnegie Hall" ; rdf:value 11 ] ,
+                       [ rdfs:label "Tokyo Opera City" ; rdf:value 12 ] ,
+                       [ rdfs:label "HALL2 Default" ; rdf:value 13 ] ,
+                       [ rdfs:label "Boston Symphony" ; rdf:value 14 ] ,
+                       [ rdfs:label "Concertgebouw" ; rdf:value 15 ] ,
+                       [ rdfs:label "Vienna Musikverein" ; rdf:value 16 ] ,
+                       [ rdfs:label "PLATE Default" ; rdf:value 17 ] ,
+                       [ rdfs:label "Dark Plate" ; rdf:value 18 ] ,
+                       [ rdfs:label "EMT140 Snare" ; rdf:value 19 ] ,
+                       [ rdfs:label "EMT140 Vocal" ; rdf:value 20 ] ,
+                       [ rdfs:label "Surf Guitar" ; rdf:value 21 ] ,
+                       [ rdfs:label "Vintage Studio" ; rdf:value 22 ] ,
+                       [ rdfs:label "SPRING Default" ; rdf:value 23 ] ,
+                       [ rdfs:label "Deep Tank" ; rdf:value 24 ] ,
+                       [ rdfs:label "GOLDFOIL Default" ; rdf:value 25 ] ,
+                       [ rdfs:label "Gothic Cathedral" ; rdf:value 26 ] ,
+                       [ rdfs:label "Infinite Space" ; rdf:value 27 ] ,
+                       [ rdfs:label "Stone Chamber" ; rdf:value 28 ]
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 42 ;
+        lv2:symbol "slot3_preset" ;
+        lv2:name "Slot 3 Preset" ;
+        lv2:portProperty lv2:integer ;
+        lv2:portProperty lv2:enumeration ;
+        lv2:default 20 ;
+        lv2:minimum 0 ;
+        lv2:maximum 28 ;
+        lv2:scalePoint [ rdfs:label "(None)" ; rdf:value 0 ] ,
+                       [ rdfs:label "ROOM1 Default" ; rdf:value 1 ] ,
+                       [ rdfs:label "Abbey Road" ; rdf:value 2 ] ,
+                       [ rdfs:label "Drums in a Box" ; rdf:value 3 ] ,
+                       [ rdfs:label "Tracking Room" ; rdf:value 4 ] ,
+                       [ rdfs:label "ROOM2 Default" ; rdf:value 5 ] ,
+                       [ rdfs:label "Abbey Road 2" ; rdf:value 6 ] ,
+                       [ rdfs:label "Capitol Studio A" ; rdf:value 7 ] ,
+                       [ rdfs:label "Skywalker Sound" ; rdf:value 8 ] ,
+                       [ rdfs:label "HALL1 Default" ; rdf:value 9 ] ,
+                       [ rdfs:label "Berlin Konzerthaus" ; rdf:value 10 ] ,
+                       [ rdfs:label "Carnegie Hall" ; rdf:value 11 ] ,
+                       [ rdfs:label "Tokyo Opera City" ; rdf:value 12 ] ,
+                       [ rdfs:label "HALL2 Default" ; rdf:value 13 ] ,
+                       [ rdfs:label "Boston Symphony" ; rdf:value 14 ] ,
+                       [ rdfs:label "Concertgebouw" ; rdf:value 15 ] ,
+                       [ rdfs:label "Vienna Musikverein" ; rdf:value 16 ] ,
+                       [ rdfs:label "PLATE Default" ; rdf:value 17 ] ,
+                       [ rdfs:label "Dark Plate" ; rdf:value 18 ] ,
+                       [ rdfs:label "EMT140 Snare" ; rdf:value 19 ] ,
+                       [ rdfs:label "EMT140 Vocal" ; rdf:value 20 ] ,
+                       [ rdfs:label "Surf Guitar" ; rdf:value 21 ] ,
+                       [ rdfs:label "Vintage Studio" ; rdf:value 22 ] ,
+                       [ rdfs:label "SPRING Default" ; rdf:value 23 ] ,
+                       [ rdfs:label "Deep Tank" ; rdf:value 24 ] ,
+                       [ rdfs:label "GOLDFOIL Default" ; rdf:value 25 ] ,
+                       [ rdfs:label "Gothic Cathedral" ; rdf:value 26 ] ,
+                       [ rdfs:label "Infinite Space" ; rdf:value 27 ] ,
+                       [ rdfs:label "Stone Chamber" ; rdf:value 28 ]
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 43 ;
+        lv2:symbol "slot4_preset" ;
+        lv2:name "Slot 4 Preset" ;
+        lv2:portProperty lv2:integer ;
+        lv2:portProperty lv2:enumeration ;
+        lv2:default 26 ;
+        lv2:minimum 0 ;
+        lv2:maximum 28 ;
+        lv2:scalePoint [ rdfs:label "(None)" ; rdf:value 0 ] ,
+                       [ rdfs:label "ROOM1 Default" ; rdf:value 1 ] ,
+                       [ rdfs:label "Abbey Road" ; rdf:value 2 ] ,
+                       [ rdfs:label "Drums in a Box" ; rdf:value 3 ] ,
+                       [ rdfs:label "Tracking Room" ; rdf:value 4 ] ,
+                       [ rdfs:label "ROOM2 Default" ; rdf:value 5 ] ,
+                       [ rdfs:label "Abbey Road 2" ; rdf:value 6 ] ,
+                       [ rdfs:label "Capitol Studio A" ; rdf:value 7 ] ,
+                       [ rdfs:label "Skywalker Sound" ; rdf:value 8 ] ,
+                       [ rdfs:label "HALL1 Default" ; rdf:value 9 ] ,
+                       [ rdfs:label "Berlin Konzerthaus" ; rdf:value 10 ] ,
+                       [ rdfs:label "Carnegie Hall" ; rdf:value 11 ] ,
+                       [ rdfs:label "Tokyo Opera City" ; rdf:value 12 ] ,
+                       [ rdfs:label "HALL2 Default" ; rdf:value 13 ] ,
+                       [ rdfs:label "Boston Symphony" ; rdf:value 14 ] ,
+                       [ rdfs:label "Concertgebouw" ; rdf:value 15 ] ,
+                       [ rdfs:label "Vienna Musikverein" ; rdf:value 16 ] ,
+                       [ rdfs:label "PLATE Default" ; rdf:value 17 ] ,
+                       [ rdfs:label "Dark Plate" ; rdf:value 18 ] ,
+                       [ rdfs:label "EMT140 Snare" ; rdf:value 19 ] ,
+                       [ rdfs:label "EMT140 Vocal" ; rdf:value 20 ] ,
+                       [ rdfs:label "Surf Guitar" ; rdf:value 21 ] ,
+                       [ rdfs:label "Vintage Studio" ; rdf:value 22 ] ,
+                       [ rdfs:label "SPRING Default" ; rdf:value 23 ] ,
+                       [ rdfs:label "Deep Tank" ; rdf:value 24 ] ,
+                       [ rdfs:label "GOLDFOIL Default" ; rdf:value 25 ] ,
+                       [ rdfs:label "Gothic Cathedral" ; rdf:value 26 ] ,
+                       [ rdfs:label "Infinite Space" ; rdf:value 27 ] ,
+                       [ rdfs:label "Stone Chamber" ; rdf:value 28 ]
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 44 ;
+        lv2:symbol "slot1_select" ;
+        lv2:name "Select Slot 1" ;
+        lv2:portProperty lv2:toggled ;
+        lv2:portProperty lv2:trigger ;
+        lv2:portProperty lv2:connectionOptional ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 45 ;
+        lv2:symbol "slot2_select" ;
+        lv2:name "Select Slot 2" ;
+        lv2:portProperty lv2:toggled ;
+        lv2:portProperty lv2:trigger ;
+        lv2:portProperty lv2:connectionOptional ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 46 ;
+        lv2:symbol "slot3_select" ;
+        lv2:name "Select Slot 3" ;
+        lv2:portProperty lv2:toggled ;
+        lv2:portProperty lv2:trigger ;
+        lv2:portProperty lv2:connectionOptional ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1
+    ] ,
+    [
+        a lv2:InputPort , lv2:ControlPort ;
+        lv2:index 47 ;
+        lv2:symbol "slot4_select" ;
+        lv2:name "Select Slot 4" ;
+        lv2:portProperty lv2:toggled ;
+        lv2:portProperty lv2:trigger ;
+        lv2:portProperty lv2:connectionOptional ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1
+    ] ,
+    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index 48 ;
+        lv2:symbol "active_slot" ;
+        lv2:name "Active Slot" ;
+        lv2:portProperty lv2:integer , lv2:connectionOptional ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 4
     ] .

@@ -43,6 +43,10 @@ function (event, funcs) {
 
     /* [ALGORITHM_DEFAULTS] */
 
+    /* [SLOT_PRESETS] */
+
+    var NUM_SLOTS = 4;
+
     function applyDefaults(data, index) {
         var def = ALGORITHM_DEFAULTS[index];
         if (!def) {
@@ -78,6 +82,76 @@ function (event, funcs) {
         }
     }
 
+    /* ---------------------------------------------------------------------
+       Preset slots
+       --------------------------------------------------------------------- */
+
+    /* Light exactly one slot button.
+       active_slot is 0 for "nothing recalled", 1..NUM_SLOTS otherwise. */
+    function showActiveSlot(active) {
+        for (var n = 1; n <= NUM_SLOTS; n++) {
+            var led = event.icon.find('.ambience-slot-led[data-slot="' + n + '"]');
+            if (led.length === 0) {
+                continue;
+            }
+            led.toggleClass('on', n === active);
+        }
+    }
+
+    /* Move the knobs to match a slot the user just pressed.
+
+       The DSP has already applied these values internally - that is what makes
+       a footswitch work with no browser open. This exists only so the
+       on-screen controls stop showing the previous sound.
+
+       Writing all 36 lands as 36 'change' events in one tick, which the
+       algorithm guard above correctly reads as a bulk load and ignores. */
+    function syncKnobs(data, presetIndex) {
+        var values = SLOT_PRESETS[presetIndex];
+        if (!values) {
+            return;
+        }
+
+        data.applying = true;
+        try {
+            for (var symbol in values) {
+                if (Object.prototype.hasOwnProperty.call(values, symbol)) {
+                    funcs.set_port_value(symbol, values[symbol]);
+                }
+            }
+        } finally {
+            data.applying = false;
+        }
+    }
+
+    /* A slot button is a trigger port: the host returns it to 0 after the
+       press, so only the rising edge means anything. */
+    function handleSlotPress(data, slot, value) {
+        var wasDown = data.slotDown[slot] === true;
+        var isDown = value > 0.5;
+
+        data.slotDown[slot] = isDown;
+
+        if (!data.started || !isDown || wasDown) {
+            return;
+        }
+
+        syncKnobs(data, Math.round(data.slotPreset[slot] || 0));
+    }
+
+    /* Returns the slot number for slotN_select / slotN_preset, else 0.
+       "slot1_select" is slot + digit + _ + suffix, i.e. 6 + suffix.length. */
+    function slotOf(symbol, suffix) {
+        if (symbol.length !== 6 + suffix.length ||
+            symbol.slice(0, 4) !== 'slot' ||
+            symbol.charAt(5) !== '_' ||
+            symbol.slice(6) !== suffix) {
+            return 0;
+        }
+        var n = parseInt(symbol.charAt(4), 10);
+        return (n >= 1 && n <= NUM_SLOTS) ? n : 0;
+    }
+
     var data = event.data;
 
     if (!data.pending) {
@@ -85,12 +159,34 @@ function (event, funcs) {
         data.timer = null;
         data.applying = false;
         data.started = false;
+        data.slotDown = {};
+        data.slotPreset = {};
     }
 
     if (event.type === 'start') {
         /* The opening sweep reports every port's current value. Seeding the
            algorithm here without applying anything is what stops a freshly
-           loaded pedalboard from being re-seeded out from under itself. */
+           loaded pedalboard from being re-seeded out from under itself. The
+           same reasoning covers the slots: record which preset each holds and
+           whether its button is down, but recall nothing. */
+        var ports = event.ports || {};
+        for (var i in ports) {
+            var sym = ports[i].symbol;
+            var slot = slotOf(sym, 'preset');
+            if (slot) {
+                data.slotPreset[slot] = ports[i].value;
+                continue;
+            }
+            slot = slotOf(sym, 'select');
+            if (slot) {
+                data.slotDown[slot] = ports[i].value > 0.5;
+                continue;
+            }
+            if (sym === 'active_slot') {
+                showActiveSlot(Math.round(ports[i].value));
+            }
+        }
+
         data.started = true;
         return;
     }
@@ -101,6 +197,26 @@ function (event, funcs) {
 
     /* Patch-parameter changes arrive with a uri instead of a symbol. */
     if (typeof event.symbol !== 'string') {
+        return;
+    }
+
+    /* active_slot is an output port, monitored via modgui:monitoredOutputs.
+       It is the DSP telling us which slot is live - never a user action, so
+       it does not go through the algorithm batch below. */
+    if (event.symbol === 'active_slot') {
+        showActiveSlot(Math.round(event.value));
+        return;
+    }
+
+    var presetSlot = slotOf(event.symbol, 'preset');
+    if (presetSlot) {
+        data.slotPreset[presetSlot] = event.value;
+        return;
+    }
+
+    var selectSlot = slotOf(event.symbol, 'select');
+    if (selectSlot) {
+        handleSlotPress(data, selectSlot, event.value);
         return;
     }
 

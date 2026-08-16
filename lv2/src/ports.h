@@ -50,8 +50,18 @@ enum PortIndex {
     PORT_RTBAND9        = 37,
     PORT_LOCUT          = 38,
     PORT_HICUT          = 39,
+    PORT_SLOT1_PRESET   = 40,
+    PORT_SLOT2_PRESET   = 41,
+    PORT_SLOT3_PRESET   = 42,
+    PORT_SLOT4_PRESET   = 43,
+    PORT_SLOT1_SELECT   = 44,
+    PORT_SLOT2_SELECT   = 45,
+    PORT_SLOT3_SELECT   = 46,
+    PORT_SLOT4_SELECT   = 47,
 
-    PORT_COUNT              = 40
+    PORT_ACTIVE_SLOT    = 48,
+
+    PORT_COUNT              = 49
 };
 
 // Indices into the control[] array, i.e. port index minus kFirstControlPort.
@@ -92,10 +102,32 @@ enum ControlIndex {
     CTL_RTBAND9         = 33,
     CTL_LOCUT           = 34,
     CTL_HICUT           = 35,
+    CTL_SLOT1_PRESET    = 36,
+    CTL_SLOT2_PRESET    = 37,
+    CTL_SLOT3_PRESET    = 38,
+    CTL_SLOT4_PRESET    = 39,
+    CTL_SLOT1_SELECT    = 40,
+    CTL_SLOT2_SELECT    = 41,
+    CTL_SLOT3_SELECT    = 42,
+    CTL_SLOT4_SELECT    = 43,
 };
 
 constexpr int kFirstControlPort = 4;
-constexpr int kNumControlPorts  = 36;
+constexpr int kNumControlPorts  = 44;
+
+// The first kNumSoundPorts controls are the parameters a preset
+// is made of. The rest are preset-slot machinery and are
+// deliberately not part of any preset.
+constexpr int kNumSoundPorts    = 36;
+constexpr int kNumSlots         = 4;
+
+// Each block is contiguous, and must stay that way: the HMI
+// addressed() callback resolves an actuator to a slot as
+// (port index - kFirstSlotSelectPort).
+constexpr int kFirstSlotPresetPort = PORT_SLOT1_PRESET;
+constexpr int kFirstSlotSelectPort = PORT_SLOT1_SELECT;
+constexpr int kFirstSlotPresetCtl  = CTL_SLOT1_PRESET;
+constexpr int kFirstSlotSelectCtl  = CTL_SLOT1_SELECT;
 
 struct ControlDesc { const char* sym; float lo, hi, def; };
 
@@ -136,6 +168,14 @@ constexpr ControlDesc kControls[kNumControlPorts] = {
     { "rtband9", 0.5f, 2.0f, 1.0f },
     { "locut", 20.0f, 500.0f, 20.0f },
     { "hicut", 1000.0f, 20000.0f, 20000.0f },
+    { "slot1_preset", 0.0f, 28.0f, 2.0f },
+    { "slot2_preset", 0.0f, 28.0f, 11.0f },
+    { "slot3_preset", 0.0f, 28.0f, 20.0f },
+    { "slot4_preset", 0.0f, 28.0f, 26.0f },
+    { "slot1_select", 0.0f, 1.0f, 0.0f },
+    { "slot2_select", 0.0f, 1.0f, 0.0f },
+    { "slot3_select", 0.0f, 1.0f, 0.0f },
+    { "slot4_select", 0.0f, 1.0f, 0.0f },
 };
 
 } // namespace ambience

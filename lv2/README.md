@@ -2,14 +2,15 @@
 
 A native LV2 build of Ambience for the MOD environment in
 [`LoopPad_Jack`](https://github.com/) — aarch64 / Cortex-A72 (Raspberry Pi 4),
-Buildroot 2025.02.6, gcc 13.4, LV2 1.18.10 — with a MOD pedal UI and all 21
-factory presets plus 7 per-algorithm defaults in the preset menu.
+Buildroot 2025.02.6, gcc 13.4, LV2 1.18.10 — with a MOD pedal UI, all 21
+factory presets plus 7 per-algorithm defaults in the preset menu, and four
+assignable preset buttons with hardware LEDs.
 
 ```sh
 lv2/build.sh                        # build + package the tar
 lv2/build.sh --deploy root@HOST     # ...and install it
 lv2/tools/smoke_test.sh             # run the aarch64 binary under qemu
-node lv2/tools/test_modgui_js.js    # test the modgui's algorithm re-seed
+node lv2/tools/test_modgui_js.js    # test the modgui's re-seed and slot logic
 lv2/tools/benchmark.sh              # what the DSP costs
 ```
 
@@ -52,7 +53,8 @@ This is not cosmetic: the 16 FDN feedback lines decay into denormal range on
 every tail, and without flush-to-zero the CPU cost spikes exactly when the
 reverb goes quiet.
 
-The resulting `.so` is ~76 KB and needs only libc, libm, libstdc++ and libgcc.
+The resulting `.so` is ~84 KB and needs only libc, libm, libstdc++, libgcc and
+libpthread (the LED thread).
 
 ## Differences from the VST3
 
@@ -100,6 +102,59 @@ so a closure would cross-talk between two Ambiences on one pedalboard.
 `lv2/tools/test_modgui_js.js` reproduces mod-ui's dispatch and asserts all of
 this, including the preset-clobber case and the two-instance case.
 
+## Four preset buttons
+
+`slot1_select`…`slot4_select` recall the preset named by `slot1_preset`…
+`slot4_preset`. Address a select port to a pad in mod-ui and that pad becomes a
+preset button; only the active one's LED is at full brightness, the other
+assigned ones sit dim, unassigned ones are dark.
+
+The constraint that shapes all of this: **an LV2 plugin cannot load its own
+presets and cannot write its own control ports.** The algorithm re-seed above
+dodges that in the browser, which is useless for a footswitch. So a slot press
+applies the preset values *inside the DSP*, held in an override array that
+takes precedence over the ports until you move a knob — recall, then tweak, and
+moving one control frees only that one.
+
+When the web UI is open, `javascript.js` additionally pushes all 36 values via
+`set_port_value` so the knobs follow. Both paths write the same numbers, so
+they agree; the override is what covers the browser-closed case, which is the
+whole point.
+
+`state:interface` persists the override array and the active slot. Without it a
+pedalboard saved after a headless recall would store the *stale knob values* and
+reload the wrong sound.
+
+Presets deliberately do **not** set the nine slot ports — a preset that
+reassigned the buttons would be circular. `validate_bundle.py` enforces the
+split, and will complain if a preset ever grows one.
+
+### LEDs
+
+Via MOD's HMI extension: `lv2:optionalFeature hmi:WidgetControl` plus
+`lv2:extensionData hmi:PluginNotification`. **The second is load bearing** —
+mod-host only asks for the notification interface if the TTL advertises it, and
+without it every addressing silently does nothing.
+
+`lv2/src/lv2-hmi.h` is vendored from the mod-host build this device runs, i.e.
+MOD's header plus LoopPad_Jack's `set_led_rgb` patch. There is no copy in the
+sysroot, so the two must agree about `LV2_HMI_WidgetControl`'s layout or calls
+go through the wrong vtable slot. Re-diff it after a mod-host bump.
+
+Painting runs on a 20 Hz thread, never `run()`: `set_led_rgb` takes a mutex
+inside mod-host and writes a shared-memory ring. A last-sent cache means an
+idle plugin puts no traffic on that ring at all. On stock MOD firmware, which
+has no `set_led_rgb`, the size guard falls back to `set_led_with_brightness` —
+chosen over `set_led_with_blink` because brightness is what carries our signal.
+
+**If no LED ever lights but addressing appears to succeed**, suspect mod-host
+before the plugin. Standalone mod-host without
+`0006-effects-set-up-the-HMI-channel-when-running-standalone.patch` leaves
+`g_hmi_wc.handle` NULL and *every* widget call returns at its first line with no
+error and no log — `addressed()` still fires with the right index and caps. It
+looks exactly like a plugin bug. This device's build has the patch; verify with
+`grep MOD_HMI_BUILD` in mod-host's `effects.c`.
+
 ## Everything derived is generated
 
 `lv2/tools/gen_bundle.py` is run by `build.sh` on every build. From
@@ -108,13 +163,18 @@ this, including the preset-clobber case and the two-instance case.
 
 ```
 src/ports.h            port indices, ranges and defaults for the C++ wrapper
+src/preset_table.h     the preset VALUES, so a slot button can recall one
 bundle/AmbienceReverb.ttl   the port descriptions lilv and mod-ui read
-bundle/modgui.ttl           modgui:port entries for all 40 ports
-bundle/modgui/javascript.js the algorithm table, from AlgorithmPresets.h
+bundle/modgui.ttl           modgui:port entries for all 49 ports
+bundle/modgui/javascript.js the algorithm and slot-preset tables
 bundle/presets.ttl          29 presets
 bundle/default-preset.ttl
 bundle/manifest.ttl
 ```
+
+`presets.ttl`, `preset_table.h` and the modgui's `SLOT_PRESETS` all come out of
+one pass over `Presets/*.ambpreset`, so what a button recalls, what the preset
+menu loads and what the knobs jump to cannot disagree.
 
 So the C++ port indices and the metadata cannot disagree — they have one
 source. Edit `tools/ports.py` (and `modgui/javascript.js.in`), never the
@@ -159,8 +219,10 @@ preset setting nothing.
 
 `tools/smoke_test.sh` runs the real aarch64 binary under qemu-aarch64: impulse
 and sustained-noise response for all seven algorithms, every control at both
-declared extremes, out-of-range and NaN control values, odd block sizes, and
-unconnected control ports. qemu is faithful for arithmetic (including `FPCR`
+declared extremes, out-of-range and NaN control values, odd block sizes,
+unconnected control ports, the preset slots (including that a recall really
+reaches the DSP - it compares tail energy against the same run without one) and
+a state save/restore round-trip. qemu is faithful for arithmetic (including `FPCR`
 flush-to-zero) but says nothing about timing.
 
 On the device, LoopPad_Jack's `tools/lv2chain` is the authoritative check:

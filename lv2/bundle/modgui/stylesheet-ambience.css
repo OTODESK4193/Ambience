@@ -20,11 +20,11 @@
 .mod-pedal-ambience{{{cns}}} {
     position: absolute;
     width: 560px;
-    height: 470px;
+    height: 548px;
     background-image: url(/resources/assets/background.png{{{ns}}});
     background-position: center center;
     background-repeat: no-repeat;
-    background-size: 560px 470px;
+    background-size: 560px 548px;
     border-radius: 16px;
     display: flex;
     flex-direction: column;
@@ -198,6 +198,84 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #888888;
+}
+
+/* = PRESET SLOTS
+================================================ */
+.mod-pedal-ambience{{{cns}}} .slot-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-slot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 122px;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-slot-button {
+    width: 100%;
+    height: 22px;
+    border-radius: 4px 4px 0 0;
+    background: linear-gradient(180deg, #3A3A3A 0%, #242424 100%);
+    border: 1px solid #3C3C3C;
+    border-bottom: none;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-slot-button:active {
+    background: linear-gradient(180deg, #1E1E1E 0%, #2C2C2C 100%);
+}
+
+/* Driven by the active_slot output port through javascript.js, never by the
+   button's own value - the button is a trigger the host resets to 0 straight
+   after the press. */
+.mod-pedal-ambience{{{cns}}} .ambience-slot-led {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #2C2C2C;
+    border: 1px solid #3C3C3C;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-slot-led.on {
+    background-color: #FF6B00;
+    border-color: #FF6B00;
+    box-shadow: 0 0 8px 2px rgba(255, 107, 0, 0.7);
+}
+
+.mod-pedal-ambience{{{cns}}} .mod-enumerated.ambience-slot-preset {
+    position: relative;
+    width: 100%;
+    height: 20px;
+    background-color: #242424;
+    border: 1px solid #3C3C3C;
+    border-radius: 0 0 4px 4px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.mod-pedal-ambience{{{cns}}} .ambience-slot-value {
+    height: 18px;
+    line-height: 18px;
+    font-size: 9px;
+    letter-spacing: 0.03em;
+    color: #888888;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding: 0 4px;
 }
 
 /* = FOOTER / BYPASS

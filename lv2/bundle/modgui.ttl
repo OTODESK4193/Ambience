@@ -12,6 +12,15 @@
         modgui:thumbnail <modgui/thumbnail-ambience.png> ;
         modgui:brand "OTODESK" ;
         modgui:label "Ambience" ;
+
+        # The only route an output control port has to the browser: mod-ui
+        # reads this list, issues monitor_output to mod-host and forwards
+        # changes as port events. There is no declarative widget for them -
+        # setOutputPortValue only calls triggerJS, so javascript.js is what
+        # turns active_slot into a lit button.
+        modgui:monitoredOutputs
+            [ lv2:symbol "active_slot" ] ;
+
         modgui:port
         [
             lv2:index 4 ;
@@ -192,5 +201,45 @@
             lv2:index 39 ;
             lv2:symbol "hicut" ;
             lv2:name "Hi Cut"
+        ] ,
+        [
+            lv2:index 40 ;
+            lv2:symbol "slot1_preset" ;
+            lv2:name "Slot 1 Preset"
+        ] ,
+        [
+            lv2:index 41 ;
+            lv2:symbol "slot2_preset" ;
+            lv2:name "Slot 2 Preset"
+        ] ,
+        [
+            lv2:index 42 ;
+            lv2:symbol "slot3_preset" ;
+            lv2:name "Slot 3 Preset"
+        ] ,
+        [
+            lv2:index 43 ;
+            lv2:symbol "slot4_preset" ;
+            lv2:name "Slot 4 Preset"
+        ] ,
+        [
+            lv2:index 44 ;
+            lv2:symbol "slot1_select" ;
+            lv2:name "Select Slot 1"
+        ] ,
+        [
+            lv2:index 45 ;
+            lv2:symbol "slot2_select" ;
+            lv2:name "Select Slot 2"
+        ] ,
+        [
+            lv2:index 46 ;
+            lv2:symbol "slot3_select" ;
+            lv2:name "Select Slot 3"
+        ] ,
+        [
+            lv2:index 47 ;
+            lv2:symbol "slot4_select" ;
+            lv2:name "Select Slot 4"
         ] ;
     ] .

@@ -96,9 +96,26 @@ def main():
     if sorted(ports) != list(range(len(ports))):
         fail("port indices are not contiguous from 0: %s" % sorted(ports))
 
-    controls = {sym for idx, sym in ports.items() if idx >= 4}
-    print("  ports              %d (%d audio, %d control)"
-          % (len(ports), len(ports) - len(controls), len(controls)))
+    # A preset is made of the SOUND ports only. The preset-slot ports are
+    # machinery - a preset that reassigned the buttons would be circular - so
+    # they are excluded from the completeness check below rather than making
+    # every preset fail it.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import ports as P
+
+    sound = {p["sym"] for p in P.SOUND_PORTS}
+    outputs = {p["sym"] for p in P.OUTPUT_PORTS}
+    controls = {sym for idx, sym in ports.items() if idx >= 4} - outputs
+
+    missing_from_ttl = sound - controls
+    if missing_from_ttl:
+        fail("ports.py lists sound ports the TTL does not have: %s"
+             % sorted(missing_from_ttl))
+
+    print("  ports              %d (%d audio, %d control, %d output)"
+          % (len(ports), len(ports) - len(controls) - len(outputs),
+             len(controls), len(outputs)))
+    print("  sound ports        %d (what a preset is made of)" % len(sound))
 
     # --- modgui ------------------------------------------------------------
     gui = graph.value(URI, MODGUI.gui)
@@ -153,11 +170,17 @@ def main():
             incomplete += 1
             continue
 
-        unknown = got - controls
+        unknown = got - sound
         if unknown:
-            fail("preset %s sets ports that do not exist: %s"
-                 % (label, sorted(unknown)))
-        missing = controls - got
+            extra = unknown & controls
+            if extra:
+                fail("preset %s sets preset-slot ports, which would make "
+                     "loading it reassign the buttons: %s"
+                     % (label, sorted(extra)))
+            if unknown - controls:
+                fail("preset %s sets ports that do not exist: %s"
+                     % (label, sorted(unknown - controls)))
+        missing = sound - got
         if missing:
             fail("preset %s omits %d port(s), so its sound depends on what was "
                  "loaded before it: %s" % (label, len(missing), sorted(missing)))

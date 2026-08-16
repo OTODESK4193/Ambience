@@ -83,8 +83,13 @@ enum PortIndex {""" % URI]
         out.append("    PORT_%-14s = %d," % (p["sym"].upper(),
                                              P.FIRST_CONTROL_INDEX + i))
     out.append("")
+
+    for i, p in enumerate(P.OUTPUT_PORTS):
+        out.append("    PORT_%-14s = %d," % (p["sym"].upper(),
+                                             P.FIRST_OUTPUT_INDEX + i))
+    out.append("")
     out.append("    PORT_COUNT              = %d" %
-               (len(P.AUDIO_PORTS) + len(P.CONTROL_PORTS)))
+               (len(P.AUDIO_PORTS) + len(P.CONTROL_PORTS) + len(P.OUTPUT_PORTS)))
     out.append("};")
     out.append("")
     out.append("// Indices into the control[] array, i.e. port index minus"
@@ -96,6 +101,24 @@ enum PortIndex {""" % URI]
     out.append("")
     out.append("constexpr int kFirstControlPort = %d;" % P.FIRST_CONTROL_INDEX)
     out.append("constexpr int kNumControlPorts  = %d;" % len(P.CONTROL_PORTS))
+    out.append("")
+    out.append("// The first kNumSoundPorts controls are the parameters a preset")
+    out.append("// is made of. The rest are preset-slot machinery and are")
+    out.append("// deliberately not part of any preset.")
+    out.append("constexpr int kNumSoundPorts    = %d;" % P.NUM_SOUND_PORTS)
+    out.append("constexpr int kNumSlots         = %d;" % P.NUM_SLOTS)
+    out.append("")
+    out.append("// Each block is contiguous, and must stay that way: the HMI")
+    out.append("// addressed() callback resolves an actuator to a slot as")
+    out.append("// (port index - kFirstSlotSelectPort).")
+    out.append("constexpr int kFirstSlotPresetPort = PORT_%s;"
+               % P.SLOT_PRESET_PORTS[0]["sym"].upper())
+    out.append("constexpr int kFirstSlotSelectPort = PORT_%s;"
+               % P.SLOT_SELECT_PORTS[0]["sym"].upper())
+    out.append("constexpr int kFirstSlotPresetCtl  = CTL_%s;"
+               % P.SLOT_PRESET_PORTS[0]["sym"].upper())
+    out.append("constexpr int kFirstSlotSelectCtl  = CTL_%s;"
+               % P.SLOT_SELECT_PORTS[0]["sym"].upper())
     out.append("")
     out.append("struct ControlDesc { const char* sym; float lo, hi, def; };")
     out.append("")
@@ -118,10 +141,12 @@ enum PortIndex {""" % URI]
 def gen_plugin_ttl():
     out = [PROLOGUE, """@prefix doap:   <http://usefulinc.com/ns/doap#> .
 @prefix foaf:   <http://xmlns.com/foaf/0.1/> .
+@prefix hmi:    <http://moddevices.com/ns/hmi#> .
 @prefix lv2:    <http://lv2plug.in/ns/lv2core#> .
 @prefix pprops: <http://lv2plug.in/ns/ext/port-props#> .
 @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix state:  <http://lv2plug.in/ns/ext/state#> .
 @prefix units:  <http://lv2plug.in/ns/extensions/units#> .
 
 <%s>
@@ -135,6 +160,21 @@ def gen_plugin_ttl():
     lv2:minorVersion %d ;
     lv2:microVersion %d ;
     lv2:optionalFeature lv2:hardRTCapable ;
+
+    # Optional on purpose: without it the plugin still loads and simply drives
+    # no LEDs, which is what happens under jalv, lv2chain and any non-MOD host.
+    lv2:optionalFeature hmi:WidgetControl ;
+
+    # Load bearing. mod-host only asks a plugin for its notification interface
+    # if the plugin advertises it here; without this line every addressing to a
+    # hardware actuator silently does nothing.
+    lv2:extensionData hmi:PluginNotification ;
+
+    # A slot button recalls a preset by writing the engine directly, not the
+    # control ports - a plugin cannot write its own ports. Without state, a
+    # pedalboard saved after a recall would store the stale knob values and
+    # reload the wrong sound.
+    lv2:extensionData state:interface ;
     rdfs:comment \"\"\"16-channel Feedback Delay Network algorithmic reverb.
 
 FWHT feedback matrix with coprime prime-number delay allocation, seven
@@ -162,10 +202,16 @@ ISM early reflections, ADAA saturation, ducking and a brick-wall limiter.\"\"\" 
                  '        lv2:name "%s" ;' % p["name"]]
 
         props = []
-        if p["kind"] == "enum":
+        if p["kind"] in ("enum", "slot_preset"):
             props += ["lv2:integer", "lv2:enumeration"]
         elif p["kind"] == "bool":
             props += ["lv2:toggled"]
+        elif p["kind"] == "trigger":
+            # What mod-ui offers to a footswitch as a momentary button. The
+            # host returns the port to its default after the press, so run()
+            # only ever sees a rising edge. connectionOptional so a host that
+            # ignores these still loads the plugin.
+            props += ["lv2:toggled", "lv2:trigger", "lv2:connectionOptional"]
         elif p["skew"] < 1.0:
             # LV2's only nonlinear taper. Not identical to a JUCE skew but the
             # same intent: put the useful range under the first half of the
@@ -176,7 +222,7 @@ ISM early reflections, ADAA saturation, ducking and a brick-wall limiter.\"\"\" 
         for prop in props:
             lines.append("        lv2:portProperty %s ;" % prop)
 
-        is_int = p["kind"] in ("enum", "bool")
+        is_int = p["kind"] in ("enum", "bool", "slot_preset", "trigger")
         conv = int if is_int else float
         lines.append("        lv2:default %s ;" % num(conv(p["default"])))
         lines.append("        lv2:minimum %s ;" % num(conv(p["lo"])))
@@ -196,6 +242,19 @@ ISM early reflections, ADAA saturation, ducking and a brick-wall limiter.\"\"\" 
             lines.append("        units:unit %s" % UNIT_TTL[p["unit"]])
 
         port_blocks.append("    [\n" + "\n".join(lines) + "\n    ]")
+
+    for i, p in enumerate(P.OUTPUT_PORTS):
+        idx = P.FIRST_OUTPUT_INDEX + i
+        port_blocks.append("""    [
+        a lv2:OutputPort , lv2:ControlPort ;
+        lv2:index %d ;
+        lv2:symbol "%s" ;
+        lv2:name "%s" ;
+        lv2:portProperty lv2:integer , lv2:connectionOptional ;
+        lv2:default %d ;
+        lv2:minimum %d ;
+        lv2:maximum %d
+    ]""" % (idx, p["sym"], p["name"], int(p["default"]), int(p["lo"]), int(p["hi"])))
 
     out.append("    lv2:port\n" + " ,\n".join(port_blocks) + " .\n")
     write(os.path.join(BUNDLE, "AmbienceReverb.ttl"), "\n".join(out))
@@ -226,10 +285,22 @@ def gen_modgui_ttl():
         modgui:thumbnail <modgui/thumbnail-ambience.png> ;
         modgui:brand "OTODESK" ;
         modgui:label "Ambience" ;
+
+        # The only route an output control port has to the browser: mod-ui
+        # reads this list, issues monitor_output to mod-host and forwards
+        # changes as port events. There is no declarative widget for them -
+        # setOutputPortValue only calls triggerJS, so javascript.js is what
+        # turns active_slot into a lit button.
+        modgui:monitoredOutputs
+%s ;
+
         modgui:port
 %s ;
     ] .
-""" % (PROLOGUE, URI, " ,\n".join(entries))
+""" % (PROLOGUE, URI,
+       " ,\n".join('            [ lv2:symbol "%s" ]' % p["sym"]
+                   for p in P.OUTPUT_PORTS),
+       " ,\n".join(entries))
 
     write(os.path.join(BUNDLE, "modgui.ttl"), body)
 
@@ -237,12 +308,20 @@ def gen_modgui_ttl():
 # ---------------------------------------------------------------------------
 # modgui/javascript.js
 # ---------------------------------------------------------------------------
-def gen_javascript():
-    """Substitute the algorithm re-seed table into javascript.js.in.
+def gen_javascript(presets):
+    """Substitute the generated tables into javascript.js.in.
 
-    Same seven values loadPresetDefaults() writes, plus the neutral resets it
-    forces, so the modgui's behaviour on an algorithm change cannot drift from
-    what the VST3 does. See javascript.js.in for why this is GUI-side at all.
+    Two of them:
+
+    ALGORITHM_DEFAULTS - the same seven values loadPresetDefaults() writes plus
+    the neutral resets it forces, so the modgui's behaviour on an algorithm
+    change cannot drift from the VST3's. See javascript.js.in for why that is
+    GUI-side at all.
+
+    SLOT_PRESETS - the full preset values, so that pressing a slot button with
+    the web UI open also moves the knobs. The DSP applies these itself either
+    way; this is only so the on-screen controls stop lying about what is
+    playing.
     """
     src = os.path.join(BUNDLE, "modgui", "javascript.js.in")
     template = open(src, encoding="utf-8").read()
@@ -265,12 +344,32 @@ def gen_javascript():
              "    var ALGORITHM_DEFAULTS = [\n"
              + ",\n".join(rows) + "\n    ];")
 
-    marker = "    /* [ALGORITHM_DEFAULTS] */"
-    if marker not in template:
-        raise ValueError("javascript.js.in lost its [ALGORITHM_DEFAULTS] marker")
+    # Slot preset values. Index 0 is the unassigned "(None)" slot, so this is
+    # offset by one to match the slotN_preset port values exactly.
+    sound_syms = [p["sym"] for p in P.SOUND_PORTS]
+    slot_rows = ["        null%s" % (" " * 4)]
+    for label, values in presets:
+        pairs = ", ".join("%s: %s" % (s, num(values[s])) for s in sound_syms)
+        slot_rows.append("        /* %-20s */ { %s }" % (label, pairs))
 
-    write(os.path.join(BUNDLE, "modgui", "javascript.js"),
-          template.replace(marker, table))
+    slot_table = (
+        "    /* Every preset's full parameter set, indexed by the slotN_preset\n"
+        "       port value: 0 is \"(None)\" and has no values, 1..N are the\n"
+        "       presets in the order gen_bundle.py emits them. Generated from\n"
+        "       the same pass that writes presets.ttl and preset_table.h, so\n"
+        "       all three agree by construction. */\n"
+        "    var SLOT_PRESETS = [\n" + ",\n".join(slot_rows) + "\n    ];")
+
+    markers = {
+        "    /* [ALGORITHM_DEFAULTS] */": table,
+        "    /* [SLOT_PRESETS] */": slot_table,
+    }
+    for marker, replacement in markers.items():
+        if marker not in template:
+            raise ValueError("javascript.js.in lost its %s marker" % marker.strip())
+        template = template.replace(marker, replacement)
+
+    write(os.path.join(BUNDLE, "modgui", "javascript.js"), template)
 
 
 # ---------------------------------------------------------------------------
@@ -309,11 +408,14 @@ def read_ambpreset(path):
 
 
 def full_port_map(values):
-    """Fill every port. A preset that omits a port leaves whatever the
+    """Fill every SOUND port. A preset that omits a port leaves whatever the
     previous preset set, so partial presets make the plugin's sound depend on
-    load order. All 36 always."""
+    load order. All 36 always.
+
+    Slot ports are excluded on purpose: a preset that reassigned the buttons -
+    or wrote a *_select trigger - would be circular."""
     out = {}
-    for p in P.CONTROL_PORTS:
+    for p in P.SOUND_PORTS:
         v = values.get(p["sym"], p["default"])
         v = max(float(p["lo"]), min(float(p["hi"]), float(v)))
         out[p["sym"]] = int(round(v)) if p["kind"] in ("enum", "bool") else v
@@ -362,7 +464,7 @@ def algorithm_default_presets():
     presets = []
 
     for i, d in enumerate(defaults):
-        v = {p["sym"]: p["default"] for p in P.CONTROL_PORTS}
+        v = {p["sym"]: p["default"] for p in P.SOUND_PORTS}
         v["algorithm"] = i
         v["roomsize"] = d["roomSize"]
         v["decaytime"] = d["decayTime"]
@@ -411,7 +513,7 @@ def collect_presets():
 def preset_stanza(uri, label, values):
     ports = ",\n".join(
         '\t\t[ lv2:symbol "%s" ; pset:value %s ]' % (p["sym"], num(values[p["sym"]]))
-        for p in P.CONTROL_PORTS)
+        for p in P.SOUND_PORTS)
     return """%s
 \ta pset:Preset ;
 \tlv2:appliesTo <%s> ;
@@ -486,17 +588,88 @@ def write(path, text):
     print("  %s" % os.path.relpath(path, REPO))
 
 
+def resolve_slot_presets(presets):
+    """Fill in the slotN_preset ports now that the preset list is known.
+
+    Value 0 is "(None)" - an unassigned slot, whose button does nothing and
+    whose LED stays dark. Values 1..N select a preset. Done here rather than in
+    ports.py because ports.py must not depend on reading the preset files.
+    """
+    labels = ["(None)"] + [label for label, _ in presets]
+
+    for i, port in enumerate(P.SLOT_PRESET_PORTS):
+        port["hi"] = len(labels) - 1
+        port["points"] = labels
+
+        want = P.DEFAULT_SLOT_PRESETS[i]
+        if want not in labels:
+            raise ValueError(
+                "DEFAULT_SLOT_PRESETS[%d] is %r, which is not a preset. "
+                "Presets are: %s" % (i, want, ", ".join(labels[1:])))
+        port["default"] = labels.index(want)
+
+
+def gen_preset_table_h(presets):
+    """The preset values, as C, so a slot button can recall one with no host
+    and no browser involved.
+
+    Same source as presets.ttl - both come out of Presets/*.ambpreset in this
+    one pass - so what a button recalls and what the preset menu loads cannot
+    drift apart.
+    """
+    out = ["""#pragma once
+// Generated by lv2/tools/gen_bundle.py - do not edit.
+//
+// Preset values for the four slot buttons. An LV2 plugin cannot load its own
+// presets, so pressing a slot button applies these to the engine directly.
+// Indices are into kControls[], i.e. the first kNumSoundPorts controls, in
+// port order.
+
+#include "ports.h"
+
+namespace ambience {
+
+constexpr int kNumPresets = %d;
+
+constexpr const char* kPresetNames[kNumPresets] = {""" % len(presets)]
+
+    for label, _ in presets:
+        out.append('    "%s",' % label.replace('"', '\\"'))
+    out.append("};")
+    out.append("")
+    out.append("constexpr float kPresetValues[kNumPresets][kNumSoundPorts] = {")
+
+    for label, values in presets:
+        row = ", ".join(num(float(values[p["sym"]])) + "f" for p in P.SOUND_PORTS)
+        out.append("    /* %-20s */ { %s }," % (label, row))
+
+    out.append("};")
+    out.append("")
+    out.append("} // namespace ambience")
+    out.append("")
+
+    write(os.path.join(REPO, "lv2", "src", "preset_table.h"), "\n".join(out))
+
+
 def main():
     print("Generating:")
+    # Presets first: the slot ports' scale points and defaults come from them,
+    # and so does preset_table.h.
+    presets = collect_presets()
+    resolve_slot_presets(presets)
+
     gen_ports_h()
+    gen_preset_table_h(presets)
     gen_plugin_ttl()
     gen_modgui_ttl()
-    gen_javascript()
-    presets = collect_presets()
+    gen_javascript(presets)
     gen_presets(presets)
     gen_manifest(presets)
-    print("\n%d control ports, %d presets (+ Default)"
-          % (len(P.CONTROL_PORTS), len(presets)))
+    print("\n%d control ports (%d sound + %d slot machinery), %d output, "
+          "%d presets (+ Default)"
+          % (len(P.CONTROL_PORTS), P.NUM_SOUND_PORTS,
+             len(P.CONTROL_PORTS) - P.NUM_SOUND_PORTS,
+             len(P.OUTPUT_PORTS), len(presets)))
 
 
 if __name__ == "__main__":

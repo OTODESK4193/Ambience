@@ -43,12 +43,36 @@ function check(ok, what) {
 }
 
 /* --- a fake mod-ui plugin instance -------------------------------------- */
+/* A stand-in for the jQuery object modgui hands the callback as event.icon.
+   Only .find() and .toggleClass() are used, and only on the slot LEDs. */
+class FakeIcon {
+    constructor() {
+        this.lit = new Set();
+    }
+
+    find(selector) {
+        const m = /^\.ambience-slot-led\[data-slot="(\d+)"\]$/.exec(selector);
+        if (!m) return { length: 0 };
+
+        const slot = Number(m[1]);
+        const lit = this.lit;
+        return {
+            length: 1,
+            toggleClass(cls, on) {
+                if (cls !== 'on') throw new Error('unexpected class ' + cls);
+                if (on) lit.add(slot); else lit.delete(slot);
+            },
+        };
+    }
+}
+
 class Instance {
     constructor(name) {
         this.name = name;
         this.data = {};           // mod-ui's per-instance jsData
         this.ports = {};          // current port values
         this.writes = [];         // what the callback pushed back
+        this.icon = new FakeIcon();
         this.funcs = {
             set_port_value: (symbol, value) => {
                 this.writes.push([symbol, value]);
@@ -61,14 +85,18 @@ class Instance {
 
     start(ports) {
         Object.assign(this.ports, ports);
-        method({ type: 'start', data: this.data, ports: ports, api_version: 3 },
+        // mod-ui passes event.ports as an object of {symbol, value} records.
+        const records = Object.entries(ports).map(([symbol, value]) =>
+            ({ symbol, value }));
+        method({ type: 'start', data: this.data, ports: records,
+                 icon: this.icon, api_version: 3 },
                this.funcs);
     }
 
     change(symbol, value) {
         this.ports[symbol] = value;
         method({ type: 'change', symbol: symbol, value: value, data: this.data,
-                 api_version: 3 },
+                 icon: this.icon, api_version: 3 },
                this.funcs);
     }
 }
@@ -190,6 +218,115 @@ async function main() {
                  api_version: 3 }, a.funcs);
         await tick();
         check(a.writes.length === 0, 'patch-parameter changes (uri, no symbol) are ignored');
+    }
+
+    /* -- 7. preset slots: only the active LED is lit -------------------- */
+    {
+        const a = new Instance('a');
+        a.start(Object.assign({ slot1_preset: 2, slot2_preset: 11,
+                                slot3_preset: 20, slot4_preset: 26,
+                                active_slot: 0 }, INITIAL));
+        await tick();
+        check(a.icon.lit.size === 0, 'no slot LED lit while active_slot is 0');
+
+        a.change('active_slot', 2);
+        await tick();
+        check(a.icon.lit.size === 1 && a.icon.lit.has(2),
+              'active_slot=2 lights slot 2 and only slot 2');
+
+        a.change('active_slot', 4);
+        await tick();
+        check(a.icon.lit.size === 1 && a.icon.lit.has(4),
+              'moving to slot 4 unlights slot 2 (mutual exclusion)');
+
+        a.change('active_slot', 0);
+        await tick();
+        check(a.icon.lit.size === 0, 'active_slot=0 unlights everything');
+    }
+
+    /* -- 8. a slot press moves the knobs -------------------------------- */
+    {
+        const a = new Instance('a');
+        a.start(Object.assign({ slot1_preset: 2, active_slot: 0 }, INITIAL));
+        await tick();
+
+        a.change('slot1_select', 1);   // press
+        await tick();
+
+        const written = new Map(a.writes);
+        check(written.size >= 30,
+              'a slot press writes the whole preset to the knobs');
+        check(!written.has('slot1_select') && !written.has('slot1_preset'),
+              'it does not write the slot ports back');
+        check(a.ports.algorithm !== undefined,
+              'the algorithm port is among them');
+    }
+
+    /* -- 9. a slot press must NOT trigger the algorithm re-seed --------- */
+    /* This is the same hazard as case 3, from the other direction: syncKnobs
+       writes 36 ports including algorithm, and if that were mistaken for a
+       user turning the algorithm knob the preset would be immediately
+       overwritten with the algorithm's generic defaults. */
+    {
+        const a = new Instance('a');
+        a.start(Object.assign({ slot1_preset: 2, active_slot: 0 }, INITIAL));
+        await tick();
+
+        a.change('slot1_select', 1);
+        await tick();
+
+        const roomsizeWrites = a.writes.filter(([s]) => s === 'roomsize');
+        check(roomsizeWrites.length === 1,
+              'roomsize is written once by the recall, not again by a re-seed');
+        check(a.ports.roomsize !== 0.85,
+              'roomsize is the preset value, not ROOM1 Default 0.85');
+    }
+
+    /* -- 10. a trigger port only fires on the rising edge ---------------- */
+    {
+        const a = new Instance('a');
+        a.start(Object.assign({ slot1_preset: 2, active_slot: 0 }, INITIAL));
+        await tick();
+
+        a.change('slot1_select', 0);   // host resetting the trigger
+        await tick();
+        check(a.writes.length === 0, 'a release (1->0) recalls nothing');
+
+        a.change('slot1_select', 1);
+        await tick();
+        const afterPress = a.writes.length;
+        check(afterPress > 0, 'the press recalls');
+
+        a.change('slot1_select', 1);   // repeated level, not a new press
+        await tick();
+        check(a.writes.length === afterPress,
+              'a repeated 1 without a release does not recall again');
+    }
+
+    /* -- 11. an unassigned slot does nothing ---------------------------- */
+    {
+        const a = new Instance('a');
+        a.start(Object.assign({ slot1_preset: 0, active_slot: 0 }, INITIAL));
+        await tick();
+
+        a.change('slot1_select', 1);
+        await tick();
+        check(a.writes.length === 0,
+              'pressing a slot set to "(None)" writes nothing');
+    }
+
+    /* -- 12. a pedalboard load with a button already down --------------- */
+    /* The start sweep reports whatever the host restored. A slot port that
+       comes back as 1 is not someone standing on the footswitch. */
+    {
+        const a = new Instance('a');
+        a.start(Object.assign({ slot1_preset: 2, slot1_select: 1,
+                                active_slot: 1 }, INITIAL));
+        await tick();
+        check(a.writes.length === 0,
+              'a restored slot_select of 1 does not recall on load');
+        check(a.icon.lit.has(1),
+              'the restored active_slot still lights its LED');
     }
 
     console.log(`\n${failures === 0 ? 'PASS' : 'FAILED'}`);

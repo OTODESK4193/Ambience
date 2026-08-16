@@ -104,6 +104,66 @@ CONTROL_PORTS = [
     f("hicut", "Hi Cut",  1000.0, 20000.0, 20000.0, 0.30, "hz"),
 ]
 
+# Everything above is a SOUND port: one of the 36 parameters that make up a
+# preset. Everything below is machinery - preset slots and their buttons - and
+# is deliberately NOT part of a preset. Presets are emitted over SOUND_PORTS
+# only; a preset that reassigned the buttons, or worse wrote a *_select
+# trigger, would be circular.
+SOUND_PORTS = list(CONTROL_PORTS)
+NUM_SOUND_PORTS = len(SOUND_PORTS)
+
+# --- preset slots ----------------------------------------------------------
+# Four buttons, each holding a preset. Pressing one recalls it, with no browser
+# involved - which is the whole point, and why the DSP applies the values
+# itself instead of going through the modgui the way the algorithm re-seed does.
+NUM_SLOTS = 4
+
+# Defaults: one per algorithm family, so the buttons do something useful before
+# anyone configures them. Names must match the preset labels exactly;
+# gen_bundle.py resolves them and fails loudly if one does not exist.
+DEFAULT_SLOT_PRESETS = [
+    "Abbey Road",        # ROOM1  - tight studio room
+    "Carnegie Hall",     # HALL1  - concert hall
+    "EMT140 Vocal",      # PLATE  - classic plate
+    "Gothic Cathedral",  # GOLDFOIL - huge
+]
+
+
+def slot_preset(n):
+    # The scale points (0 = "(None)", then one per preset) are filled in by
+    # gen_bundle.py, which is what reads the preset files.
+    return dict(sym="slot%d_preset" % n, name="Slot %d Preset" % n,
+                lo=0, hi=0, default=0, skew=1.0, unit=None,
+                kind="slot_preset", points=None)
+
+
+def slot_select(n):
+    # toggled + trigger is what mod-ui offers to a footswitch as a momentary
+    # button: the host returns the port to its default after the press, so
+    # run() only ever sees a rising edge. connectionOptional because a host
+    # that ignores these should still load the plugin.
+    return dict(sym="slot%d_select" % n, name="Select Slot %d" % n,
+                lo=0, hi=1, default=0, skew=1.0, unit=None,
+                kind="trigger", points=None)
+
+
+# The two blocks must each stay contiguous: the HMI addressed() callback maps
+# an actuator to a slot as (port index - first select port index), and
+# connect_port() resolves both blocks by range.
+SLOT_PRESET_PORTS = [slot_preset(n) for n in range(1, NUM_SLOTS + 1)]
+SLOT_SELECT_PORTS = [slot_select(n) for n in range(1, NUM_SLOTS + 1)]
+
+CONTROL_PORTS = CONTROL_PORTS + SLOT_PRESET_PORTS + SLOT_SELECT_PORTS
+
+# --- output ports ----------------------------------------------------------
+# Which slot is lit, 0 for none. An output control port is the only way plugin
+# state reaches the browser, via modgui:monitoredOutputs plus javascript.js -
+# mod-ui's setOutputPortValue does nothing but triggerJS.
+OUTPUT_PORTS = [
+    dict(sym="active_slot", name="Active Slot", lo=0, hi=NUM_SLOTS, default=0,
+         skew=1.0, unit=None, kind="int_out", points=None),
+]
+
 BY_SYM = {p["sym"]: p for p in CONTROL_PORTS}
 
 # Ports the pedal face shows. Everything else still exists and still works via
@@ -115,7 +175,10 @@ GUI_PORTS = [
     "hfdamping", "lfabsorption", "diffusion",
     "modamount", "modrate", "stereowidth",
     "erlevel", "wetlevel", "drylevel",
-]
+] + [p["sym"] for p in SLOT_PRESET_PORTS + SLOT_SELECT_PORTS]
+
+
+FIRST_OUTPUT_INDEX = FIRST_CONTROL_INDEX + len(CONTROL_PORTS)
 
 
 def index_of(sym):
@@ -123,4 +186,7 @@ def index_of(sym):
     for i, p in enumerate(CONTROL_PORTS):
         if p["sym"] == sym:
             return FIRST_CONTROL_INDEX + i
+    for i, p in enumerate(OUTPUT_PORTS):
+        if p["sym"] == sym:
+            return FIRST_OUTPUT_INDEX + i
     raise KeyError(sym)
