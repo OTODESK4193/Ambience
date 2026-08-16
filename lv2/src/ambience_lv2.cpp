@@ -113,6 +113,71 @@ private:
 };
 
 // ----------------------------------------------------------------------------
+//  Optional trace of what the host actually presents on the slot ports.
+// ----------------------------------------------------------------------------
+//  Build with -DAMBIENCE_TRACE=1 to get /tmp/ambience-trace.log. Off by
+//  default and compiled out entirely.
+//
+//  This exists because the slot ports' behaviour is decided by the HOST, not
+//  by this plugin: mod-host resets a trigger port to its default after run()
+//  (effects.c:2267), but only when it saw the trigger property, and it ignores
+//  a set request whose value equals what it last set (effects.c:3760). Whether
+//  a press is delivered as 0->1->0 or latches at 1 is therefore not something
+//  to reason about from the source - it has to be observed.
+//
+//  run() only appends to a lock-free ring; the LED thread does the file I/O.
+// ----------------------------------------------------------------------------
+#if AMBIENCE_TRACE
+#include <cstdio>
+#include <ctime>
+
+struct TraceRing
+{
+    struct Entry { double t; int slot; float value; int active; };
+
+    static constexpr int kSize = 4096;
+    Entry entries[kSize] {};
+    std::atomic<unsigned> head { 0 };
+    unsigned tail { 0 };
+
+    // Audio thread. No allocation, no locking, no syscalls.
+    void push (double t, int slot, float value, int active) noexcept
+    {
+        const unsigned h = head.load (std::memory_order_relaxed);
+        entries[h % kSize] = { t, slot, value, active };
+        head.store (h + 1, std::memory_order_release);
+    }
+
+    void drain (std::FILE* f)
+    {
+        const unsigned h = head.load (std::memory_order_acquire);
+        while (tail != h)
+        {
+            const Entry& e = entries[tail % kSize];
+            if (e.slot == -1)
+                std::fprintf (f, "%.4f HMI addressed port=%d caps=0x%x\n",
+                              e.t, (int) e.value, e.active);
+            else if (e.slot <= -2)
+                std::fprintf (f, "%.4f HMI paint slot%d rgb=%06x wc=%d\n",
+                              e.t, -e.slot - 1, (unsigned) e.value, e.active);
+            else
+                std::fprintf (f, "%.4f slot%d value=%.3f active=%d\n",
+                              e.t, e.slot, e.value, e.active);
+            ++tail;
+        }
+        std::fflush (f);
+    }
+};
+
+static double traceNow()
+{
+    struct timespec ts;
+    clock_gettime (CLOCK_MONOTONIC, &ts);
+    return (double) ts.tv_sec + ts.tv_nsec * 1e-9;
+}
+#endif
+
+// ----------------------------------------------------------------------------
 //  Plugin instance
 // ----------------------------------------------------------------------------
 struct Ambience
@@ -184,6 +249,10 @@ struct Ambience
     // shared-memory ring at all.
     uint8_t hmiLast[ambience::kNumSlots][3] {};
     bool    hmiLastValid[ambience::kNumSlots] {};
+
+#if AMBIENCE_TRACE
+    TraceRing trace;
+#endif
 
     pthread_t       ledThread {};
     bool            ledThreadRunning { false };
@@ -361,6 +430,12 @@ static void pollSlotButtons (Ambience* self)
     {
         const float v = self->rawCtl (ambience::kFirstSlotSelectCtl + s);
 
+#if AMBIENCE_TRACE
+        if (v != self->slotLast[s])
+            self->trace.push (traceNow(), s + 1, v,
+                              self->activeSlot.load (std::memory_order_relaxed));
+#endif
+
         if (self->primed && v > 0.5f && self->slotLast[s] <= 0.5f)
             recallSlot (self, s + 1);
 
@@ -442,6 +517,12 @@ static void hmiUpdateLeds (Ambience* self)
         self->hmiLast[s][2] = rgb[2];
         self->hmiLastValid[s] = true;
 
+#if AMBIENCE_TRACE
+        self->trace.push (traceNow(), -2 - s,
+                          (float) ((rgb[0] << 16) | (rgb[1] << 8) | rgb[2]),
+                          self->hmiWc != nullptr ? 1 : 0);
+#endif
+
         hmiPaint (self, s + 1, a, rgb);
     }
 }
@@ -456,9 +537,18 @@ static void* ledThreadMain (void* arg)
 
     pthread_mutex_lock (&self->ledMutex);
 
+#if AMBIENCE_TRACE
+    std::FILE* traceFile = std::fopen ("/tmp/ambience-trace.log", "w");
+#endif
+
     while (! self->ledThreadStop.load (std::memory_order_acquire))
     {
         hmiUpdateLeds (self);
+
+#if AMBIENCE_TRACE
+        if (traceFile != nullptr)
+            self->trace.drain (traceFile);
+#endif
 
         struct timespec deadline;
         clock_gettime (CLOCK_REALTIME, &deadline);
@@ -471,6 +561,14 @@ static void* ledThreadMain (void* arg)
 
         pthread_cond_timedwait (&self->ledWake, &self->ledMutex, &deadline);
     }
+
+#if AMBIENCE_TRACE
+    if (traceFile != nullptr)
+    {
+        self->trace.drain (traceFile);
+        std::fclose (traceFile);
+    }
+#endif
 
     pthread_mutex_unlock (&self->ledMutex);
     return nullptr;
@@ -490,6 +588,10 @@ static void hmiAddressed (LV2_Handle handle, uint32_t index,
     const int s = static_cast<int> (index) - ambience::kFirstSlotSelectPort;
 
     self->hmiCaps[s] = (info != nullptr) ? info->caps : 0u;
+
+#if AMBIENCE_TRACE
+    self->trace.push (traceNow(), -1, (float) index, (int) self->hmiCaps[s]);
+#endif
 
     // Invalidate the cache so the next pass repaints unconditionally: the
     // actuator has just been bound and is showing whatever the surface
@@ -579,7 +681,11 @@ static LV2_Handle instantiate (const LV2_Descriptor*,
     // Only worth a thread if the host can actually show an LED. cleanup()
     // joins it before freeing, which is what makes the bare `self` the thread
     // captures safe.
+#if AMBIENCE_TRACE
+    if (true)   // tracing needs the thread even where there are no LEDs
+#else
     if (self->hmiWc != nullptr)
+#endif
     {
         self->ledThreadStop.store (false, std::memory_order_release);
 
