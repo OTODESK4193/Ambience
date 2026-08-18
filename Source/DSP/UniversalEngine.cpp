@@ -56,6 +56,7 @@ namespace FDNReverb {
 
     void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
         fs = sampleRate;
+        ChorusLFO::initTable();  // ★ ウェーブテーブル初期化（初回のみ実行）
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         MagnitudeResponseFitter::precomputeInteractionMatrix(sampleRate);
@@ -144,6 +145,8 @@ namespace FDNReverb {
         dcY1.fill(0.0f);
         fdnRmsEnv.fill(0.0f);
         for (auto& dl : fdnDelays) dl.resetState();  // ★ Thiran allpass状態リセット
+        for (auto& chDelays : nestedAllpassDelays)    // ★ ネストAllpass Thiran状態リセット
+            for (auto& dl : chDelays) dl.resetState();
         for (auto& lfo : lfos) lfo.smoothed = 0.0f;
     }
 
@@ -238,7 +241,8 @@ namespace FDNReverb {
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
-                currentAbsorptionCoeffsS2[i][b] = s2.geqStages[b];
+                // ★ Phase 3: target に書き込み → processBlock で current へ補間
+                targetAbsorptionCoeffsS2[i][b] = s2.geqStages[b];
                 targetDbAccum[b] += s2.targetDb[b];
             }
         }
@@ -261,7 +265,8 @@ namespace FDNReverb {
             auto absoStages = FilterDesign::designAbsorption(
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
-            currentAbsorptionCoeffs[i] = absoStages[0];
+            // ★ Phase 3: target に書き込み → processBlock で current へ補間
+            targetAbsorptionCoeffs[i] = absoStages[0];
         }
 #endif
 
@@ -563,11 +568,36 @@ namespace FDNReverb {
                 float d = fdnDelays[i].read(delaySmp);
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-                for (int s = 0; s < ABSO_STAGES_S2; ++s)
-                    d = absorptionFiltersS2[i][s].tick(d, currentAbsorptionCoeffsS2[i][s]);
+                // ★ Phase 3: 吸収フィルタ係数スムージング（ジッパーノイズ防止）
+                //   パラメータ変更時に係数が瞬時切替されるのを防ぎ、
+                //   1次IIRで滑らかに目標値へ遷移させる。
+                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                    auto& curr = currentAbsorptionCoeffsS2[i][s];
+                    const auto& tgt = targetAbsorptionCoeffsS2[i][s];
+                    curr.b0 += (tgt.b0 - curr.b0) * coeffSmoothingFactor;
+                    curr.b1 += (tgt.b1 - curr.b1) * coeffSmoothingFactor;
+                    curr.b2 += (tgt.b2 - curr.b2) * coeffSmoothingFactor;
+                    curr.a1 += (tgt.a1 - curr.a1) * coeffSmoothingFactor;
+                    curr.a2 += (tgt.a2 - curr.a2) * coeffSmoothingFactor;
+                    d = absorptionFiltersS2[i][s].tick(d, curr);
+                }
 #else
-                d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
+                {
+                    auto& curr = currentAbsorptionCoeffs[i];
+                    const auto& tgt = targetAbsorptionCoeffs[i];
+                    curr.b0 += (tgt.b0 - curr.b0) * coeffSmoothingFactor;
+                    curr.b1 += (tgt.b1 - curr.b1) * coeffSmoothingFactor;
+                    curr.b2 += (tgt.b2 - curr.b2) * coeffSmoothingFactor;
+                    curr.a1 += (tgt.a1 - curr.a1) * coeffSmoothingFactor;
+                    curr.a2 += (tgt.a2 - curr.a2) * coeffSmoothingFactor;
+                    d = absorptionFilters[i].tick(d, curr);
+                }
 #endif
+
+                // ★ Anti-denormal: 非正規化数によるCPUスパイクを防止
+                //   -500dBFS（完全に不可聴）の極小定数を加算。
+                //   Lexicon/Strymon/Valhalla 全てが採用する業界標準手法。
+                d += 1e-25f;
 
                 // ★ 金属音対策 (3): DCブロッカー (1次HPF, fc≈5Hz)
                 //   FDNループ内で吸収フィルタやマイクロサチュレーションが生成する

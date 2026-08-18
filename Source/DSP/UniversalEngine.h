@@ -38,21 +38,36 @@ namespace FDNReverb {
     };
 
     // ─────────────────────────────────────────────────────────────────────────────
-    //  ChorusLFO: 正弦波位相アキュムレータ（コーラス型ピッチモジュレーション）
+    //  ChorusLFO: ウェーブテーブル正弦波（コーラス型ピッチモジュレーション）
+    //  ★ パラボラ近似を廃止 → 1024点LUT+線形補間 (THD < -96dB)
+    //    パラボラは頂点に二階微分不連続性があり、FM変調ノイズ（金属的響き）の原因。
     // ─────────────────────────────────────────────────────────────────────────────
     struct ChorusLFO {
         float phase{ 0.0f };
         float phaseInc{ 0.0f };
         float rateScale{ 1.0f };   // チャンネル固有のレート係数（黄金比分布）
 
-        // ★ CPU最適化: std::sin() → パラボラ近似 (最大誤差 ~0.06%, 5-10x高速)
+        static constexpr int TABLE_SIZE = 1024;
+        static inline float sineTable[TABLE_SIZE + 1];  // +1: 補間ガードポイント
+        static inline bool  tableInitialized = false;
+
+        static void initTable() noexcept {
+            if (tableInitialized) return;
+            constexpr float twoPi = 6.28318530718f;
+            for (int i = 0; i <= TABLE_SIZE; ++i)
+                sineTable[i] = std::sin(twoPi * static_cast<float>(i)
+                                        / static_cast<float>(TABLE_SIZE));
+            tableInitialized = true;
+        }
+
+        // ★ ウェーブテーブル + 線形補間: CPUコストはパラボラと同等、THDは約100倍改善
         inline float tick() noexcept {
             phase += phaseInc;
             if (phase >= 1.0f) phase -= 1.0f;
-            // Parabolic sine: phase [0,1) → sin(2π·phase)
-            const float x = phase < 0.5f ? phase : phase - 1.0f;
-            const float para = 16.0f * x * (0.5f - std::abs(x));
-            return para * (0.775f + 0.225f * std::abs(para));
+            const float idx = phase * static_cast<float>(TABLE_SIZE);
+            const int   i0  = static_cast<int>(idx);
+            const float frac = idx - static_cast<float>(i0);
+            return sineTable[i0] + frac * (sineTable[i0 + 1] - sineTable[i0]);
         }
     };
 
@@ -115,7 +130,7 @@ namespace FDNReverb {
         std::array<float, 16>                        erTaps;
         std::array<LinearDelayLine, 4>               inputDiffusers;
         std::array<ThiranDelayLine, FDN_ORDER>        fdnDelays;  // ★ Thiran allpass補間
-        std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
+        std::array<std::array<ThiranDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
         int                            currentERTapCount{ 0 };
         std::array<float, MAX_ER_TAPS> currentERDelaySamples;
@@ -131,9 +146,14 @@ namespace FDNReverb {
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2;
         std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> currentAbsorptionCoeffsS2;
+        // ★ Phase 3: フィルタ係数スムージング（ジッパーノイズ防止）
+        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> targetAbsorptionCoeffsS2;
+        float coeffSmoothingFactor{ 0.005f };  // ~200サンプルで収束 (1次IIR)
 #else
         std::array<BiquadState, FDN_ORDER> absorptionFilters;
         std::array<BiquadCoeffs, FDN_ORDER> currentAbsorptionCoeffs;
+        std::array<BiquadCoeffs, FDN_ORDER> targetAbsorptionCoeffs;
+        float coeffSmoothingFactor{ 0.005f };
 #endif
 
         std::array<BandlimitedNoiseLFO, FDN_ORDER> lfos;

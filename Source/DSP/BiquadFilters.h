@@ -13,14 +13,15 @@ namespace FDNReverb {
     };
 
     struct BiquadState {
-        float s1{ 0.f }, s2{ 0.f };
+        double s1{ 0.0 }, s2{ 0.0 };  // ★ 倍精度化: 低域フィルタの量子化ノイズ防止
         inline float tick(float x, const BiquadCoeffs& c) noexcept {
-            float y = c.b0 * x + s1;
-            s1 = c.b1 * x - c.a1 * y + s2;
-            s2 = c.b2 * x - c.a2 * y;
-            return y;
+            const double xd = static_cast<double>(x);
+            const double yd = static_cast<double>(c.b0) * xd + s1;
+            s1 = static_cast<double>(c.b1) * xd - static_cast<double>(c.a1) * yd + s2;
+            s2 = static_cast<double>(c.b2) * xd - static_cast<double>(c.a2) * yd;
+            return static_cast<float>(yd);
         }
-        void reset() noexcept { s1 = s2 = 0.f; }
+        void reset() noexcept { s1 = s2 = 0.0; }
     };
 
     // ─────────────────────────────────────────────────────────────────────────────

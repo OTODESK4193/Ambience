@@ -29,7 +29,7 @@ juce_add_plugin(Ambience
     VERSION                 "1.1.0"
 )
 # ============================================================================
-# ソース（存在するファイルのみ）
+# ソース�E�存在するファイルのみ�E�E
 # ============================================================================
 target_sources(Ambience PRIVATE
     Source/PluginProcessor.h
@@ -38,8 +38,8 @@ target_sources(Ambience PRIVATE
     Source/PluginEditor.cpp
     Source/PluginParameters.h
     Source/PluginParameters.cpp
-    Source/PresetManager.h      # ★ 追加
-    Source/PresetManager.cpp    # ★ 追加
+    Source/PresetManager.h      # ☁E追加
+    Source/PresetManager.cpp    # ☁E追加
     Source/GUI/AmbienceUI.h
     Source/GUI/AmbienceUI.cpp
     Source/AlgorithmPresets.h
@@ -80,6 +80,7 @@ target_link_libraries(Ambience
         juce::juce_core
         juce::juce_data_structures
         juce::juce_dsp
+    juce::juce_audio_processors
         juce::juce_events
         juce::juce_graphics
         juce::juce_gui_basics
@@ -112,14 +113,57 @@ if(MSVC)
     )
 endif()
 # ============================================================================
-# JUCE ヘッダー生成
+# JUCE ヘッダー生�E
 # ============================================================================
 juce_generate_juce_header(Ambience)
 # ============================================================================
-# ビルドメッセージ
+# ビルドメチE��ージ
 # ============================================================================
 message(STATUS "===========================================")
 message(STATUS "Ambience VST3 - CMake Configuration")
 message(STATUS "JUCE: C:/JUCE")
 message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "===========================================")
+# ============================================================================
+# �e�X�g�n�[�l�X (DSPTestRunner)
+# ============================================================================
+juce_add_console_app(DSPTestRunner)
+target_sources(DSPTestRunner PRIVATE
+    Source/DSP/DSPTestRunner.cpp
+    Source/PluginParameters.h
+    Source/PluginParameters.cpp
+    Source/AlgorithmPresets.h
+    Source/DSP/DSPConstants.h
+    Source/DSP/DelayMemory.h
+    Source/DSP/BiquadFilters.h
+    Source/DSP/BiquadFilters.cpp
+    Source/DSP/MagnitudeResponseFitter.h
+    Source/DSP/MagnitudeResponseFitter.cpp
+    Source/DSP/UniversalEngine.h
+    Source/DSP/UniversalEngine.cpp
+    Source/DSP/AcousticMetrics.h
+    Source/DSP/AcousticMetrics.cpp
+    Source/DSP/Saturator.h
+    Source/DSP/OutputLimiter.h
+    Source/DSP/OutputEQ.h
+)
+target_include_directories(DSPTestRunner PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source/DSP
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source/GUI
+)
+target_link_libraries(DSPTestRunner PRIVATE
+    juce::juce_core
+    juce::juce_audio_basics
+    juce::juce_audio_formats
+    juce::juce_dsp
+    juce::juce_audio_processors
+)
+if(MSVC)
+    target_compile_options(DSPTestRunner PRIVATE
+        /arch:AVX2 /utf-8 /W3 /wd4819 $<$<CONFIG:Release>:/O2 /fp:fast>
+    )
+endif()
+
+juce_generate_juce_header(DSPTestRunner)
+
