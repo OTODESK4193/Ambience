@@ -1,4 +1,4 @@
-#include "PluginProcessor.h"
+﻿#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 static constexpr int Y_HEADER = 8;
@@ -20,9 +20,9 @@ static constexpr int SEP_FD = 409;
 static constexpr int SEP_DS = 655;
 static constexpr int SEP_SC = 737;
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  コンストラクタ
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+//  繧ｳ繝ｳ繧ｹ繝医Λ繧ｯ繧ｿ
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     : AudioProcessorEditor(&p),
     audioProcessor(p),
@@ -33,7 +33,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setLookAndFeel(&laf);
     setSize(W, H);
 
-    // ── Title ──
+    // 笏笏 Title 笏笏
     titleLabel.setText("AMBIENCE 1.2.0", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 14.f, juce::Font::bold)));
@@ -66,7 +66,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     BK(kLoCutNorm, "locut", "LO CUT");
     BK(kHiCutNorm, "hicut", "HI CUT");
 
-    // ── ProMode ボタン ──
+    // 笏笏 ProMode 繝懊ち繝ｳ 笏笏
     proModeButton.setButtonText("PRO");
     proModeButton.setClickingTogglesState(true);
     proModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
@@ -78,7 +78,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         new juce::AudioProcessorValueTreeState::ButtonAttachment(
             p.apvts, "promode", proModeButton));
 
-    // ── ER SOLO ボタン ──
+    // 笏笏 ER SOLO 繝懊ち繝ｳ 笏笏
     erSoloButton.setButtonText("ER SOLO");
     erSoloButton.setClickingTogglesState(true);
     erSoloButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::AccentBlue);
@@ -90,7 +90,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         new juce::AudioProcessorValueTreeState::ButtonAttachment(
             p.apvts, "ersolo", erSoloButton));
 
-    // ── ProMode: RT60 帯域ノブ ──
+    // 笏笏 ProMode: RT60 蟶ｯ蝓溘ヮ繝・笏笏
     static const char* rtBandIDs[] = {
         "rtband0","rtband1","rtband2","rtband3","rtband4",
         "rtband5","rtband6","rtband7","rtband8","rtband9"
@@ -102,7 +102,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     for (int i = 0; i < 10; ++i)
         kRTBands[i].build(p.apvts, rtBandIDs[i], rtBandLbls[i], this, laf);
 
-    // ── ProMode: SatType ──
+    // 笏笏 ProMode: SatType 笏笏
     satTypeLabel.setText("SAT TYPE", juce::dontSendNotification);
     satTypeLabel.setFont(juce::Font(juce::FontOptions(9.f)));
     satTypeLabel.setColour(juce::Label::textColourId, AmbienceColors::TextSecondary);
@@ -116,19 +116,19 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         new juce::AudioProcessorValueTreeState::ComboBoxAttachment(
             p.apvts, "sattype", satTypeCombo));
 
-    // ── ProMode: Tilt EQ + Output EQ ──
+    // 笏笏 ProMode: Tilt EQ + Output EQ 笏笏
     BK(kTiltLow, "tiltlow", "TILT LOW");
     BK(kTiltMid, "tiltmid", "TILT MID");
     BK(kTiltHigh, "tilthigh", "TILT HIGH");
     BK(kLoCutPro, "locut", "LO CUT");
     BK(kHiCutPro, "hicut", "HI CUT");
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  プリセット UI
-    // ─────────────────────────────────────────────────────────────────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    //  繝励Μ繧ｻ繝・ヨ UI
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     presetManager = std::make_unique<PresetManager>(p);
 
-    // ◀ PREV
+    // 笳 PREV
     presetPrevButton.setButtonText("<");
     presetPrevButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
     presetPrevButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextPrimary);
@@ -137,7 +137,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         presetManager->loadPrevPreset();
         };
 
-    // プリセット名コンボ
+    // 繝励Μ繧ｻ繝・ヨ蜷阪さ繝ｳ繝・
     presetCombo.setLookAndFeel(&laf);
     addAndMakeVisible(presetCombo);
     presetCombo.onChange = [this] {
@@ -147,7 +147,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             presetManager->loadPreset(names[idx]);
         };
 
-    // ▶ NEXT
+    // 笆ｶ NEXT
     presetNextButton.setButtonText(">");
     presetNextButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
     presetNextButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextPrimary);
@@ -164,7 +164,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     addAndMakeVisible(presetSaveButton);
     presetSaveButton.onClick = [this] { savePresetWithDialog(); };
 
-    // ─── 変更後 ───
+    // 笏笏笏 螟画峩蠕・笏笏笏
         // LOAD
     presetLoadButton.setButtonText("LOAD");
     presetLoadButton.setColour(juce::TextButton::buttonColourId,
@@ -186,16 +186,16 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     addAndMakeVisible(presetDeleteButton);
     presetDeleteButton.onClick = [this] { deleteCurrentPreset(); };
 
-    // コールバック設定
-// コンストラクタ内のコールバック設定部分
+    // 繧ｳ繝ｼ繝ｫ繝舌ャ繧ｯ險ｭ螳・
+// 繧ｳ繝ｳ繧ｹ繝医Λ繧ｯ繧ｿ蜀・・繧ｳ繝ｼ繝ｫ繝舌ャ繧ｯ險ｭ螳夐Κ蛻・
     presetManager->onPresetListChanged = [this] { refreshPresetCombo(); };
 
-    // ★ 修正: プリセット名が変わるたびに Processor に通知する
+    // 笘・菫ｮ豁｣: 繝励Μ繧ｻ繝・ヨ蜷阪′螟峨ｏ繧九◆縺ｳ縺ｫ Processor 縺ｫ騾夂衍縺吶ｋ
     presetManager->onPresetLoaded = [this](const juce::String& name) {
         audioProcessor.setLastSavedPresetName(name);
         refreshPresetCombo();
         };
-    // ── Visualizers ──
+    // 笏笏 Visualizers 笏笏
     rt60Viz.setProcessor(&p);
     decayCurveViz.setProcessor(&p);
     addAndMakeVisible(rt60Viz);
@@ -204,7 +204,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     addAndMakeVisible(vuIn);
     addAndMakeVisible(vuOut);
 
-    // ── AcousticMetrics ──
+    // 笏笏 AcousticMetrics 笏笏
     labelMetricsTitle.setText("ACOUSTICS", juce::dontSendNotification);
     labelMetricsTitle.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 8.5f, juce::Font::bold)));
@@ -240,15 +240,15 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setupValue(labelC80Value);
     setupValue(labelEDTValue);
 
-    // ─── 変更後 ───
-    refreshPresetCombo();     // ★ 追加：起動時にコンボを初期化
+    // 笏笏笏 螟画峩蠕・笏笏笏
+    refreshPresetCombo();     // 笘・霑ｽ蜉・夊ｵｷ蜍墓凾縺ｫ繧ｳ繝ｳ繝懊ｒ蛻晄悄蛹・
     updatePanelVisibility();
     startTimerHz(60);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  デストラクタ
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+//  繝・せ繝医Λ繧ｯ繧ｿ
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 FDNReverbEditor::~FDNReverbEditor() {
     stopTimer();
     setLookAndFeel(nullptr);
@@ -256,9 +256,9 @@ FDNReverbEditor::~FDNReverbEditor() {
     presetCombo.setLookAndFeel(nullptr);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 //  timerCallback
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 void FDNReverbEditor::timerCallback()
 {
     vuIn.setLevels(audioProcessor.getInputRMSL(),
@@ -294,9 +294,9 @@ void FDNReverbEditor::timerCallback()
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 //  updatePanelVisibility
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 void FDNReverbEditor::updatePanelVisibility()
 {
     auto setKnob = [](ArcKnob& k, bool vis) {
@@ -336,19 +336,19 @@ void FDNReverbEditor::updatePanelVisibility()
     setKnob(kLoCutPro, showPro);
     setKnob(kHiCutPro, showPro);
 
-    // プリセット UI は常時表示
+    // 繝励Μ繧ｻ繝・ヨ UI 縺ｯ蟶ｸ譎り｡ｨ遉ｺ
     presetPrevButton.setVisible(true);
     presetCombo.setVisible(true);
     presetNextButton.setVisible(true);
-    // ─── 変更後 ───
+    // 笏笏笏 螟画峩蠕・笏笏笏
     presetSaveButton.setVisible(true);
-    presetLoadButton.setVisible(true);    // ★ 追加
+    presetLoadButton.setVisible(true);    // 笘・霑ｽ蜉
     presetDeleteButton.setVisible(true);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 //  resized
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 void FDNReverbEditor::resized()
 {
     titleLabel.setBounds(PAD, Y_HEADER, 180, 32);
@@ -371,7 +371,7 @@ void FDNReverbEditor::resized()
         };
 
     if (!isProMode) {
-        // ── Row 1 ──
+        // 笏笏 Row 1 笏笏
         int kx = PAD;
         place1(kPreDelay, kx, Y_ROW1);
         place1(kRoomSize, kx, Y_ROW1);
@@ -385,7 +385,7 @@ void FDNReverbEditor::resized()
         place1(kERLevel, kx, Y_ROW1);
         place1(kSaturation, kx, Y_ROW1);
 
-        // ── Row 2: MIX | OUT EQ | DUCKING ──
+        // 笏笏 Row 2: MIX | OUT EQ | DUCKING 笏笏
         kx = PAD;
         place2(kWet, kx, Y_ROW2);
         place2(kDry, kx, Y_ROW2);
@@ -400,12 +400,12 @@ void FDNReverbEditor::resized()
 
     }
     else {
-        // ── ProMode 1段目 ──
+        // 笏笏 ProMode 1谿ｵ逶ｮ 笏笏
         int kx = PAD;
         for (int i = 0; i < 10; ++i)
             place1(kRTBands[i], kx, Y_ROW1);
 
-        // ── ProMode 2段目 ──
+        // 笏笏 ProMode 2谿ｵ逶ｮ 笏笏
         int kx2 = PAD;
         satTypeLabel.setBounds(kx2, Y_SLABEL2, KNOB_W, KNOB_LBL_H);
         satTypeCombo.setBounds(kx2, Y_SLABEL2 + KNOB_LBL_H + 2, KNOB_W + PAD, 24);
@@ -418,33 +418,33 @@ void FDNReverbEditor::resized()
         place2(kHiCutPro, kx2, Y_ROW2);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  プリセット UI (常時・モード非依存)
-    // ─────────────────────────────────────────────────────────────────────────
-    //  配置 (PRESET_PANEL_X=632 起点):
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    //  繝励Μ繧ｻ繝・ヨ UI (蟶ｸ譎ゅ・繝｢繝ｼ繝蛾撼萓晏ｭ・
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    //  驟咲ｽｮ (PRESET_PANEL_X=632 襍ｷ轤ｹ):
     //
-    //  上段 Y=Y_ROW2:   [◀(26)] gap4 [combo(154)] gap4 [▶(26)]  → 右端 848
-    //  下段 Y=Y_ROW2+34:[SAVE(104)] gap8 [DELETE(104)]           → 右端 848
+    //  荳頑ｮｵ Y=Y_ROW2:   [笳(26)] gap4 [combo(154)] gap4 [笆ｶ(26)]  竊・蜿ｳ遶ｯ 848
+    //  荳区ｮｵ Y=Y_ROW2+34:[SAVE(104)] gap8 [DELETE(104)]           竊・蜿ｳ遶ｯ 848
     //
-    //  セパレーター縦線: PRESET_PANEL_X - 9 = 623
-    // ─────────────────────────────────────────────────────────────────────────
+    //  繧ｻ繝代Ξ繝ｼ繧ｿ繝ｼ邵ｦ邱・ PRESET_PANEL_X - 9 = 623
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     {
         const int px = PRESET_PANEL_X;
         const int btnH = 26;
 
-        // 上段
+        // 荳頑ｮｵ
         presetPrevButton.setBounds(px, Y_ROW2, 26, btnH);
         presetCombo.setBounds(px + 30, Y_ROW2, 154, btnH);
         presetNextButton.setBounds(px + 188, Y_ROW2, 26, btnH);
 
-        // ─── 変更後 ───
-               // 下段: [SAVE(68)] [LOAD(68)] [DELETE(68)]
+        // 笏笏笏 螟画峩蠕・笏笏笏
+               // 荳区ｮｵ: [SAVE(68)] [LOAD(68)] [DELETE(68)]
         presetSaveButton.setBounds(px, Y_ROW2 + 34, 68, btnH);
         presetLoadButton.setBounds(px + 72, Y_ROW2 + 34, 68, btnH);
         presetDeleteButton.setBounds(px + 144, Y_ROW2 + 34, 68, btnH);
     }
 
-    // ── Visualizers ──
+    // 笏笏 Visualizers 笏笏
     const int vizTotalH = H - Y_VIZ - PAD;
     const int rt60Height = vizTotalH / 2 - 2;
     const int decayHeight = vizTotalH / 2 - 2;
@@ -453,7 +453,7 @@ void FDNReverbEditor::resized()
     rt60Viz.setBounds(PAD, Y_VIZ, W - PAD * 2, rt60Height);
     decayCurveViz.setBounds(PAD, decayY, W - PAD * 2, decayHeight);
 
-    // ── AcousticMetrics ──
+    // 笏笏 AcousticMetrics 笏笏
     const int metricsRight = W - PAD - 8;
     const int metricsW = 280;
     const int metricsLeft = metricsRight - metricsW;
@@ -477,9 +477,9 @@ void FDNReverbEditor::resized()
     labelEDTValue.setBounds(metricsLeft + colW + colSpacing + captionW, metricsRow2Y, valueW, metricsRowH);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 //  paint
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 void FDNReverbEditor::paint(juce::Graphics& g)
 {
     g.fillAll(AmbienceColors::Background);
@@ -506,20 +506,20 @@ void FDNReverbEditor::paint(juce::Graphics& g)
         };
 
     if (!isProMode) {
-        // ── Row 1 セパレーター ──
+        // 笏笏 Row 1 繧ｻ繝代Ξ繝ｼ繧ｿ繝ｼ 笏笏
         g.setColour(AmbienceColors::Separator);
         g.drawVerticalLine(SEP_TF, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
         g.drawVerticalLine(SEP_FD, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
         g.drawVerticalLine(SEP_DS, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
         g.drawVerticalLine(SEP_SC, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
 
-        // ── Row 2 セパレーター ──
+        // 笏笏 Row 2 繧ｻ繝代Ξ繝ｼ繧ｿ繝ｼ 笏笏
         const int row2_outeq_x = PAD + 2 * (KNOB_W + PAD) + 16;
         const int row2_duck_x = row2_outeq_x + 2 * (KNOB_W + PAD) + 16;
         g.drawVerticalLine(row2_outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
         g.drawVerticalLine(row2_duck_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
 
-        // ── セクション名 ──
+        // 笏笏 繧ｻ繧ｯ繧ｷ繝ｧ繝ｳ蜷・笏笏
         g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
         sl(SEC_TIME, Y_SLABEL1, "TIME");
         sl(SEC_FREQUENCY, Y_SLABEL1, "FREQUENCY");
@@ -532,7 +532,7 @@ void FDNReverbEditor::paint(juce::Graphics& g)
 
     }
     else {
-        // ── ProMode ──
+        // 笏笏 ProMode 笏笏
         g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
         sl(PAD, Y_SLABEL1, "RT60 PER BAND");
 
@@ -549,9 +549,9 @@ void FDNReverbEditor::paint(juce::Graphics& g)
         sl(outeq_x, Y_SLABEL2, "OUT EQ");
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  プリセットセクション (常時・モード非依存)
-    // ─────────────────────────────────────────────────────────────────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    //  繝励Μ繧ｻ繝・ヨ繧ｻ繧ｯ繧ｷ繝ｧ繝ｳ (蟶ｸ譎ゅ・繝｢繝ｼ繝蛾撼萓晏ｭ・
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     g.setColour(AmbienceColors::Separator);
     g.drawVerticalLine(PRESET_PANEL_X - 9,
         (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
@@ -559,23 +559,23 @@ void FDNReverbEditor::paint(juce::Graphics& g)
     sl(PRESET_PANEL_X, Y_SLABEL2, "PRESET");
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  プリセット UI ヘルパー
-// ─────────────────────────────────────────────────────────────────────────────
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+//  繝励Μ繧ｻ繝・ヨ UI 繝倥Ν繝代・
+// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 void FDNReverbEditor::refreshPresetCombo()
 {
     presetCombo.clear(juce::dontSendNotification);
     auto names = presetManager->getPresetNames();
 
-    // ─────────────────────────────────────────────────────────────────────
-    //  ★ 修正: 起動時に Processor から保存済みのプリセット名を復元
-    // ─────────────────────────────────────────────────────────────────────
-    //  エディターが閉じられると PresetManager ごと破棄されるため、
-    //  currentPresetName が空になる。
-    //  Processor 側に lastSavedPresetName として永続化した名前を
-    //  ここで PresetManager に再セットすることで、
-    //  コンボボックスの選択が正しく復元される。
-    // ─────────────────────────────────────────────────────────────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    //  笘・菫ｮ豁｣: 襍ｷ蜍墓凾縺ｫ Processor 縺九ｉ菫晏ｭ俶ｸ医∩縺ｮ繝励Μ繧ｻ繝・ヨ蜷阪ｒ蠕ｩ蜈・
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    //  繧ｨ繝・ぅ繧ｿ繝ｼ縺碁哩縺倥ｉ繧後ｋ縺ｨ PresetManager 縺斐→遐ｴ譽・＆繧後ｋ縺溘ａ縲・
+    //  currentPresetName 縺檎ｩｺ縺ｫ縺ｪ繧九・
+    //  Processor 蛛ｴ縺ｫ lastSavedPresetName 縺ｨ縺励※豌ｸ邯壼喧縺励◆蜷榊燕繧・
+    //  縺薙％縺ｧ PresetManager 縺ｫ蜀阪そ繝・ヨ縺吶ｋ縺薙→縺ｧ縲・
+    //  繧ｳ繝ｳ繝懊・繝・け繧ｹ縺ｮ驕ｸ謚槭′豁｣縺励￥蠕ｩ蜈・＆繧後ｋ縲・
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     if (presetManager->getCurrentPresetName().isEmpty()) {
         auto saved = audioProcessor.getLastSavedPresetName();
         if (saved.isNotEmpty())
@@ -609,11 +609,11 @@ void FDNReverbEditor::refreshPresetCombo()
 
 void FDNReverbEditor::savePresetWithDialog()
 {
-    // ─────────────────────────────────────────────────────────────────────
-    //  AlertWindow を使ったプリセット名入力ダイアログ
-    //  enterModalState(async callback) を使用: runModalLoop() 不要
-    //  SafePointer でエディタが先に破棄された場合を安全に処理
-    // ─────────────────────────────────────────────────────────────────────
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    //  AlertWindow 繧剃ｽｿ縺｣縺溘・繝ｪ繧ｻ繝・ヨ蜷榊・蜉帙ム繧､繧｢繝ｭ繧ｰ
+    //  enterModalState(async callback) 繧剃ｽｿ逕ｨ: runModalLoop() 荳崎ｦ・
+    //  SafePointer 縺ｧ繧ｨ繝・ぅ繧ｿ縺悟・縺ｫ遐ｴ譽・＆繧後◆蝣ｴ蜷医ｒ螳牙・縺ｫ蜃ｦ逅・
+    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     auto* dialog = new juce::AlertWindow(
         "Save Preset",
         "Enter a name for this preset:",

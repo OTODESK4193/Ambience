@@ -1,8 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #include <JuceHeader.h>
 #include "DSP/UniversalEngine.h"
 #include "PluginParameters.h"
+class SpectrumAnalyzer;
 
 class FDNReverbAudioProcessor : public juce::AudioProcessor
 {
@@ -57,11 +58,11 @@ private:
 
     FDNReverb::UniversalEngine engine;
 
-    // ─── ダーティフラグ: パラメータ変化がない場合に setParams をスキップ ───
-    // processBlock は毎バッファ updateEngineParams を呼ぶが、
-    // designStage2() × 16 の WLS 演算は変化がない場合に実行させない。
+    // 笏笏笏 繝繝ｼ繝・ぅ繝輔Λ繧ｰ: 繝代Λ繝｡繝ｼ繧ｿ螟牙喧縺後↑縺・ｴ蜷医↓ setParams 繧偵せ繧ｭ繝・・ 笏笏笏
+    // processBlock 縺ｯ豈弱ヰ繝・ヵ繧｡ updateEngineParams 繧貞他縺ｶ縺後・
+    // designStage2() ﾃ・16 縺ｮ WLS 貍皮ｮ励・螟牙喧縺後↑縺・ｴ蜷医↓螳溯｡後＆縺帙↑縺・・
     FDNReverb::DSPParams lastSentParams;
-    bool paramsNeedUpdate{ true };  // 初回は必ず送る
+    bool paramsNeedUpdate{ true };  // 蛻晏屓縺ｯ蠢・★騾√ｋ
 
     int lastAlgorithmIndex{ -1 };
 
@@ -72,13 +73,13 @@ private:
     std::atomic<float> outputRMS_L{ 0.f }, outputRMS_R{ 0.f };
     double lastSampleRate{ 0.0 };
 
-    // ★ 追加: セッション保存用のプリセット名
-// PresetManager はエディター側に存在するため、
-// Processor 側でプリセット名のみ保持してセッション保存に対応する。
+    // 笘・霑ｽ蜉: 繧ｻ繝・す繝ｧ繝ｳ菫晏ｭ倡畑縺ｮ繝励Μ繧ｻ繝・ヨ蜷・
+// PresetManager 縺ｯ繧ｨ繝・ぅ繧ｿ繝ｼ蛛ｴ縺ｫ蟄伜惠縺吶ｋ縺溘ａ縲・
+// Processor 蛛ｴ縺ｧ繝励Μ繧ｻ繝・ヨ蜷阪・縺ｿ菫晄戟縺励※繧ｻ繝・す繝ｧ繝ｳ菫晏ｭ倥↓蟇ｾ蠢懊☆繧九・
     juce::String lastSavedPresetName;
 
 public:
-    // エディターから呼び出してプリセット名を Processor に通知する
+    // 繧ｨ繝・ぅ繧ｿ繝ｼ縺九ｉ蜻ｼ縺ｳ蜃ｺ縺励※繝励Μ繧ｻ繝・ヨ蜷阪ｒ Processor 縺ｫ騾夂衍縺吶ｋ
     void setLastSavedPresetName(const juce::String& name) noexcept {
         lastSavedPresetName = name;
     }

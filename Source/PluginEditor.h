@@ -4,6 +4,7 @@
 #include "PluginProcessor.h"
 #include "PresetManager.h"
 #include "GUI/AmbienceUI.h"
+#include "GUI/SpectrumAnalyzer.h"
 #include "GUI/DecayCurveViz.h"
 
 class FDNReverbEditor : public juce::AudioProcessorEditor,
@@ -31,6 +32,7 @@ private:
     // ─── 共通 ───
     AlgorithmSelector algoSelector;
     RT60Visualizer    rt60Viz;
+    SpectrumAnalyzer  spectrumViz;
     DecayCurveViz     decayCurveViz;
     VUMeter           vuIn, vuOut;
     juce::Label       titleLabel;
