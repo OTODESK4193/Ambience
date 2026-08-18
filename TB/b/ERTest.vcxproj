@@ -311,6 +311,62 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CustomBuild Include="D:\VST_Project\Ambience\TB\b\CMakeFiles\ebb909643f5e3cb2d508cf7b84afb051\JuceHeader.h.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Generating ERTest_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/Debug/Defs.txt D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\Debug\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generating ERTest_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/Release/Defs.txt D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\Release\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Generating ERTest_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/MinSizeRel/Defs.txt D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\MinSizeRel\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Generating ERTest_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/RelWithDebInfo/Defs.txt D:/VST_Project/Ambience/TB/b/ERTest_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\RelWithDebInfo\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
     <CustomBuild Include="D:\VST_Project\Ambience\TB\CMakeLists.txt">
       <UseUtf8Encoding>Always</UseUtf8Encoding>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/VST_Project/Ambience/TB/CMakeLists.txt</Message>
@@ -368,12 +424,12 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="D:\VST_Project\Ambience\TB\er_test.cpp" />
-    <ClInclude Include="D:\VST_Project\Ambience\Source\AlgorithmPresets.h" />
+    <ClCompile Include="D:\VST_Project\Ambience\TB\DSPTestRunner.cpp" />
     <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\BiquadFilters.cpp" />
     <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\MagnitudeResponseFitter.cpp" />
     <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\UniversalEngine.cpp" />
     <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\AcousticMetrics.cpp" />
+    <ClInclude Include="D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\JuceHeader.h" />
     <ClCompile Include="C:\JUCE\modules\juce_core\juce_core.cpp" />
     <ClCompile Include="C:\JUCE\modules\juce_core\juce_core_CompilationTime.cpp" />
     <ClCompile Include="C:\JUCE\modules\juce_audio_basics\juce_audio_basics.cpp" />

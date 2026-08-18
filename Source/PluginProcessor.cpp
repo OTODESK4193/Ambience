@@ -97,7 +97,13 @@ void FDNReverbAudioProcessor::updateEngineParams()
     // ユーザー操作は -60〜0dB、実効値は -63〜-3dB となる。
     smoothWetGain.setTargetValue(
         juce::Decibels::decibelsToGain(p.wetDB + kWetInternalOffsetDB));
-    smoothDryGain.setTargetValue(juce::Decibels::decibelsToGain(p.dryDB));
+
+    // ★ ER Solo時はDry音を完全にミュートする
+    if (p.erSolo) {
+        smoothDryGain.setTargetValue(0.0f);
+    } else {
+        smoothDryGain.setTargetValue(juce::Decibels::decibelsToGain(p.dryDB));
+    }
 
     if (paramsNeedUpdate || p != lastSentParams) {
         engine.setParams(p);

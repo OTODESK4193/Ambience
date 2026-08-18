@@ -1,4 +1,4 @@
-#include "UniversalEngine.h"
+﻿#include "UniversalEngine.h"
 
 namespace FDNReverb {
 
@@ -46,7 +46,7 @@ namespace FDNReverb {
             const float frac = angle - std::floor(angle);
             lfos[i].rateMultiplier = 0.80f + frac * 0.40f;
 
-            // ★ コーラスLFO: ノイズLFOとは異なるオフセットで黄金比分布
+            // 笘・繧ｳ繝ｼ繝ｩ繧ｹLFO: 繝弱う繧ｺLFO縺ｨ縺ｯ逡ｰ縺ｪ繧九が繝輔そ繝・ヨ縺ｧ鮟・≡豈泌・蟶・
             const float cAngle = static_cast<float>(i + 5) * phi;
             chorusLFOs[i].phase = cAngle - std::floor(cAngle);
             const float cRateAngle = static_cast<float>(i + 11) * phi;
@@ -56,7 +56,7 @@ namespace FDNReverb {
 
     void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
         fs = sampleRate;
-        ChorusLFO::initTable();  // ★ ウェーブテーブル初期化（初回のみ実行）
+        ChorusLFO::initTable();  // 笘・繧ｦ繧ｧ繝ｼ繝悶ユ繝ｼ繝悶Ν蛻晄悄蛹厄ｼ亥・蝗槭・縺ｿ螳溯｡鯉ｼ・
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         MagnitudeResponseFitter::precomputeInteractionMatrix(sampleRate);
@@ -69,7 +69,7 @@ namespace FDNReverb {
             };
 
         size_t totalMemoryNeeded =
-            getPow2(static_cast<size_t>(fs * 0.5))              // ★ preDelay (max 500ms)
+            getPow2(static_cast<size_t>(fs * 0.5))              // 笘・preDelay (max 500ms)
             + getPow2(static_cast<size_t>(fs * 1.0))
             + getPow2(static_cast<size_t>(fs * 0.05)) * 4
             + getPow2(static_cast<size_t>(fs * 0.5)) * FDN_ORDER
@@ -80,7 +80,7 @@ namespace FDNReverb {
         int mask = 0;
         float* ptr = nullptr;
 
-        // ★ PreDelay (max 500ms)
+        // 笘・PreDelay (max 500ms)
         ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.5), mask);
         preDelayLine.init(ptr, mask);
 
@@ -112,12 +112,12 @@ namespace FDNReverb {
         duckingReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.200f));
         duckingEnvelope = 0.0f;
 
-        // ★ DCブロッカー係数: fc ≈ 5Hz の1次HPF
+        // 笘・DC繝悶Ο繝・き繝ｼ菫よ焚: fc 竕・5Hz 縺ｮ1谺｡HPF
         dcBlockerCoeff = 1.0f - (6.28318530718f * 5.0f / static_cast<float>(fs));
         dcX1.fill(0.0f);
         dcY1.fill(0.0f);
 
-        // ★ Soft-kneeコンプ: RMSエンベロープ係数 (~3ms窓)
+        // 笘・Soft-knee繧ｳ繝ｳ繝・ RMS繧ｨ繝ｳ繝吶Ο繝ｼ繝嶺ｿよ焚 (~3ms遯・
         fdnRmsEnv.fill(0.0f);
         rmsCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.003f));
 
@@ -144,8 +144,8 @@ namespace FDNReverb {
         dcX1.fill(0.0f);
         dcY1.fill(0.0f);
         fdnRmsEnv.fill(0.0f);
-        for (auto& dl : fdnDelays) dl.resetState();  // ★ Thiran allpass状態リセット
-        for (auto& chDelays : nestedAllpassDelays)    // ★ ネストAllpass Thiran状態リセット
+        for (auto& dl : fdnDelays) dl.resetState();  // 笘・Thiran allpass迥ｶ諷九Μ繧ｻ繝・ヨ
+        for (auto& chDelays : nestedAllpassDelays)    // 笘・繝阪せ繝・llpass Thiran迥ｶ諷九Μ繧ｻ繝・ヨ
             for (auto& dl : chDelays) dl.resetState();
         for (auto& lfo : lfos) lfo.smoothed = 0.0f;
     }
@@ -166,7 +166,7 @@ namespace FDNReverb {
         duckingAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * attMs * 0.001f));
         duckingReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * relMs * 0.001f));
 
-        // ★ PreDelay: ms → サンプル数に変換
+        // 笘・PreDelay: ms 竊・繧ｵ繝ｳ繝励Ν謨ｰ縺ｫ螟画鋤
         preDelaySamples = p.preDelayMs * 0.001f * static_cast<float>(fs);
 
         outputEQ.setLoCutHz(p.loCutHz);
@@ -207,18 +207,18 @@ namespace FDNReverb {
         std::array<float, NUM_BANDS> scaledRT60 = preset.acoustics.rt60;
         for (auto& v : scaledRT60) v *= activeParams.decayScale;
 
-        // ─────────────────────────────────────────────────────────────────────────
-        //  ★ ②修正: proMode フラグに関係なく常に Tilt / 帯域ノブを適用する
-        // ─────────────────────────────────────────────────────────────────────────
-        //   旧実装: if (activeParams.proMode) { ... }
-        //   ProMode を OFF にするとユーザーが設定した Tilt/帯域が無視され、
-        //   RT60 グラフが元のカーブに戻っていた。
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //  笘・竭｡菫ｮ豁｣: proMode 繝輔Λ繧ｰ縺ｫ髢｢菫ゅ↑縺丞ｸｸ縺ｫ Tilt / 蟶ｯ蝓溘ヮ繝悶ｒ驕ｩ逕ｨ縺吶ｋ
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //   譌ｧ螳溯｣・ if (activeParams.proMode) { ... }
+        //   ProMode 繧・OFF 縺ｫ縺吶ｋ縺ｨ繝ｦ繝ｼ繧ｶ繝ｼ縺瑚ｨｭ螳壹＠縺・Tilt/蟶ｯ蝓溘′辟｡隕悶＆繧後・
+        //   RT60 繧ｰ繝ｩ繝輔′蜈・・繧ｫ繝ｼ繝悶↓謌ｻ縺｣縺ｦ縺・◆縲・
         //
-        //   新実装: 常に適用。デフォルト値が全て 1.0f なので、
-        //   ユーザーが変更していなければ scaledRT60 に変化はなく、
-        //   アルゴリズム切替時に loadPresetDefaults() が 1.0f にリセットする
-        //   ため、副作用は一切ない。
-        // ─────────────────────────────────────────────────────────────────────────
+        //   譁ｰ螳溯｣・ 蟶ｸ縺ｫ驕ｩ逕ｨ縲ゅョ繝輔か繝ｫ繝亥､縺悟・縺ｦ 1.0f 縺ｪ縺ｮ縺ｧ縲・
+        //   繝ｦ繝ｼ繧ｶ繝ｼ縺悟､画峩縺励※縺・↑縺代ｌ縺ｰ scaledRT60 縺ｫ螟牙喧縺ｯ縺ｪ縺上・
+        //   繧｢繝ｫ繧ｴ繝ｪ繧ｺ繝蛻・崛譎ゅ↓ loadPresetDefaults() 縺・1.0f 縺ｫ繝ｪ繧ｻ繝・ヨ縺吶ｋ
+        //   縺溘ａ縲∝憶菴懃畑縺ｯ荳蛻・↑縺・・
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
         scaledRT60[0] *= activeParams.tiltLow;
         scaledRT60[1] *= activeParams.tiltLow;
         scaledRT60[2] *= activeParams.tiltLow;
@@ -268,46 +268,46 @@ namespace FDNReverb {
         }
 #endif
 
-        // ─────────────────────────────────────────────────────────────────────────
-        //  ★ EDT 修正: 全帯域平均化で LF/HF 補正を反映
-        // ─────────────────────────────────────────────────────────────────────────
-        //   旧実装: effectiveRT60[4] (500Hz) の単一バンドのみ使用
-        //   → HF Damping が高域を下げても EDT に反映されない
-        //   → LF Absorption が低域を下げても EDT に反映されない
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //  笘・EDT 菫ｮ豁｣: 蜈ｨ蟶ｯ蝓溷ｹｳ蝮・喧縺ｧ LF/HF 陬懈ｭ｣繧貞渚譏
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //   譌ｧ螳溯｣・ effectiveRT60[4] (500Hz) 縺ｮ蜊倅ｸ繝舌Φ繝峨・縺ｿ菴ｿ逕ｨ
+        //   竊・HF Damping 縺碁ｫ伜沺繧剃ｸ九￡縺ｦ繧・EDT 縺ｫ蜿肴丐縺輔ｌ縺ｪ縺・
+        //   竊・LF Absorption 縺御ｽ主沺繧剃ｸ九￡縺ｦ繧・EDT 縺ｫ蜿肴丐縺輔ｌ縺ｪ縺・
         //
-        //   新実装: 中域バンド（125Hz〜4kHz = band 2〜7）の平均値を使用
-        //   → 耳に聴こえやすい帯域を重視しつつ LF/HF 補正の影響を取り込む
-        //   → 両端（31Hz, 63Hz, 8kHz, 16kHz）は除外（心理音響的に EDT への
-        //     寄与が少ないため、外れ値による不安定化を防ぐ）
-        // ─────────────────────────────────────────────────────────────────────────
+        //   譁ｰ螳溯｣・ 荳ｭ蝓溘ヰ繝ｳ繝会ｼ・25Hz縲・kHz = band 2縲・・峨・蟷ｳ蝮・､繧剃ｽｿ逕ｨ
+        //   竊・閠ｳ縺ｫ閨ｴ縺薙∴繧・☆縺・ｸｯ蝓溘ｒ驥崎ｦ悶＠縺､縺､ LF/HF 陬懈ｭ｣縺ｮ蠖ｱ髻ｿ繧貞叙繧願ｾｼ繧
+        //   竊・荳｡遶ｯ・・1Hz, 63Hz, 8kHz, 16kHz・峨・髯､螟厄ｼ亥ｿ・炊髻ｳ髻ｿ逧・↓ EDT 縺ｸ縺ｮ
+        //     蟇・ｸ弱′蟆代↑縺・◆繧√∝､悶ｌ蛟､縺ｫ繧医ｋ荳榊ｮ牙ｮ壼喧繧帝亟縺撰ｼ・
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
         float rt60Mid = 0.0f;
         for (int b = 2; b <= 7; ++b)
             rt60Mid += effectiveRT60[b];
         rt60Mid = std::max(0.1f, rt60Mid / 6.0f);
 
-        // ─────────────────────────────────────────────────────────────────────────
-        //  ★ 金属音対策 (1): Decay依存マイクロサチュレーション
-        // ─────────────────────────────────────────────────────────────────────────
-        //  FDN ループ内の processMicroSaturation() は、短い残響では温かみを加えるが、
-        //  長い残響では非線形歪みが多数回蓄積し、コムフィルタ構造の共鳴周波数を
-        //  強調して金属的なキーン音を引き起こす。
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //  笘・驥大ｱ樣浹蟇ｾ遲・(1): Decay萓晏ｭ倥・繧､繧ｯ繝ｭ繧ｵ繝√Η繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //  FDN 繝ｫ繝ｼ繝怜・縺ｮ processMicroSaturation() 縺ｯ縲∫洒縺・ｮ矩涸縺ｧ縺ｯ貂ｩ縺九∩繧貞刈縺医ｋ縺後・
+        //  髟ｷ縺・ｮ矩涸縺ｧ縺ｯ髱樒ｷ壼ｽ｢豁ｪ縺ｿ縺悟､壽焚蝗櫁塘遨阪＠縲√さ繝繝輔ぅ繝ｫ繧ｿ讒矩縺ｮ蜈ｱ魑ｴ蜻ｨ豕｢謨ｰ繧・
+        //  蠑ｷ隱ｿ縺励※驥大ｱ樒噪縺ｪ繧ｭ繝ｼ繝ｳ髻ｳ繧貞ｼ輔″襍ｷ縺薙☆縲・
         //
-        //  対策: RT60 中域平均が 2.0s 以下なら従来通り適用、2.0s〜6.0s で漸減、
-        //        6.0s 以上で完全バイパス。
-        // ─────────────────────────────────────────────────────────────────────────
+        //  蟇ｾ遲・ RT60 荳ｭ蝓溷ｹｳ蝮・′ 2.0s 莉･荳九↑繧牙ｾ捺擂騾壹ｊ驕ｩ逕ｨ縲・.0s縲・.0s 縺ｧ貍ｸ貂帙・
+        //        6.0s 莉･荳翫〒螳悟・繝舌う繝代せ縲・
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
         microSatBlend = juce::jlimit(0.0f, 1.0f, 1.0f - (rt60Mid - 2.0f) / 4.0f);
 
-        // ─────────────────────────────────────────────────────────────────────────
-        //  ★ 金属音対策 (2): Decay依存モジュレーション深さスケーリング
-        // ─────────────────────────────────────────────────────────────────────────
-        //  長い残響ほど、コムフィルタのピークをぼかすために深いモジュレーションが必要。
-        //  Lexicon / Strymon 等の高品位リバーブの標準手法。
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //  笘・驥大ｱ樣浹蟇ｾ遲・(2): Decay萓晏ｭ倥Δ繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ豺ｱ縺輔せ繧ｱ繝ｼ繝ｪ繝ｳ繧ｰ
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+        //  髟ｷ縺・ｮ矩涸縺ｻ縺ｩ縲√さ繝繝輔ぅ繝ｫ繧ｿ縺ｮ繝斐・繧ｯ繧偵⊂縺九☆縺溘ａ縺ｫ豺ｱ縺・Δ繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ縺悟ｿ・ｦ√・
+        //  Lexicon / Strymon 遲峨・鬮伜刀菴阪Μ繝舌・繝悶・讓呎ｺ匁焔豕輔・
         //
-        //  ★ モジュレーション深さスケーリング（抑制版）
-        //  RT60 ≤ 1.0s → 1.0x (変化なし)
-        //  RT60 = 3.0s → 2.0x
-        //  RT60 ≥ 5.0s → 3.0x (上限)
-        // ─────────────────────────────────────────────────────────────────────────
+        //  笘・繝｢繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ豺ｱ縺輔せ繧ｱ繝ｼ繝ｪ繝ｳ繧ｰ・域椛蛻ｶ迚茨ｼ・
+        //  RT60 竕､ 1.0s 竊・1.0x (螟牙喧縺ｪ縺・
+        //  RT60 = 3.0s 竊・2.0x
+        //  RT60 竕･ 5.0s 竊・3.0x (荳企剞)
+        // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
         modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
 
         constexpr float baseDB = 16.0f;
@@ -328,16 +328,16 @@ namespace FDNReverb {
             apfGain = 0.618f; diffusionSensitivity = 1.0f;
             break;
         case ReverbTopology::Plate:
-            bypassER = true;  bypassInputDiffusers = false;
-            apfGain = 0.7f;   diffusionSensitivity = 0.7f;
+            bypassER = false;  bypassInputDiffusers = false;
+            apfGain = 0.5f;   diffusionSensitivity = 1.0f;
             break;
         case ReverbTopology::Spring:
-            bypassER = true;  bypassInputDiffusers = false;
-            apfGain = 0.5f;   diffusionSensitivity = 0.5f;
+            bypassER = false;  bypassInputDiffusers = false;
+            apfGain = 0.6f;   diffusionSensitivity = 0.7f;
             break;
         case ReverbTopology::Goldfoil:
-            bypassER = true;  bypassInputDiffusers = false;
-            apfGain = 0.75f;  diffusionSensitivity = 0.8f;
+            bypassER = false;  bypassInputDiffusers = false;
+            apfGain = 0.5f;   diffusionSensitivity = 0.8f;
             break;
         }
 
@@ -409,12 +409,12 @@ namespace FDNReverb {
         float* outL, float* outR,
         int numSamples) noexcept
     {
-        // ★ CPU最適化: fs を float にキャッシュ（processBlock 全域で使用）
+        // 笘・CPU譛驕ｩ蛹・ fs 繧・float 縺ｫ繧ｭ繝｣繝・す繝･・・rocessBlock 蜈ｨ蝓溘〒菴ｿ逕ｨ・・
         const float fsf = static_cast<float>(fs);
 
-        // ★ モジュレーション深さ: 二乗カーブ + ベース係数抑制
-        //   modAmount² でノブ低域を緩やかに、0.001f で全体深さを半減
-        //   旧: modAmt=0.5 → 48smp(1ms) / 新: modAmt=0.5 → 12smp(0.25ms)
+        // 笘・繝｢繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ豺ｱ縺・ 莠御ｹ励き繝ｼ繝・+ 繝吶・繧ｹ菫よ焚謚大宛
+        //   modAmountﾂｲ 縺ｧ繝弱ヶ菴主沺繧堤ｷｩ繧・°縺ｫ縲・.001f 縺ｧ蜈ｨ菴捺ｷｱ縺輔ｒ蜊頑ｸ・
+        //   譌ｧ: modAmt=0.5 竊・48smp(1ms) / 譁ｰ: modAmt=0.5 竊・12smp(0.25ms)
         const float modAmtCurved = activeParams.modAmount * activeParams.modAmount;
         const float depthSamples = modAmtCurved * 0.001f * fsf * modDepthScale;
         const float wetGain = juce::Decibels::decibelsToGain(activeParams.wetDB);
@@ -432,21 +432,21 @@ namespace FDNReverb {
         const float sideBoost = stereoWidth * 1.5f;
         const float erLeakage = (1.0f - stereoWidth) * 0.7f;
 
-        // ★ CPU最適化: apfGainStage はループ不変 → 事前計算
+        // 笘・CPU譛驕ｩ蛹・ apfGainStage 縺ｯ繝ｫ繝ｼ繝嶺ｸ榊､・竊・莠句燕險育ｮ・
         const float apfGainStage = effectiveApfGain * 0.78f;
 
-        // ★ CPU最適化: freqModScale を事前計算（16ch分）
+        // 笘・CPU譛驕ｩ蛹・ freqModScale 繧剃ｺ句燕險育ｮ暦ｼ・6ch蛻・ｼ・
         std::array<float, FDN_ORDER> freqModScales;
         constexpr float invFdnM1 = 1.0f / static_cast<float>(FDN_ORDER - 1);
         for (int i = 0; i < FDN_ORDER; ++i)
             freqModScales[i] = 0.5f + (1.0f - static_cast<float>(i) * invFdnM1) * 1.0f;
 
-        // ★ CPU最適化: 入力ディフューザのディレイ時間を事前計算
+        // 笘・CPU譛驕ｩ蛹・ 蜈･蜉帙ョ繧｣繝輔Η繝ｼ繧ｶ縺ｮ繝・ぅ繝ｬ繧､譎る俣繧剃ｺ句燕險育ｮ・
         std::array<float, 4> diffuserDelaySmp;
         for (int i = 0; i < 4; ++i)
             diffuserDelaySmp[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
 
-        // ★ CPU最適化: Allpassベースディレイを事前計算（16ch × 3段）
+        // 笘・CPU譛驕ｩ蛹・ Allpass繝吶・繧ｹ繝・ぅ繝ｬ繧､繧剃ｺ句燕險育ｮ暦ｼ・6ch ﾃ・3谿ｵ・・
         constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.5f, 2.3f, 3.7f };
         constexpr float apfSpreadMs[SERIAL_APF_STAGES] = { 0.30f, 0.37f, 0.47f };
         constexpr float apfModFrac[SERIAL_APF_STAGES]  = { 0.15f, 0.10f, 0.07f };
@@ -456,12 +456,12 @@ namespace FDNReverb {
             for (int s = 0; s < SERIAL_APF_STAGES; ++s)
                 apfBaseDelaySmp[i][s] = (apfBaseMs[s] + i * apfSpreadMs[s]) * msToSmp;
 
-        // ★ CPU最適化: ER tapGain の * 0.5f を事前計算
+        // 笘・CPU譛驕ｩ蛹・ ER tapGain 縺ｮ * 0.5f 繧剃ｺ句燕險育ｮ・
         std::array<float, MAX_ER_TAPS> erTapGainsHalf;
         for (int t = 0; t < currentERTapCount; ++t)
             erTapGainsHalf[t] = currentERGains[t] * 0.5f;
 
-        // ★ CPU最適化: soft-knee 閾値の二乗を事前計算（sqrt 回避）
+        // 笘・CPU譛驕ｩ蛹・ soft-knee 髢ｾ蛟､縺ｮ莠御ｹ励ｒ莠句燕險育ｮ暦ｼ・qrt 蝗樣∩・・
         constexpr float compThresh = 0.35f;
         constexpr float compThreshSq = compThresh * compThresh;
 
@@ -472,7 +472,7 @@ namespace FDNReverb {
                 const float fc = activeParams.modRate * lfos[i].rateMultiplier;
                 lfoCoeffs[i] = juce::jlimit(0.0001f, 0.9999f,
                     1.0f - std::exp(-twoPi * fc / fsf));
-                // ★ コーラスLFOレート更新
+                // 笘・繧ｳ繝ｼ繝ｩ繧ｹLFO繝ｬ繝ｼ繝域峩譁ｰ
                 chorusLFOs[i].phaseInc = activeParams.modRate * chorusLFOs[i].rateScale / fsf;
             }
         }
@@ -484,10 +484,10 @@ namespace FDNReverb {
             const float sideIn = (leftIn - rightIn) * 0.5f;
             float erOutL = 0.0f, erOutR = 0.0f;
 
-            // ★ PreDelay: 原音とリバーブの時間的分離
-            //   ER・FDN 両方の入力をプリディレイで遅延させる。
-            //   これにより原音のアタック直後にリバーブが始まらず、
-            //   ミックスの明瞭度 (D50/C50) が大幅に向上する。
+            // 笘・PreDelay: 蜴滄浹縺ｨ繝ｪ繝舌・繝悶・譎る俣逧・・髮｢
+            //   ER繝ｻFDN 荳｡譁ｹ縺ｮ蜈･蜉帙ｒ繝励Μ繝・ぅ繝ｬ繧､縺ｧ驕・ｻｶ縺輔○繧九・
+            //   縺薙ｌ縺ｫ繧医ｊ蜴滄浹縺ｮ繧｢繧ｿ繝・け逶ｴ蠕後↓繝ｪ繝舌・繝悶′蟋九∪繧峨★縲・
+            //   繝溘ャ繧ｯ繧ｹ縺ｮ譏守椚蠎ｦ (D50/C50) 縺悟､ｧ蟷・↓蜷台ｸ翫☆繧九・
             preDelayLine.write(midIn);
             const float delayedMid = (preDelaySamples > 0.5f)
                 ? preDelayLine.read(preDelaySamples)
@@ -537,9 +537,9 @@ namespace FDNReverb {
                 erOutR = erTotalR;
             }
 
-            // ★ ER→Late遷移スムージング: ER出力をFDN入力にフィード
-            //   実空間では初期反射が壁面で反射を繰り返しLate Reverbを生成する。
-            //   この自然な遷移を模擬し、ERとLateの境界を滑らかにする。
+            // 笘・ER竊鱈ate驕ｷ遘ｻ繧ｹ繝繝ｼ繧ｸ繝ｳ繧ｰ: ER蜃ｺ蜉帙ｒFDN蜈･蜉帙↓繝輔ぅ繝ｼ繝・
+            //   螳溽ｩｺ髢薙〒縺ｯ蛻晄悄蜿榊ｰ・′螢・擇縺ｧ蜿榊ｰ・ｒ郢ｰ繧願ｿ斐＠Late Reverb繧堤函謌舌☆繧九・
+            //   縺薙・閾ｪ辟ｶ縺ｪ驕ｷ遘ｻ繧呈ｨ｡謫ｬ縺励・R縺ｨLate縺ｮ蠅・阜繧呈ｻ代ｉ縺九↓縺吶ｋ縲・
             if (!bypassER) {
                 fdnInputMid += (erOutL + erOutR) * 0.5f * 0.15f;
             }
@@ -553,13 +553,13 @@ namespace FDNReverb {
 
             for (int i = 0; i < FDN_ORDER; ++i) {
                 const float lfoVal = lfos[i].tick(lfoCoeffs[i]);
-                // ★ コーラス型ピッチモジュレーション: 正弦波LFOをノイズLFOに加算
-                //   ノイズ = ランダムな揺らぎ（金属音抑制）
-                //   コーラス = 滑らかなピッチシフト蓄積（リッチなテール）
+                // 笘・繧ｳ繝ｼ繝ｩ繧ｹ蝙九ヴ繝・メ繝｢繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ: 豁｣蠑ｦ豕｢LFO繧偵ヮ繧､繧ｺLFO縺ｫ蜉邂・
+                //   繝弱う繧ｺ = 繝ｩ繝ｳ繝繝縺ｪ謠ｺ繧峨℃・磯≡螻樣浹謚大宛・・
+                //   繧ｳ繝ｼ繝ｩ繧ｹ = 貊代ｉ縺九↑繝斐ャ繝√す繝輔ヨ闢・ｩ搾ｼ医Μ繝・メ縺ｪ繝・・繝ｫ・・
                 const float chorusVal = chorusLFOs[i].tick();
-                const float combinedLfo = lfoVal + chorusVal * 0.6f;
+                const float combinedLfo = lfoVal * 0.02f + chorusVal * 1.0f;
 
-                // ★ 周波数依存モジュレーション: 高域チャンネルを深く、低域を浅く
+                // 笘・蜻ｨ豕｢謨ｰ萓晏ｭ倥Δ繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ: 鬮伜沺繝√Ε繝ｳ繝阪Ν繧呈ｷｱ縺上∽ｽ主沺繧呈ｵ・￥
                 const float freqModScale = freqModScales[i];
                 const float delaySmp = fdnBaseDelaySamples[i]
                     + combinedLfo * depthSamples * freqModScale;
@@ -572,14 +572,14 @@ namespace FDNReverb {
                 d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
 #endif
 
-                // ★ Anti-denormal: 非正規化数によるCPUスパイクを防止
-                //   -500dBFS（完全に不可聴）の極小定数を加算。
-                //   Lexicon/Strymon/Valhalla 全てが採用する業界標準手法。
+                // 笘・Anti-denormal: 髱樊ｭ｣隕丞喧謨ｰ縺ｫ繧医ｋCPU繧ｹ繝代う繧ｯ繧帝亟豁｢
+                //   -500dBFS・亥ｮ悟・縺ｫ荳榊庄閨ｴ・峨・讌ｵ蟆丞ｮ壽焚繧貞刈邂励・
+                //   Lexicon/Strymon/Valhalla 蜈ｨ縺ｦ縺梧治逕ｨ縺吶ｋ讌ｭ逡梧ｨ呎ｺ匁焔豕輔・
                 d += 1e-25f;
 
-                // ★ 金属音対策 (3): DCブロッカー (1次HPF, fc≈5Hz)
-                //   FDNループ内で吸収フィルタやマイクロサチュレーションが生成する
-                //   DC成分の蓄積を防止。蓄積DCは低域のうなりや非対称歪みの原因になる。
+                // 笘・驥大ｱ樣浹蟇ｾ遲・(3): DC繝悶Ο繝・き繝ｼ (1谺｡HPF, fc竕・Hz)
+                //   FDN繝ｫ繝ｼ繝怜・縺ｧ蜷ｸ蜿弱ヵ繧｣繝ｫ繧ｿ繧・・繧､繧ｯ繝ｭ繧ｵ繝√Η繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ縺檎函謌舌☆繧・
+                //   DC謌仙・縺ｮ闢・ｩ阪ｒ髦ｲ豁｢縲り塘遨好C縺ｯ菴主沺縺ｮ縺・↑繧翫ｄ髱槫ｯｾ遘ｰ豁ｪ縺ｿ縺ｮ蜴溷屏縺ｫ縺ｪ繧九・
                 {
                     const float dcIn = d;
                     const float dcOut = dcIn - dcX1[i] + dcBlockerCoeff * dcY1[i];
@@ -588,9 +588,9 @@ namespace FDNReverb {
                     d = dcOut;
                 }
 
-                // ★ Soft-kneeコンプレッション (FDNフィードバックループ)
-                //   RMSエンベロープでレベルを追従し、閾値超過分をソフトに圧縮。
-                //   ★ CPU最適化: sqrt を閾値超過時のみ実行（二乗比較でゲート）
+                // 笘・Soft-knee繧ｳ繝ｳ繝励Ξ繝・す繝ｧ繝ｳ (FDN繝輔ぅ繝ｼ繝峨ヰ繝・け繝ｫ繝ｼ繝・
+                //   RMS繧ｨ繝ｳ繝吶Ο繝ｼ繝励〒繝ｬ繝吶Ν繧定ｿｽ蠕薙＠縲・明蛟､雜・℃蛻・ｒ繧ｽ繝輔ヨ縺ｫ蝨ｧ邵ｮ縲・
+                //   笘・CPU譛驕ｩ蛹・ sqrt 繧帝明蛟､雜・℃譎ゅ・縺ｿ螳溯｡鯉ｼ井ｺ御ｹ玲ｯ碑ｼ・〒繧ｲ繝ｼ繝茨ｼ・
                 {
                     fdnRmsEnv[i] += (d * d - fdnRmsEnv[i]) * rmsCoeff;
                     if (fdnRmsEnv[i] > compThreshSq) {
@@ -600,16 +600,16 @@ namespace FDNReverb {
                     }
                 }
 
-                // ★ 金属音対策 (1): Decay依存マイクロサチュレーション
-                //   microSatBlend=1.0 → 従来通り適用 (短残響)
-                //   microSatBlend=0.0 → 完全バイパス (長残響)
+                // 笘・驥大ｱ樣浹蟇ｾ遲・(1): Decay萓晏ｭ倥・繧､繧ｯ繝ｭ繧ｵ繝√Η繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ
+                //   microSatBlend=1.0 竊・蠕捺擂騾壹ｊ驕ｩ逕ｨ (遏ｭ谿矩涸)
+                //   microSatBlend=0.0 竊・螳悟・繝舌う繝代せ (髟ｷ谿矩涸)
                 if (microSatBlend > 0.001f) {
                     const float sat = processMicroSaturation(d);
                     d = d + (sat - d) * microSatBlend;
                 }
 
-                // ★ 3段シリアルAllpassチェーン (レイトフィールド密度改善)
-                //   ★ CPU最適化: ベースディレイ・apfGainStage を事前計算済み
+                // 笘・3谿ｵ繧ｷ繝ｪ繧｢繝ｫAllpass繝√ぉ繝ｼ繝ｳ (繝ｬ繧､繝医ヵ繧｣繝ｼ繝ｫ繝牙ｯ・ｺｦ謾ｹ蝟・
+                //   笘・CPU譛驕ｩ蛹・ 繝吶・繧ｹ繝・ぅ繝ｬ繧､繝ｻapfGainStage 繧剃ｺ句燕險育ｮ玲ｸ医∩
                 float apfOut = d;
                 {
                     for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
@@ -644,7 +644,7 @@ namespace FDNReverb {
             fdnOutR *= 0.125f;
             fbVec = nextFb;
 
-            // ★ ER Boost: Late Reverbのメイクアップゲインに対してERが小さすぎるため +12dB(約4.0倍) ブースト
+            // 笘・ER Boost: Late Reverb縺ｮ繝｡繧､繧ｯ繧｢繝・・繧ｲ繧､繝ｳ縺ｫ蟇ｾ縺励※ER縺悟ｰ上＆縺吶℃繧九◆繧・+12dB(邏・.0蛟・ 繝悶・繧ｹ繝・
             const float erMakeupGain = 4.0f;
             const float erMixL = bypassER ? 0.0f : erOutL * erLevel * erMakeupGain;
             const float erMixR = bypassER ? 0.0f : erOutR * erLevel * erMakeupGain;
