@@ -130,8 +130,8 @@ namespace FDNReverb {
         LinearDelayLine                              erDelay;
         std::array<float, 16>                        erTaps;
         std::array<LinearDelayLine, 4>               inputDiffusers;
-        std::array<ThiranDelayLine, FDN_ORDER>        fdnDelays;  // 笘・Thiran allpass陬憺俣
-        std::array<std::array<ThiranDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
+        std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;  // 笘・Thiran allpass陬憺俣
+        std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
         int                            currentERTapCount{ 0 };
         std::array<float, MAX_ER_TAPS> currentERDelaySamples;

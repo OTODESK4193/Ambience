@@ -42,6 +42,7 @@ namespace FDNReverb {
     // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     class LinearDelayLine {
     public:
+        void resetState() noexcept {}
         void init(float* memory, int bitmask) {
             buffer = memory;
             mask = bitmask;
