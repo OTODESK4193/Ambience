@@ -1,5 +1,5 @@
 ﻿#include "PluginProcessor.h"
-#include "GUI/SpectrumAnalyzer.h"
+
 #include "PluginEditor.h"
 
 using namespace FDNReverb;
@@ -136,8 +136,16 @@ void FDNReverbAudioProcessor::processBlock(
     for (int i = 0; i < numSamples; ++i) {
         float dryL = osBlock.getSample(0, i);
         float wetL = wetBuffer.getSample(0, i);
-        if (specAnalyzer != nullptr && (i % 2 == 0)) {
-            specAnalyzer->pushSample(dryL, wetL);
+        if (i % 2 == 0) {
+            int idx = specFifoIndex.load(std::memory_order_relaxed);
+            if (idx < 2048) {
+                specFifoDry[idx] = dryL;
+                specFifoWet[idx] = wetL;
+                specFifoIndex.store(idx + 1, std::memory_order_release);
+                if (idx + 1 == 2048) {
+                    specFifoReady.store(true, std::memory_order_release);
+                }
+            }
         }
         float w = smoothWetGain.getNextValue();
         float d = smoothDryGain.getNextValue();

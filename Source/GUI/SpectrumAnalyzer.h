@@ -2,12 +2,11 @@
 #include <JuceHeader.h>
 #include <array>
 #include <atomic>
+#include "../PluginProcessor.h"
 
 class SpectrumAnalyzer : public juce::Component, private juce::Timer {
 public:
-    SpectrumAnalyzer() : forwardFFT(fftOrder), window(fftSize, juce::dsp::WindowingFunction<float>::hann) {
-        fifoDry.fill(0.0f);
-        fifoWet.fill(0.0f);
+    SpectrumAnalyzer(FDNReverbAudioProcessor& p) : processor(p), forwardFFT(fftOrder), window(fftSize, juce::dsp::WindowingFunction<float>::hann) {
         fftDataDry.fill(0.0f);
         fftDataWet.fill(0.0f);
         scopeDataDry.fill(-100.0f);
@@ -16,26 +15,8 @@ public:
         startTimerHz(30);
     }
     
-    void pushBuffer(const float* dryL, const float* wetL, int numSamples) {
-        for (int i = 0; i < numSamples; ++i) {
-            pushSample(dryL[i], wetL[i]);
-        }
-    }
-    
-    void pushSample(float dry, float wet) {
-        if (fifoIndex < fftSize) {
-            fifoDry[fifoIndex] = dry;
-            fifoWet[fifoIndex] = wet;
-            fifoIndex++;
-            if (fifoIndex == fftSize) {
-                if (!nextFFTBlockReady) {
-                    std::copy(fifoDry.begin(), fifoDry.end(), fftDataDry.begin());
-                    std::copy(fifoWet.begin(), fifoWet.end(), fftDataWet.begin());
-                    nextFFTBlockReady = true;
-                }
-                fifoIndex = 0;
-            }
-        }
+    ~SpectrumAnalyzer() override {
+        stopTimer();
     }
     
     void paint(juce::Graphics& g) override {
@@ -80,7 +61,13 @@ public:
     }
     
     void timerCallback() override {
-        if (nextFFTBlockReady) {
+        if (processor.specFifoReady.load(std::memory_order_acquire)) {
+            std::copy(processor.specFifoDry.begin(), processor.specFifoDry.end(), fftDataDry.begin());
+            std::copy(processor.specFifoWet.begin(), processor.specFifoWet.end(), fftDataWet.begin());
+            
+            processor.specFifoIndex.store(0, std::memory_order_release);
+            processor.specFifoReady.store(false, std::memory_order_release);
+            
             window.multiplyWithWindowingTable(fftDataDry.data(), fftSize);
             window.multiplyWithWindowingTable(fftDataWet.data(), fftSize);
             
@@ -98,8 +85,6 @@ public:
                 scopeDataDry[i] = scopeDataDry[i] * 0.7f + dbDry * 0.3f;
                 scopeDataWet[i] = scopeDataWet[i] * 0.7f + dbWet * 0.3f;
             }
-            
-            nextFFTBlockReady = false;
             repaint();
         }
     }
@@ -110,14 +95,10 @@ private:
     
     juce::dsp::FFT forwardFFT;
     juce::dsp::WindowingFunction<float> window;
+    FDNReverbAudioProcessor& processor;
     
-    std::array<float, fftSize> fifoDry;
-    std::array<float, fftSize> fifoWet;
     std::array<float, fftSize*2> fftDataDry;
     std::array<float, fftSize*2> fftDataWet;
     std::array<float, fftSize/2> scopeDataDry;
     std::array<float, fftSize/2> scopeDataWet;
-    
-    int fifoIndex {0};
-    std::atomic<bool> nextFFTBlockReady {false};
 };

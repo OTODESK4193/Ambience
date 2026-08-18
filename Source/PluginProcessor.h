@@ -81,6 +81,11 @@ private:
     juce::String lastSavedPresetName;
 
 public:
+    std::array<float, 2048> specFifoDry;
+    std::array<float, 2048> specFifoWet;
+    std::atomic<int> specFifoIndex {0};
+    std::atomic<bool> specFifoReady {false};
+
     // 繧ｨ繝・ぅ繧ｿ繝ｼ縺九ｉ蜻ｼ縺ｳ蜃ｺ縺励※繝励Μ繧ｻ繝・ヨ蜷阪ｒ Processor 縺ｫ騾夂衍縺吶ｋ
     void setLastSavedPresetName(const juce::String& name) noexcept {
         lastSavedPresetName = name;

@@ -26,6 +26,7 @@ static constexpr int SEP_SC = 737;
 FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     : AudioProcessorEditor(&p),
     audioProcessor(p),
+    spectrumViz(p),
     algoSelector(p.apvts),
     vuIn("IN", VUMeter::Side::Input),
     vuOut("OUT", VUMeter::Side::Output)
@@ -201,7 +202,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     addAndMakeVisible(rt60Viz);
     addAndMakeVisible(spectrumViz);
     addAndMakeVisible(decayCurveViz);
-    audioProcessor.specAnalyzer = &spectrumViz;
+    
 
     addAndMakeVisible(vuIn);
     addAndMakeVisible(vuOut);
