@@ -3,84 +3,66 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 using namespace FDNReverb;
 
-void analyzeModNoise() {
+void analyzeResonance(float freqHz, const std::string& noteName) {
     UniversalEngine engine;
     DSPParams p;
     p.algorithmIndex = 0; // Room1
     p.decayScale = 1.0f;
-    p.modRate = 2.0f;
-    p.erLevel = 0.0f;
+    p.hfDamping = 0.5f;
+    p.diffusion = 1.0f; // Diffusion MAXでリングノイズが出やすいか
     p.wetDB = 0.0f;
     
-    std::cout << "--- ModAmt Noise Analysis (1kHz Sine) ---\n";
-    for (float modAmt : {0.0f, 1.0f}) {
-        p.modAmount = modAmt;
-        engine.prepare(48000.0, 512);
-        engine.setParams(p);
-        
-        std::vector<float> inL(48000, 0.0f);
-        std::vector<float> inR(48000, 0.0f);
-        std::vector<float> outL(48000, 0.0f);
-        std::vector<float> outR(48000, 0.0f);
-        
-        for (int i = 0; i < 48000; ++i) {
-            inL[i] = inR[i] = std::sin(2.0f * 3.1415926535f * 1000.0f * i / 48000.0f);
-        }
-        
-        engine.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), 48000);
-        
-        // 高周波成分(>5kHz)のRMSを簡易計算
-        float hfEnergy = 0.0f;
-        float prev = 0.0f;
-        for (int i = 0; i < 48000; ++i) {
-            float diff = outL[i] - prev; // 簡易的な1次HPF
-            hfEnergy += diff * diff;
-            prev = outL[i];
-        }
-        float hfRMS = 20.0f * std::log10(std::sqrt(hfEnergy / 48000.0f) + 1e-9f);
-        std::cout << "ModAmt=" << modAmt << " -> High-Freq Energy Level: " << hfRMS << " dB\n";
-    }
-}
-
-void analyzeDiffusion() {
-    UniversalEngine engine;
-    DSPParams p;
-    p.algorithmIndex = 0;
-    p.decayScale = 1.0f;
-    p.erLevel = 0.0f; // Lateのみ
-    p.wetDB = 0.0f;
+    engine.prepare(48000.0, 512);
+    engine.setParams(p);
     
-    std::cout << "\n--- Diffusion Density Analysis (Impulse) ---\n";
-    for (float diffVal : {0.0f, 1.0f}) {
-        p.diffusion = diffVal;
-        engine.prepare(48000.0, 512);
-        engine.setParams(p);
-        
-        std::vector<float> inL(48000, 0.0f);
-        std::vector<float> inR(48000, 0.0f);
-        std::vector<float> outL(48000, 0.0f);
-        std::vector<float> outR(48000, 0.0f);
-        
-        inL[0] = inR[0] = 1.0f; // インパルス
-        
-        engine.processBlock(inL.data(), inR.data(), outL.data(), outR.data(), 48000);
-        
-        // 最初の100ms(4800サンプル)のゼロ交差数をカウント(密度の指標)
-        int zeroCrossings = 0;
-        for (int i = 1; i < 4800; ++i) {
-            if ((outL[i-1] >= 0.0f && outL[i] < 0.0f) || (outL[i-1] < 0.0f && outL[i] >= 0.0f)) {
-                zeroCrossings++;
-            }
-        }
-        std::cout << "Diffusion=" << diffVal << " -> Zero Crossings in first 100ms: " << zeroCrossings << "\n";
+    const int numSamples = 48000 * 2; // 2 seconds
+    std::vector<float> inL(numSamples, 0.0f);
+    std::vector<float> inR(numSamples, 0.0f);
+    std::vector<float> outL(numSamples, 0.0f);
+    std::vector<float> outR(numSamples, 0.0f);
+    
+    // 入力: 0.5秒間サイン波を鳴らす
+    for (int i = 0; i < 24000; ++i) {
+        float env = 1.0f;
+        if (i < 480) env = i / 480.0f; // Attack
+        if (i > 24000 - 480) env = (24000 - i) / 480.0f; // Release
+        inL[i] = inR[i] = env * std::sin(2.0f * 3.1415926535f * freqHz * i / 48000.0f);
     }
+    
+    // 512サンプルずつ処理
+    for (int n = 0; n < numSamples; n += 512) {
+        int processLength = std::min(512, numSamples - n);
+        engine.processBlock(&inL[n], &inR[n], &outL[n], &outR[n], processLength);
+    }
+    
+    // サイン波停止後（1秒〜2秒の間）のリバーブテイルを分析
+    // ゼロクロス周期から、どのような周波数が支配的になっているか簡易分析
+    int zeroCrossings = 0;
+    for (int i = 48000; i < numSamples - 1; ++i) {
+        if ((outL[i] >= 0.0f && outL[i+1] < 0.0f) || (outL[i] < 0.0f && outL[i+1] >= 0.0f)) {
+            zeroCrossings++;
+        }
+    }
+    
+    float dominantFreq = (zeroCrossings / 2.0f);
+    
+    // RMS
+    float energy = 0;
+    for (int i = 48000; i < numSamples; ++i) energy += outL[i] * outL[i];
+    float tailRmsDB = 20.0f * std::log10(std::sqrt(energy / 48000.0f) + 1e-9f);
+    
+    std::cout << "--- Resonance Analysis: " << noteName << " (" << freqHz << " Hz) ---\n";
+    std::cout << "Tail RMS Level: " << tailRmsDB << " dB\n";
+    std::cout << "Dominant Freq in Tail: " << dominantFreq << " Hz\n";
+    std::cout << "Deviation from Input: " << std::abs(dominantFreq - freqHz) << " Hz\n\n";
 }
 
 int main() {
-    analyzeModNoise();
-    analyzeDiffusion();
+    analyzeResonance(1108.73f, "C#6");
+    analyzeResonance(1174.66f, "D6");
     return 0;
 }
