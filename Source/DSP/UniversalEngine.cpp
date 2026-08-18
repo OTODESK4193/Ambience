@@ -447,7 +447,7 @@ namespace FDNReverb {
 
         // 笘・CPU譛驕ｩ蛹・ Allpass繝吶・繧ｹ繝・ぅ繝ｬ繧､繧剃ｺ句燕險育ｮ暦ｼ・6ch ﾃ・3谿ｵ・・
         constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.5f, 2.3f, 3.7f };
-        constexpr float apfSpreadMs[SERIAL_APF_STAGES] = { 0.30f, 0.37f, 0.47f };
+        constexpr float apfSpreadMs[SERIAL_APF_STAGES] = { 0.73f, 0.91f, 1.13f };
         constexpr float apfModFrac[SERIAL_APF_STAGES]  = { 0.15f, 0.10f, 0.07f };
         const float msToSmp = 0.001f * fsf;
         std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> apfBaseDelaySmp;
@@ -479,7 +479,7 @@ namespace FDNReverb {
                 for (int n = 0; n < numSamples; ++n) {
             smoothedModAmount += (targetModAmount - smoothedModAmount) * 0.005f;
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
-            const float depthSamples = modAmtCurved * 0.001f * fsf * modDepthScale;
+            const float depthSamples = modAmtCurved * 0.003f * fsf * modDepthScale;
             const float leftIn = inL[n];
             const float rightIn = inR[n];
             const float midIn = (leftIn + rightIn) * 0.5f;
