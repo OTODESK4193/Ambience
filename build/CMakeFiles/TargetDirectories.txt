@@ -1,0 +1,13 @@
+D:/VST_Project/Ambience/build/CMakeFiles/Ambience.dir
+D:/VST_Project/Ambience/build/CMakeFiles/Ambience_All.dir
+D:/VST_Project/Ambience/build/CMakeFiles/Ambience_Standalone.dir
+D:/VST_Project/Ambience/build/CMakeFiles/Ambience_rc_lib.dir
+D:/VST_Project/Ambience/build/CMakeFiles/Ambience_VST3.dir
+D:/VST_Project/Ambience/build/CMakeFiles/INSTALL.dir
+D:/VST_Project/Ambience/build/CMakeFiles/ALL_BUILD.dir
+D:/VST_Project/Ambience/build/CMakeFiles/ZERO_CHECK.dir
+D:/VST_Project/Ambience/build/$/JUCE/CMakeFiles/INSTALL.dir
+D:/VST_Project/Ambience/build/$/JUCE/CMakeFiles/ALL_BUILD.dir
+D:/VST_Project/Ambience/build/$/JUCE/modules/CMakeFiles/INSTALL.dir
+D:/VST_Project/Ambience/build/$/JUCE/extras/Build/CMakeFiles/INSTALL.dir
+D:/VST_Project/Ambience/build/$/JUCE/extras/Build/juceaide/CMakeFiles/INSTALL.dir

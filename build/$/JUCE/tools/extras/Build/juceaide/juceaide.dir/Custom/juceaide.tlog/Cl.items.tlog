@@ -1,0 +1,10 @@
+C:\JUCE\extras\Build\juceaide\Main.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\Main.obj
+C:\JUCE\extras\Build\juce_build_tools\juce_build_tools.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_build_tools.obj
+C:\JUCE\modules\juce_gui_basics\juce_gui_basics.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_gui_basics.obj
+C:\JUCE\modules\juce_graphics\juce_graphics.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_graphics.obj
+C:\JUCE\modules\juce_graphics\juce_graphics_Harfbuzz.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_graphics_Harfbuzz.obj
+C:\JUCE\modules\juce_graphics\juce_graphics_Sheenbidi.c;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_graphics_Sheenbidi.obj
+C:\JUCE\modules\juce_events\juce_events.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_events.obj
+C:\JUCE\modules\juce_core\juce_core.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_core.obj
+C:\JUCE\modules\juce_core\juce_core_CompilationTime.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_core_CompilationTime.obj
+C:\JUCE\modules\juce_data_structures\juce_data_structures.cpp;D:\VST_Project\Ambience\build\$\JUCE\tools\extras\Build\juceaide\juceaide.dir\Custom\juce_data_structures.obj

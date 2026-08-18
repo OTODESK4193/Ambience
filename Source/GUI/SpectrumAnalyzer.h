@@ -6,6 +6,12 @@
 class SpectrumAnalyzer : public juce::Component, private juce::Timer {
 public:
     SpectrumAnalyzer() : forwardFFT(fftOrder), window(fftSize, juce::dsp::WindowingFunction<float>::hann) {
+        fifoDry.fill(0.0f);
+        fifoWet.fill(0.0f);
+        fftDataDry.fill(0.0f);
+        fftDataWet.fill(0.0f);
+        scopeDataDry.fill(-100.0f);
+        scopeDataWet.fill(-100.0f);
         setOpaque(false);
         startTimerHz(30);
     }
@@ -33,12 +39,8 @@ public:
     }
     
     void paint(juce::Graphics& g) override {
-        // Draw background or grid here if needed (e.g. EQ area bg)
-        g.setColour(juce::Colour(0xFF1E1E1E));
-        g.fillRoundedRectangle(getLocalBounds().toFloat(), 8.0f);
-        
-        drawSpectrum(g, scopeDataDry, juce::Colour(0x66FFFFFF), 1.0f); // Gray for Dry
-        drawSpectrum(g, scopeDataWet, juce::Colour(0x994090FF), 1.5f); // Blue for Wet
+        drawSpectrum(g, scopeDataDry, juce::Colour(0x88FFFFFF), 1.5f); // Gray for Dry
+        drawSpectrum(g, scopeDataWet, juce::Colour(0xBB4090FF), 2.0f); // Blue for Wet
     }
     
     void drawSpectrum(juce::Graphics& g, const std::array<float, 1024>& scopeData, juce::Colour c, float thickness) {
@@ -94,12 +96,12 @@ private:
     juce::dsp::FFT forwardFFT;
     juce::dsp::WindowingFunction<float> window;
     
-    std::array<float, fftSize> fifoDry {0};
-    std::array<float, fftSize> fifoWet {0};
-    std::array<float, fftSize*2> fftDataDry {0};
-    std::array<float, fftSize*2> fftDataWet {0};
-    std::array<float, fftSize/2> scopeDataDry {-100.0f};
-    std::array<float, fftSize/2> scopeDataWet {-100.0f};
+    std::array<float, fftSize> fifoDry;
+    std::array<float, fftSize> fifoWet;
+    std::array<float, fftSize*2> fftDataDry;
+    std::array<float, fftSize*2> fftDataWet;
+    std::array<float, fftSize/2> scopeDataDry;
+    std::array<float, fftSize/2> scopeDataWet;
     
     int fifoIndex {0};
     std::atomic<bool> nextFFTBlockReady {false};

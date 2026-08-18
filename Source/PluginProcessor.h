@@ -8,6 +8,7 @@ class SpectrumAnalyzer;
 class FDNReverbAudioProcessor : public juce::AudioProcessor
 {
 public:
+    SpectrumAnalyzer* specAnalyzer{ nullptr };
     FDNReverbAudioProcessor();
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -72,6 +73,7 @@ private:
     std::atomic<float> inputRMS_L{ 0.f }, inputRMS_R{ 0.f };
     std::atomic<float> outputRMS_L{ 0.f }, outputRMS_R{ 0.f };
     double lastSampleRate{ 0.0 };
+    
 
     // 笘・霑ｽ蜉: 繧ｻ繝・す繝ｧ繝ｳ菫晏ｭ倡畑縺ｮ繝励Μ繧ｻ繝・ヨ蜷・
 // PresetManager 縺ｯ繧ｨ繝・ぅ繧ｿ繝ｼ蛛ｴ縺ｫ蟄伜惠縺吶ｋ縺溘ａ縲・

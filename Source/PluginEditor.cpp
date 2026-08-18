@@ -199,7 +199,9 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     rt60Viz.setProcessor(&p);
     decayCurveViz.setProcessor(&p);
     addAndMakeVisible(rt60Viz);
+    addAndMakeVisible(spectrumViz);
     addAndMakeVisible(decayCurveViz);
+    audioProcessor.specAnalyzer = &spectrumViz;
 
     addAndMakeVisible(vuIn);
     addAndMakeVisible(vuOut);
@@ -451,6 +453,7 @@ void FDNReverbEditor::resized()
     const int decayY = Y_VIZ + rt60Height + 4;
 
     rt60Viz.setBounds(PAD, Y_VIZ, W - PAD * 2, rt60Height);
+    spectrumViz.setBounds(PAD, Y_VIZ, W - PAD * 2, rt60Height);
     decayCurveViz.setBounds(PAD, decayY, W - PAD * 2, decayHeight);
 
     // 笏笏 AcousticMetrics 笏笏

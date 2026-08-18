@@ -1,4 +1,5 @@
 ﻿#include "PluginProcessor.h"
+#include "GUI/SpectrumAnalyzer.h"
 #include "PluginEditor.h"
 
 using namespace FDNReverb;
@@ -133,12 +134,15 @@ void FDNReverbAudioProcessor::processBlock(
         numSamples);
 
     for (int i = 0; i < numSamples; ++i) {
+        float dryL = osBlock.getSample(0, i);
+        float wetL = wetBuffer.getSample(0, i);
+        if (specAnalyzer != nullptr && (i % 2 == 0)) {
+            specAnalyzer->pushSample(dryL, wetL);
+        }
         float w = smoothWetGain.getNextValue();
         float d = smoothDryGain.getNextValue();
-        osBlock.setSample(0, i, osBlock.getSample(0, i) * d
-            + wetBuffer.getSample(0, i) * w);
-        osBlock.setSample(1, i, osBlock.getSample(1, i) * d
-            + wetBuffer.getSample(1, i) * w);
+        osBlock.setSample(0, i, dryL * d + wetL * w);
+        osBlock.setSample(1, i, osBlock.getSample(1, i) * d + wetBuffer.getSample(1, i) * w);
     }
 
     oversampler->processSamplesDown(block);
