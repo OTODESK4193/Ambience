@@ -11,9 +11,9 @@ void analyzeResonance(float freqHz, const std::string& noteName) {
     UniversalEngine engine;
     DSPParams p;
     p.algorithmIndex = 0; // Room1
-    p.decayScale = 1.0f;
-    p.hfDamping = 0.5f;
-    p.diffusion = 1.0f; // Diffusion MAXでリングノイズが出やすいか
+    p.decayScale = 1.0f; // ★ 通常のDecay
+    p.hfDamping = 0.5f;  // ★ 通常のダンピング
+    p.diffusion = 0.5f;
     p.wetDB = 0.0f;
     
     engine.prepare(48000.0, 512);
@@ -25,40 +25,25 @@ void analyzeResonance(float freqHz, const std::string& noteName) {
     std::vector<float> outL(numSamples, 0.0f);
     std::vector<float> outR(numSamples, 0.0f);
     
-    // 入力: 0.5秒間サイン波を鳴らす
     for (int i = 0; i < 24000; ++i) {
         float env = 1.0f;
-        if (i < 480) env = i / 480.0f; // Attack
-        if (i > 24000 - 480) env = (24000 - i) / 480.0f; // Release
+        if (i < 480) env = i / 480.0f;
+        if (i > 24000 - 480) env = (24000 - i) / 480.0f;
         inL[i] = inR[i] = env * std::sin(2.0f * 3.1415926535f * freqHz * i / 48000.0f);
     }
     
-    // 512サンプルずつ処理
     for (int n = 0; n < numSamples; n += 512) {
         int processLength = std::min(512, numSamples - n);
         engine.processBlock(&inL[n], &inR[n], &outL[n], &outR[n], processLength);
     }
     
-    // サイン波停止後（1秒〜2秒の間）のリバーブテイルを分析
-    // ゼロクロス周期から、どのような周波数が支配的になっているか簡易分析
-    int zeroCrossings = 0;
-    for (int i = 48000; i < numSamples - 1; ++i) {
-        if ((outL[i] >= 0.0f && outL[i+1] < 0.0f) || (outL[i] < 0.0f && outL[i+1] >= 0.0f)) {
-            zeroCrossings++;
-        }
-    }
-    
-    float dominantFreq = (zeroCrossings / 2.0f);
-    
-    // RMS
+    // 0.5秒〜2.0秒のテイル
     float energy = 0;
-    for (int i = 48000; i < numSamples; ++i) energy += outL[i] * outL[i];
-    float tailRmsDB = 20.0f * std::log10(std::sqrt(energy / 48000.0f) + 1e-9f);
+    for (int i = 24000; i < numSamples; ++i) energy += outL[i] * outL[i];
+    float tailRmsDB = 20.0f * std::log10(std::sqrt(energy / (48000.0f * 1.5f)) + 1e-9f);
     
-    std::cout << "--- Resonance Analysis: " << noteName << " (" << freqHz << " Hz) ---\n";
-    std::cout << "Tail RMS Level: " << tailRmsDB << " dB\n";
-    std::cout << "Dominant Freq in Tail: " << dominantFreq << " Hz\n";
-    std::cout << "Deviation from Input: " << std::abs(dominantFreq - freqHz) << " Hz\n\n";
+    std::cout << "--- Realistic Test: " << noteName << " (" << freqHz << " Hz) ---\n";
+    std::cout << "Tail RMS Level (0.5s-2s): " << tailRmsDB << " dB\n\n";
 }
 
 int main() {

@@ -415,8 +415,7 @@ namespace FDNReverb {
         // 笘・繝｢繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ豺ｱ縺・ 莠御ｹ励き繝ｼ繝・+ 繝吶・繧ｹ菫よ焚謚大宛
         //   modAmountﾂｲ 縺ｧ繝弱ヶ菴主沺繧堤ｷｩ繧・°縺ｫ縲・.001f 縺ｧ蜈ｨ菴捺ｷｱ縺輔ｒ蜊頑ｸ・
         //   譌ｧ: modAmt=0.5 竊・48smp(1ms) / 譁ｰ: modAmt=0.5 竊・12smp(0.25ms)
-        const float modAmtCurved = activeParams.modAmount * activeParams.modAmount;
-        const float depthSamples = modAmtCurved * 0.001f * fsf * modDepthScale;
+        const float targetModAmount = activeParams.modAmount;
         const float wetGain = juce::Decibels::decibelsToGain(activeParams.wetDB);
         const float stereoWidth = activeParams.stereoWidth;
         const float erLevel = activeParams.erLevel;
@@ -477,7 +476,10 @@ namespace FDNReverb {
             }
         }
 
-        for (int n = 0; n < numSamples; ++n) {
+                for (int n = 0; n < numSamples; ++n) {
+            smoothedModAmount += (targetModAmount - smoothedModAmount) * 0.005f;
+            const float modAmtCurved = smoothedModAmount * smoothedModAmount;
+            const float depthSamples = modAmtCurved * 0.001f * fsf * modDepthScale;
             const float leftIn = inL[n];
             const float rightIn = inR[n];
             const float midIn = (leftIn + rightIn) * 0.5f;
