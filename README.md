@@ -316,7 +316,7 @@ This software is built using the **JUCE 8** framework. In accordance with JUCE 8
 
 **Framework:** JUCE 8.0.x
 
-**DSP References:**
+**DSP References:***
 - Välimäki & Liski — *"Accurate Cascade Graphic Equalizer"* (2017)
 - Vicanek — *"Matched Second Order Digital Filters"* (2016)
 - Schlecht & Habets — *"On Lossless Feedback Delay Networks"* (2017)
