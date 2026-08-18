@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\VST_Project\Ambience\TB\b\CMakeFiles\ebb909643f5e3cb2d508cf7b84afb051\ERTest_resources.rc.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="D:\VST_Project\Ambience\TB\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="D:\VST_Project\Ambience\TB\b\ERTest_artefacts\JuceLibraryCode\ERTest_resources.rc">
+      <Filter>Source Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{FF1B3574-C3BE-3609-9037-CDA241BFCF2D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{7C5138B3-251B-3F2C-978D-31B3CCC7FA2A}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

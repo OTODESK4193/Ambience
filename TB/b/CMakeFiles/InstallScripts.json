@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/VST_Project/Ambience/TB/b/cmake_install.cmake",
+		"D:/VST_Project/Ambience/TB/b/JUCE/cmake_install.cmake",
+		"D:/VST_Project/Ambience/TB/b/JUCE/modules/cmake_install.cmake",
+		"D:/VST_Project/Ambience/TB/b/JUCE/extras/Build/cmake_install.cmake",
+		"D:/VST_Project/Ambience/TB/b/JUCE/extras/Build/juceaide/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

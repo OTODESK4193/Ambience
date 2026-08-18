@@ -1,7 +1,7 @@
 #include <JuceHeader.h>
 #include "UniversalEngine.h"
 #include "DSPTestHarness.h"
-#include "../PluginParameters.h"
+#include "DSPParams.h"
 #include "../AlgorithmPresets.h"
 #include <iostream>
 #include <vector>

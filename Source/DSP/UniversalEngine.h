@@ -6,7 +6,8 @@
 #include "Saturator.h"
 #include "OutputLimiter.h"
 #include "OutputEQ.h"
-#include "../PluginParameters.h"
+#include <JuceHeader.h>
+#include "DSPParams.h"
 #include <array>
 #include <cmath>
 
@@ -146,14 +147,9 @@ namespace FDNReverb {
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2;
         std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> currentAbsorptionCoeffsS2;
-        // ★ Phase 3: フィルタ係数スムージング（ジッパーノイズ防止）
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> targetAbsorptionCoeffsS2;
-        float coeffSmoothingFactor{ 0.005f };  // ~200サンプルで収束 (1次IIR)
 #else
         std::array<BiquadState, FDN_ORDER> absorptionFilters;
         std::array<BiquadCoeffs, FDN_ORDER> currentAbsorptionCoeffs;
-        std::array<BiquadCoeffs, FDN_ORDER> targetAbsorptionCoeffs;
-        float coeffSmoothingFactor{ 0.005f };
 #endif
 
         std::array<BandlimitedNoiseLFO, FDN_ORDER> lfos;

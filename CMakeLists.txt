@@ -1,5 +1,5 @@
-﻿cmake_minimum_required(VERSION 3.22)
-project(Ambience VERSION 1.1.0 LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.22)
+project(Ambience VERSION 1.2.0 LANGUAGES C CXX)
 # ============================================================================
 # C++20
 # ============================================================================
@@ -17,7 +17,7 @@ juce_add_plugin(Ambience
     PLUGIN_MANUFACTURER_CODE "Otdk"
     PLUGIN_CODE             "Ambi"
     FORMATS                 VST3 Standalone
-    PRODUCT_NAME            "Ambience1.1"
+    PRODUCT_NAME            "Ambience1.2"
     PLUGIN_DESCRIPTION      "16-channel FDN Algorithmic Reverb"
     IS_SYNTH                FALSE
     NEEDS_MIDI_INPUT        FALSE
@@ -26,11 +26,10 @@ juce_add_plugin(Ambience
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     VST3_AUTO_MANIFEST      FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
-    VERSION                 "1.1.0"
+    VERSION                 "1.2.0"
 )
 # ============================================================================
-# ソース（存在するファイルのみ）
-# ============================================================================
+# ソース�E�存在するファイルのみ�E�E# ============================================================================
 target_sources(Ambience PRIVATE
     Source/PluginProcessor.h
     Source/PluginProcessor.cpp
@@ -38,8 +37,8 @@ target_sources(Ambience PRIVATE
     Source/PluginEditor.cpp
     Source/PluginParameters.h
     Source/PluginParameters.cpp
-    Source/PresetManager.h      # ★ 追加
-    Source/PresetManager.cpp    # ★ 追加
+    Source/PresetManager.h      # ☁E追加
+    Source/PresetManager.cpp    # ☁E追加
     Source/GUI/AmbienceUI.h
     Source/GUI/AmbienceUI.cpp
     Source/AlgorithmPresets.h
@@ -98,7 +97,7 @@ target_compile_definitions(Ambience PRIVATE
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
-    AMBIENCE_VERSION="1.1.0"
+    AMBIENCE_VERSION="1.2.0"
 )
 # ============================================================================
 # MSVC コンパイルオプション
@@ -113,11 +112,11 @@ if(MSVC)
     )
 endif()
 # ============================================================================
-# JUCE ヘッダー生成
+# JUCE ヘッダー生�E
 # ============================================================================
 juce_generate_juce_header(Ambience)
 # ============================================================================
-# ビルドメッセージ
+# ビルドメチE��ージ
 # ============================================================================
 message(STATUS "===========================================")
 message(STATUS "Ambience VST3 - CMake Configuration")

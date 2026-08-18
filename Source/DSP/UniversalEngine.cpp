@@ -241,8 +241,7 @@ namespace FDNReverb {
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
-                // ★ Phase 3: target に書き込み → processBlock で current へ補間
-                targetAbsorptionCoeffsS2[i][b] = s2.geqStages[b];
+                currentAbsorptionCoeffsS2[i][b] = s2.geqStages[b];
                 targetDbAccum[b] += s2.targetDb[b];
             }
         }
@@ -265,8 +264,7 @@ namespace FDNReverb {
             auto absoStages = FilterDesign::designAbsorption(
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
-            // ★ Phase 3: target に書き込み → processBlock で current へ補間
-            targetAbsorptionCoeffs[i] = absoStages[0];
+            currentAbsorptionCoeffs[i] = absoStages[0];
         }
 #endif
 
@@ -568,30 +566,10 @@ namespace FDNReverb {
                 float d = fdnDelays[i].read(delaySmp);
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-                // ★ Phase 3: 吸収フィルタ係数スムージング（ジッパーノイズ防止）
-                //   パラメータ変更時に係数が瞬時切替されるのを防ぎ、
-                //   1次IIRで滑らかに目標値へ遷移させる。
-                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                    auto& curr = currentAbsorptionCoeffsS2[i][s];
-                    const auto& tgt = targetAbsorptionCoeffsS2[i][s];
-                    curr.b0 += (tgt.b0 - curr.b0) * coeffSmoothingFactor;
-                    curr.b1 += (tgt.b1 - curr.b1) * coeffSmoothingFactor;
-                    curr.b2 += (tgt.b2 - curr.b2) * coeffSmoothingFactor;
-                    curr.a1 += (tgt.a1 - curr.a1) * coeffSmoothingFactor;
-                    curr.a2 += (tgt.a2 - curr.a2) * coeffSmoothingFactor;
-                    d = absorptionFiltersS2[i][s].tick(d, curr);
-                }
+                for (int s = 0; s < ABSO_STAGES_S2; ++s)
+                    d = absorptionFiltersS2[i][s].tick(d, currentAbsorptionCoeffsS2[i][s]);
 #else
-                {
-                    auto& curr = currentAbsorptionCoeffs[i];
-                    const auto& tgt = targetAbsorptionCoeffs[i];
-                    curr.b0 += (tgt.b0 - curr.b0) * coeffSmoothingFactor;
-                    curr.b1 += (tgt.b1 - curr.b1) * coeffSmoothingFactor;
-                    curr.b2 += (tgt.b2 - curr.b2) * coeffSmoothingFactor;
-                    curr.a1 += (tgt.a1 - curr.a1) * coeffSmoothingFactor;
-                    curr.a2 += (tgt.a2 - curr.a2) * coeffSmoothingFactor;
-                    d = absorptionFilters[i].tick(d, curr);
-                }
+                d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
 #endif
 
                 // ★ Anti-denormal: 非正規化数によるCPUスパイクを防止
@@ -666,8 +644,10 @@ namespace FDNReverb {
             fdnOutR *= 0.125f;
             fbVec = nextFb;
 
-            const float erMixL = bypassER ? 0.0f : erOutL * erLevel;
-            const float erMixR = bypassER ? 0.0f : erOutR * erLevel;
+            // ★ ER Boost: Late Reverbのメイクアップゲインに対してERが小さすぎるため +12dB(約4.0倍) ブースト
+            const float erMakeupGain = 4.0f;
+            const float erMixL = bypassER ? 0.0f : erOutL * erLevel * erMakeupGain;
+            const float erMixR = bypassER ? 0.0f : erOutR * erLevel * erMakeupGain;
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel;
             const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel;
 
