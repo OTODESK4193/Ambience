@@ -69,7 +69,7 @@ namespace FDNReverb {
             };
 
         size_t totalMemoryNeeded =
-            getPow2(static_cast<size_t>(fs * 0.5))              // 笘・preDelay (max 500ms)
+            getPow2(static_cast<size_t>(fs * 0.5)) * 2          // ★ preDelay L/R (max 500ms) 2本分
             + getPow2(static_cast<size_t>(fs * 1.0))
             + getPow2(static_cast<size_t>(fs * 0.05)) * 4
             + getPow2(static_cast<size_t>(fs * 0.5)) * FDN_ORDER
