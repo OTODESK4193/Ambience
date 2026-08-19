@@ -1,6 +1,6 @@
-# Ambience
+﻿# Ambience
 
-![Release](https://img.shields.io/badge/release-v1.1.0-blue)
+![Release](https://img.shields.io/badge/release-v1.2.0-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -12,14 +12,26 @@
 ## Demo Videos
 
 <p align="center">
-  <b>Introduction　YoutubeLink</b><br>
+  <b>Introduction縲YoutubeLink</b><br>
   <a href="https://youtu.be/kytVu2M-t30">
     <img src="Source/Assets/Samnail.jpg"
-         alt="Ambience - Introduction　YoutubeLink" width="640" height="360">
+         alt="Ambience - Introduction縲YoutubeLink" width="640" height="360">
   </a>
 </p>
 
 ## Changelog
+
+### v1.2.0
+
+**New Features:**
+- **Real-time Spectrum Analyzer**: Added a Lock-free real-time frequency spectrum overlay (showing both Dry and Wet signals in gray and blue) mapped logarithmically to match the RT60 Visualizer.
+- **Expanded Diffusion limits**: Increased the maximum diffusion limits to achieve denser late reverberation without triggering self-oscillation.
+
+**Bug Fixes:**
+- **Metallic ringing (C#6/D6) elimination**: Eliminated harsh standing waves and metallic resonances in high-frequency sine inputs by introducing Valhalla-style deep asymmetrical phase smearing and optimizing APF gains.
+- **Modulation noise fix**: Removed the high-frequency hiss ("white noise") artifact at high ModAmt settings by upgrading delay line interpolation from Linear/Thiran to high-quality 3rd-order Hermite FIR interpolation.
+- **Early Reflections (ER) logic fix**: Fixed ERSolo incorrectly passing the Dry signal, and enabled proper 12-tap ER patterns for Plate, Spring, and Goldfoil algorithms.
+- **Algorithm switching noise fix**: Mitigated harsh audio glitches and memory corruption artifacts when changing RoomSize or switching Algorithms by instantly zero-clearing the delay buffers.
 
 ### v1.1.0
 
@@ -31,78 +43,78 @@
 **Sound Quality Improvements:**
 - **Chorus-style pitch modulation**: Added sine-wave LFO (ChorusLFO) per FDN channel with golden-ratio phase/rate distribution, layered on top of the existing noise LFO for richer, more organic tail texture.
 - **3-stage serial allpass chain**: Expanded nested allpass from 1 stage to 3 serial stages per FDN channel with varied delay times and modulation depths, greatly increasing late-field echo density.
-- **ER→Late reverb transition smoothing**: Early reflection output is now fed into the FDN input at 15% blend, simulating the natural transition from early reflections to late reverberation.
-- **Frequency-dependent modulation**: Modulation depth now scales per FDN channel (1.5× for short-delay/HF channels, 0.5× for long-delay/LF channels), matching the physical behavior of air turbulence.
+- **ER竊鱈ate reverb transition smoothing**: Early reflection output is now fed into the FDN input at 15% blend, simulating the natural transition from early reflections to late reverberation.
+- **Frequency-dependent modulation**: Modulation depth now scales per FDN channel (1.5ﾃ・for short-delay/HF channels, 0.5ﾃ・for long-delay/LF channels), matching the physical behavior of air turbulence.
 - **Soft-knee RMS compression in FDN loop**: Added per-channel RMS envelope follower with soft-knee compression (threshold 0.35), providing transparent level control without harmonic distortion.
-- **Thiran allpass fractional delay interpolation**: Replaced linear interpolation with 1st-order Thiran allpass for FDN main delay lines, achieving flat magnitude response (|H(ω)|=1) and preserving high-frequency clarity in the feedback loop.
+- **Thiran allpass fractional delay interpolation**: Replaced linear interpolation with 1st-order Thiran allpass for FDN main delay lines, achieving flat magnitude response (|H(ﾏ・|=1) and preserving high-frequency clarity in the feedback loop.
 
 **CPU Optimizations:**
-- Replaced `std::sin()` in chorus LFO with parabolic sine approximation (5-10× faster, <0.1% error).
+- Replaced `std::sin()` in chorus LFO with parabolic sine approximation (5-10ﾃ・faster, <0.1% error).
 - Moved `std::sqrt()` in soft-knee compression inside threshold branch (only computed when compression is active).
-- Precomputed all loop-invariant values: frequency-dependent modulation scales, input diffuser delays, allpass base delays (16ch × 3 stages), ER tap gains, and allpass gain stage.
-- Cached sample rate as float to eliminate repeated double→float casts in the hot path.
+- Precomputed all loop-invariant values: frequency-dependent modulation scales, input diffuser delays, allpass base delays (16ch ﾃ・3 stages), ER tap gains, and allpass gain stage.
+- Cached sample rate as float to eliminate repeated double竊断loat casts in the hot path.
 
 ## Overview
 
-**Ambience** is a high-quality, open-source algorithmic reverb VST3 plugin built on a **16-channel Feedback Delay Network (FDN)** architecture. Designed with professional audio standards in mind, it delivers rich, natural-sounding reverberation ranging from intimate studio rooms to vast concert halls and beyond — with the precision and stability demanded by real-world production environments.
+**Ambience** is a high-quality, open-source algorithmic reverb VST3 plugin built on a **16-channel Feedback Delay Network (FDN)** architecture. Designed with professional audio standards in mind, it delivers rich, natural-sounding reverberation ranging from intimate studio rooms to vast concert halls and beyond 窶・with the precision and stability demanded by real-world production environments.
 
 Ambience ships with **21 factory presets** modeled after some of the world's most iconic acoustic spaces, including Abbey Road Studio 1 & 2, Vienna Musikverein, Amsterdam Concertgebouw, Boston Symphony Hall, Carnegie Hall, and more. Whether you need a tight drum room, a lush orchestral hall, a vintage plate, or an infinite ambient space, Ambience covers it all.
 
-👉 **[Watch the Demo Video (動作デモ動画はこちら！)](https://x.com/kijyoumusic/status/2055967062325944741?s=20)**
+痩 **[Watch the Demo Video (蜍穂ｽ懊ョ繝｢蜍慕判縺ｯ縺薙■繧会ｼ・](https://x.com/kijyoumusic/status/2055967062325944741?s=20)**
 
 
 ## Key Features
 
-### 🏛️ 16-Channel FDN Reverb Engine
+### 鋤・・16-Channel FDN Reverb Engine
 
 A research-grade Feedback Delay Network forms the acoustic core of Ambience:
 
 * **16-channel FWHT Feedback Matrix:** Fast Walsh-Hadamard Transform ensures dense, colorless diffusion with optimal mode distribution.
 * **Nearest-Prime Delay Allocation:** Delay lines are tuned to unique prime numbers distributed on a logarithmic scale, guaranteeing mutual coprimality across all 16 channels and eliminating comb-filter artifacts at any room size.
-* **7 Reverb Algorithms:** ROOM1 / ROOM2 / HALL1 / HALL2 / PLATE / SPRING / GOLDFOIL — each with distinct topological routing, Allpass gain, and ER patterns.
+* **7 Reverb Algorithms:** ROOM1 / ROOM2 / HALL1 / HALL2 / PLATE / SPRING / GOLDFOIL 窶・each with distinct topological routing, Allpass gain, and ER patterns.
 
-### 🎛️ Professional DSP Modules
+### 寺・・Professional DSP Modules
 
-* **Stage 2 GEQ Absorption (Välimäki-Liski):** A 10-band biquad Graphic EQ cascade per FDN channel, solving a Weighted Least Squares system to achieve accurate, frequency-dependent RT60 targets across the full audible spectrum.
+* **Stage 2 GEQ Absorption (Vﾃ､limﾃ､ki-Liski):** A 10-band biquad Graphic EQ cascade per FDN channel, solving a Weighted Least Squares system to achieve accurate, frequency-dependent RT60 targets across the full audible spectrum.
 * **ISM-Based Early Reflections:** Image Source Method patterns tuned per algorithm, providing perceptually accurate pre-echo with full stereo imaging control.
-* **BandlimitedNoise LFO:** Each of the 16 FDN channels is driven by an independent, mutually asynchronous low-frequency oscillator using a white noise source filtered by a 1st-order IIR — initialized via the Golden Ratio Weyl sequence to guarantee non-periodic modulation.
-* **ADAA Saturator (4 Modes):** Anti-Derivative Anti-Aliasing saturation applied to the wet path. Modes: **Warm** (Vicanek x/√(1+x²)), **Tape** (Padé rational polynomial), **Tube** (asymmetric ADAA for even-order harmonics), **Hard** (hard clip + ADAA).
-* **Micro-Saturation (FDN Loop):** An internal Padé saturator in the FDN feedback loop acts as a safety limiter, suppressing limit cycles without audible coloration.
-* **Output EQ:** Linkwitz-Riley 12 dB/oct Lo Cut (20–500 Hz) and Hi Cut (1 kHz–20 kHz) applied exclusively to the wet path.
+* **BandlimitedNoise LFO:** Each of the 16 FDN channels is driven by an independent, mutually asynchronous low-frequency oscillator using a white noise source filtered by a 1st-order IIR 窶・initialized via the Golden Ratio Weyl sequence to guarantee non-periodic modulation.
+* **ADAA Saturator (4 Modes):** Anti-Derivative Anti-Aliasing saturation applied to the wet path. Modes: **Warm** (Vicanek x/竏・1+xﾂｲ)), **Tape** (Padﾃｩ rational polynomial), **Tube** (asymmetric ADAA for even-order harmonics), **Hard** (hard clip + ADAA).
+* **Micro-Saturation (FDN Loop):** An internal Padﾃｩ saturator in the FDN feedback loop acts as a safety limiter, suppressing limit cycles without audible coloration.
+* **Output EQ:** Linkwitz-Riley 12 dB/oct Lo Cut (20窶・00 Hz) and Hi Cut (1 kHz窶・0 kHz) applied exclusively to the wet path.
 * **Brick-Wall Output Limiter:** -0.5 dBFS brick-wall limiter as the final stage, transparent under normal use.
 * **Ducking:** Sidechain-style envelope follower with independent Threshold, Amount, Attack, and Release controls.
 
-### 📊 Real-Time Visualizers
+### 投 Real-Time Visualizers
 
-* **RT60 Graph:** Displays 10-band RT60 curves (31 Hz – 16 kHz) in logarithmic scale. The orange curve shows the actual effective RT60 (including HF Damping and LF Absorption), while the gray curve shows the raw preset reference. The Y-axis dynamically scales to the current decay time.
-* **Decay Curve Visualizer:** A split time-axis display showing Early Reflections (0–200 ms, expanded 2×) and Late Reverb decay curve side-by-side, with color-coded ER tap markers and envelope fill.
+* **RT60 Graph:** Displays 10-band RT60 curves (31 Hz 窶・16 kHz) in logarithmic scale. The orange curve shows the actual effective RT60 (including HF Damping and LF Absorption), while the gray curve shows the raw preset reference. The Y-axis dynamically scales to the current decay time.
+* **Decay Curve Visualizer:** A split time-axis display showing Early Reflections (0窶・00 ms, expanded 2ﾃ・ and Late Reverb decay curve side-by-side, with color-coded ER tap markers and envelope fill.
 * **Acoustic Metrics:** Live readout of D50 (%), C50 (dB), C80 (dB), and EDT (s) derived from real-time signal analysis.
 
-### 🎚️ Pro Mode
+### 字・・Pro Mode
 
 ##
 <img src="Source/Assets/Screenshot2.jpg" width="600">
 
 Unlock deep per-band control:
 
-* **10-Band RT60 Multiplier:** Fine-tune the RT60 curve at each octave band (31 Hz – 16 kHz) independently.
-* **Tilt EQ × 3:** Broad spectral tilt controls for Low / Mid / High regions.
+* **10-Band RT60 Multiplier:** Fine-tune the RT60 curve at each octave band (31 Hz 窶・16 kHz) independently.
+* **Tilt EQ ﾃ・3:** Broad spectral tilt controls for Low / Mid / High regions.
 * **Saturation Type Selector:** Choose from Warm / Tape / Tube / Hard within Pro Mode.
 * **Output EQ:** Lo Cut and Hi Cut knobs available in both Normal and Pro Mode panels.
 
-### 💾 Preset Management
+### 沈 Preset Management
 
-* **File-Based Preset System:** Presets are saved as `.ambpreset` files — a standard binary XML format compatible with JUCE's state management system.
+* **File-Based Preset System:** Presets are saved as `.ambpreset` files 窶・a standard binary XML format compatible with JUCE's state management system.
 * **21 Factory Presets:** Modeled after real-world acoustic spaces across all 7 reverb algorithm types.
 * **SAVE / LOAD / DELETE / PREV / NEXT:** Full preset browser UI integrated directly into the main panel.
-* **Shareable:** Simply share `.ambpreset` files directly with other users — no installation required.
+* **Shareable:** Simply share `.ambpreset` files directly with other users 窶・no installation required.
 
-### ⚡ Real-Time Safety & DAW Compatibility
+### 笞｡ Real-Time Safety & DAW Compatibility
 
 Built to the strictest real-time audio standards, with specific hardening for Ableton Live:
 
 * **Zero Heap Allocation on Audio Thread:** All buffers pre-allocated in `prepareToPlay()`. No `new` / `malloc` / `std::vector::resize()` calls in `processBlock()`.
-* **Dirty-Flag Parameter Dispatch:** `setParams()` is called only when DSP parameters change, preventing the expensive Stage 2 GEQ WLS matrix computation (16 ch × 10-band LDLT) from running unnecessarily every buffer.
+* **Dirty-Flag Parameter Dispatch:** `setParams()` is called only when DSP parameters change, preventing the expensive Stage 2 GEQ WLS matrix computation (16 ch ﾃ・10-band LDLT) from running unnecessarily every buffer.
 * **Ableton Live Sample-Rate Jitter Protection:** A mismatch guard at the top of `processBlock()` detects asynchronous sample-rate changes (a known Ableton Live edge case) and triggers a safe internal reset.
 * **ScopedNoDenormals:** Applied at the entry of every `processBlock()` call to suppress denormal CPU spikes.
 * **SmoothedValue Gain:** Wet and Dry gain changes are interpolated sample-accurately to eliminate zipper noise under automation.
@@ -129,8 +141,8 @@ Ambience ships with 21 factory presets organized by reverb algorithm type:
 | HALL2 | Vienna Musikverein | Wiener Musikverein Goldener Saal |
 | HALL2 | Boston Symphony | Boston Symphony Hall |
 | HALL2 | Concertgebouw | Amsterdam Concertgebouw |
-| PLATE | EMT140 Vocal | EMT 140 plate — vocal setting |
-| PLATE | EMT140 Snare | EMT 140 plate — snare setting |
+| PLATE | EMT140 Vocal | EMT 140 plate 窶・vocal setting |
+| PLATE | EMT140 Snare | EMT 140 plate 窶・snare setting |
 | PLATE | Dark Plate | Dark plate, enhanced low end |
 | SPRING | Surf Guitar | Guitar amp spring tank |
 | SPRING | Vintage Studio | Fender-style spring tank |
@@ -163,7 +175,7 @@ Recipients simply place the `.ambpreset` files into their own `Documents\Ambienc
 
 ### Preset Compatibility
 
-Presets use JUCE's standard state serialization. Future versions of Ambience will remain forward-compatible — unknown parameters in older presets are silently ignored, and missing parameters fall back to their default values.
+Presets use JUCE's standard state serialization. Future versions of Ambience will remain forward-compatible 窶・unknown parameters in older presets are silently ignored, and missing parameters fall back to their default values.
 
 
 ## Parameter Reference
@@ -172,34 +184,34 @@ Presets use JUCE's standard state serialization. Future versions of Ambience wil
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
-| PRE-DELAY | 0 – 500 ms | 10 ms | Pre-delay before reverb onset |
-| ROOM SIZE | 0.3 – 2.0 | 1.0 | Scales FDN delay times (room volume) |
-| DECAY | 0.1 – 20.0 s | 1.5 s | Mid-band RT60 target |
-| HF DAMP | 0.0 – 1.0 | 0.0 | High-frequency absorption (reduces high RT60) |
-| LF ABSORB | 0.0 – 1.0 | 0.0 | Low-frequency absorption (reduces low RT60) |
-| DIFFUSION | 0.0 – 1.0 | 0.7 | Controls Input Diffuser and Nested Allpass gain |
-| MOD AMT | 0.0 – 1.0 | 0.25 | LFO modulation depth |
-| MOD RATE | 0.05 – 2.0 Hz | 0.5 Hz | LFO base frequency |
-| WIDTH | 0.0 – 1.0 | 0.8 | Stereo width (L/R decorrelation) |
-| ER LEVEL | 0.0 – 1.0 | 0.6 | Early reflections level |
-| SATURATE | 0.0 – 1.0 | 0.0 | Wet path saturation amount |
-| WET | -60 – 0 dB | -4 dB | Wet signal level (-1 dB internal offset applied) |
-| DRY | -60 – 0 dB | 0 dB | Dry signal level (unprocessed) |
-| LO CUT | 20 – 500 Hz | 20 Hz | Wet-path high-pass filter (bypass at 20 Hz) |
-| HI CUT | 1k – 20k Hz | 20 kHz | Wet-path low-pass filter (bypass at 20 kHz) |
-| AMOUNT | 0 – 20 dB | 0 dB | Ducking reduction amount |
-| THRESH | -60 – 0 dB | -20 dB | Ducking threshold |
-| ATTACK | 0.5 – 100 ms | 10 ms | Ducking envelope attack |
-| RELEASE | 10 – 2000 ms | 200 ms | Ducking envelope release |
+| PRE-DELAY | 0 窶・500 ms | 10 ms | Pre-delay before reverb onset |
+| ROOM SIZE | 0.3 窶・2.0 | 1.0 | Scales FDN delay times (room volume) |
+| DECAY | 0.1 窶・20.0 s | 1.5 s | Mid-band RT60 target |
+| HF DAMP | 0.0 窶・1.0 | 0.0 | High-frequency absorption (reduces high RT60) |
+| LF ABSORB | 0.0 窶・1.0 | 0.0 | Low-frequency absorption (reduces low RT60) |
+| DIFFUSION | 0.0 窶・1.0 | 0.7 | Controls Input Diffuser and Nested Allpass gain |
+| MOD AMT | 0.0 窶・1.0 | 0.25 | LFO modulation depth |
+| MOD RATE | 0.05 窶・2.0 Hz | 0.5 Hz | LFO base frequency |
+| WIDTH | 0.0 窶・1.0 | 0.8 | Stereo width (L/R decorrelation) |
+| ER LEVEL | 0.0 窶・1.0 | 0.6 | Early reflections level |
+| SATURATE | 0.0 窶・1.0 | 0.0 | Wet path saturation amount |
+| WET | -60 窶・0 dB | -4 dB | Wet signal level (-1 dB internal offset applied) |
+| DRY | -60 窶・0 dB | 0 dB | Dry signal level (unprocessed) |
+| LO CUT | 20 窶・500 Hz | 20 Hz | Wet-path high-pass filter (bypass at 20 Hz) |
+| HI CUT | 1k 窶・20k Hz | 20 kHz | Wet-path low-pass filter (bypass at 20 kHz) |
+| AMOUNT | 0 窶・20 dB | 0 dB | Ducking reduction amount |
+| THRESH | -60 窶・0 dB | -20 dB | Ducking threshold |
+| ATTACK | 0.5 窶・100 ms | 10 ms | Ducking envelope attack |
+| RELEASE | 10 窶・2000 ms | 200 ms | Ducking envelope release |
 
 ### Pro Mode (additional)
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
-| RT 31–16k Hz | 0.5 – 2.0× | 1.0× | Per-band RT60 multiplier (10 bands) |
-| TILT LOW | 0.5 – 2.0× | 1.0× | RT60 multiplier for low bands (31–125 Hz) |
-| TILT MID | 0.5 – 2.0× | 1.0× | RT60 multiplier for mid bands (250 Hz–2 kHz) |
-| TILT HIGH | 0.5 – 2.0× | 1.0× | RT60 multiplier for high bands (4–16 kHz) |
+| RT 31窶・6k Hz | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| Per-band RT60 multiplier (10 bands) |
+| TILT LOW | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| RT60 multiplier for low bands (31窶・25 Hz) |
+| TILT MID | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| RT60 multiplier for mid bands (250 Hz窶・ kHz) |
+| TILT HIGH | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| RT60 multiplier for high bands (4窶・6 kHz) |
 | SAT TYPE | Warm/Tape/Tube/Hard | Warm | Saturation character |
 
 ### Special Controls
@@ -224,7 +236,7 @@ Presets use JUCE's standard state serialization. Future versions of Ambience wil
    ```
 4. Rescan your plugins in Ableton Live (or your DAW of choice).
 
-## 📚 User Guide
+## 答 User Guide
 
 A comprehensive manual covering detailed technical specifications and operational guidelines is included with this repository.
 
@@ -234,7 +246,7 @@ A comprehensive manual covering detailed technical specifications and operationa
 
 ### Requirements
 
-* **JUCE** 8.0.x — place at `C:/JUCE` or update the path in `CMakeLists.txt`
+* **JUCE** 8.0.x 窶・place at `C:/JUCE` or update the path in `CMakeLists.txt`
 * **CMake** 3.22 or higher
 * **Visual Studio** 2022 (MSVC, C++20)
 * **AVX2-capable CPU** (required for SIMD optimizations)
@@ -247,39 +259,39 @@ A comprehensive manual covering detailed technical specifications and operationa
 * **CPU:** AVX2 support required
 * **Tested Host:** Ableton Live 11 / 12
 
-> ⚠️ **Compatibility Notice:** This plugin is compiled and optimized exclusively for Windows with AVX2. Verified operation is confirmed in **Ableton Live**. Other DAWs (FL Studio, Bitwig, Studio One, Cubase, etc.) may work but are currently unverified. Use at your own risk outside of Ableton Live.
+> 笞・・**Compatibility Notice:** This plugin is compiled and optimized exclusively for Windows with AVX2. Verified operation is confirmed in **Ableton Live**. Other DAWs (FL Studio, Bitwig, Studio One, Cubase, etc.) may work but are currently unverified. Use at your own risk outside of Ableton Live.
 
 
 ## Technical Architecture
 
 ```
 Input (Stereo L/R)
-    │
-    ├─► [Mid/Side Split]
-    │
-    ├─► [Input Diffuser × 4 stages] (Hall / Goldfoil)
-    │
-    ├─► [ISM Early Reflections] ──────────────────────────┐
-    │                                                      │
-    └─► [16-ch FDN]                                        │
-         ├── FWHT + Sign Flip (feedback matrix)            │
-         ├── BandlimitedNoise LFO (per channel)            │
-         ├── Stage 2 GEQ Absorption (10-band, per channel) │
-         ├── Micro-Saturation (Padé, loop safety)          │
-         └── Nested Allpass (per channel)                  │
-                    │                                      │
-                    └──► [ER Mix + Late Mix] ◄─────────────┘
-                                │
+    笏・
+    笏懌楳笆ｺ [Mid/Side Split]
+    笏・
+    笏懌楳笆ｺ [Input Diffuser ﾃ・4 stages] (Hall / Goldfoil)
+    笏・
+    笏懌楳笆ｺ [ISM Early Reflections] 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏・
+    笏・                                                     笏・
+    笏披楳笆ｺ [16-ch FDN]                                        笏・
+         笏懌楳笏 FWHT + Sign Flip (feedback matrix)            笏・
+         笏懌楳笏 BandlimitedNoise LFO (per channel)            笏・
+         笏懌楳笏 Stage 2 GEQ Absorption (10-band, per channel) 笏・
+         笏懌楳笏 Micro-Saturation (Padﾃｩ, loop safety)          笏・
+         笏披楳笏 Nested Allpass (per channel)                  笏・
+                    笏・                                     笏・
+                    笏披楳笏笆ｺ [ER Mix + Late Mix] 笳・楳笏笏笏笏笏笏笏笏笏笏笏笏笏・
+                                笏・
                          [ADAA Saturator]
-                                │
+                                笏・
                          [Output EQ: Lo/Hi Cut]
-                                │
+                                笏・
                          [Brick-Wall Limiter]
-                                │
-                         Wet Output × SmoothedWetGain
-                                │
-                    [Dry × SmoothedDryGain] ─────────────────┐
-                                                             ▼
+                                笏・
+                         Wet Output ﾃ・SmoothedWetGain
+                                笏・
+                    [Dry ﾃ・SmoothedDryGain] 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏・
+                                                             笆ｼ
                                                       Final Output (Stereo)
 ```
 
@@ -288,10 +300,10 @@ Input (Stereo L/R)
 
 | Metric | Description | Ideal Range |
 |---|---|---|
-| **D50** | Definition — ratio of early (0–50ms) to total energy | >0.5 for speech clarity |
-| **C50** | Clarity (speech) — early-to-late energy ratio at 50ms | >0 dB for speech |
-| **C80** | Clarity (music) — early-to-late energy ratio at 80ms | -2 to +4 dB for music |
-| **EDT** | Early Decay Time — RT60 estimated from the first 10 dB of decay | ≈ RT60 mid-band |
+| **D50** | Definition 窶・ratio of early (0窶・0ms) to total energy | >0.5 for speech clarity |
+| **C50** | Clarity (speech) 窶・early-to-late energy ratio at 50ms | >0 dB for speech |
+| **C80** | Clarity (music) 窶・early-to-late energy ratio at 80ms | -2 to +4 dB for music |
+| **EDT** | Early Decay Time 窶・RT60 estimated from the first 10 dB of decay | 竕・RT60 mid-band |
 
 
 ## Disclaimer
@@ -317,10 +329,10 @@ This software is built using the **JUCE 8** framework. In accordance with JUCE 8
 **Framework:** JUCE 8.0.x
 
 **DSP References:***
-- Välimäki & Liski — *"Accurate Cascade Graphic Equalizer"* (2017)
-- Vicanek — *"Matched Second Order Digital Filters"* (2016)
-- Schlecht & Habets — *"On Lossless Feedback Delay Networks"* (2017)
-- Parker et al. — *"Modelling plate and spring reverberation using DSP-informed DNN"* (2019)
+- Vﾃ､limﾃ､ki & Liski 窶・*"Accurate Cascade Graphic Equalizer"* (2017)
+- Vicanek 窶・*"Matched Second Order Digital Filters"* (2016)
+- Schlecht & Habets 窶・*"On Lossless Feedback Delay Networks"* (2017)
+- Parker et al. 窶・*"Modelling plate and spring reverberation using DSP-informed DNN"* (2019)
 
 
 ## Support
