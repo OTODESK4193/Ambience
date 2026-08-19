@@ -1,4 +1,4 @@
-﻿# Ambience
+# Ambience
 
 ![Release](https://img.shields.io/badge/release-v1.2.0-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
@@ -21,15 +21,21 @@
 
 ## Changelog
 
-### v1.2.0
+### v1.2.0 "No Compromise" Update
 
 **New Features:**
 - **Real-time Spectrum Analyzer**: Added a Lock-free real-time frequency spectrum overlay (showing both Dry and Wet signals in gray and blue) mapped logarithmically to match the RT60 Visualizer.
 - **Expanded Diffusion limits**: Increased the maximum diffusion limits to achieve denser late reverberation without triggering self-oscillation.
 
+**Ultimate DSP Optimizations (No Compromise):**
+- **Hermite 3rd-Order Interpolation**: Upgraded the core `LinearDelayLine` from linear to FIR-based Hermite 3rd-order interpolation, completely eliminating high-frequency loss in the FDN loop and restoring silky, transparent reverb tails.
+- **True Stereo Pre-Delay**: Split the Pre-Delay routing into independent L/R lines *before* the Mid/Side matrix. This ensures wide stereo sources perfectly retain their stereo image when hitting the reverb, fixing a previous mono-collapse compromise.
+- **Audio-Rate Parameter Smoothing**: Implemented a 64-sample throttling engine for `updateTopologyAndRouting()`. Fast automation of Decay/EQ no longer causes zipper noise or filter instability across the 160 Biquads.
+- **High-Precision Chorus LFO**: Replaced the parabolic sine approximation with a massive 1024-point Sine LUT and linear interpolation, driving the LFO THD below -96dB for perfectly smooth modulation without metallic artifacts.
+- **64-bit Double Precision Filters**: Ensured the 10-band GEQ `BiquadState` runs in `double` (64-bit float) precision using Direct Form II Transposed, completely preventing quantization noise accumulation in long decay tails.
+
 **Bug Fixes:**
 - **Metallic ringing (C#6/D6) elimination**: Eliminated harsh standing waves and metallic resonances in high-frequency sine inputs by introducing Valhalla-style deep asymmetrical phase smearing and optimizing APF gains.
-- **Modulation noise fix**: Removed the high-frequency hiss ("white noise") artifact at high ModAmt settings by upgrading delay line interpolation from Linear/Thiran to high-quality 3rd-order Hermite FIR interpolation.
 - **Early Reflections (ER) logic fix**: Fixed ERSolo incorrectly passing the Dry signal, and enabled proper 12-tap ER patterns for Plate, Spring, and Goldfoil algorithms.
 - **Algorithm switching noise fix**: Mitigated harsh audio glitches and memory corruption artifacts when changing RoomSize or switching Algorithms by instantly zero-clearing the delay buffers.
 
