@@ -73,17 +73,17 @@ static constexpr uint32_t kFallbackMaxBlock = 8192;
 //  ones.
 // ----------------------------------------------------------------------------
 static constexpr uint8_t kSlotLed[ambience::kNumSlots][3] = {
-    { 0x00, 0xFF, 0x00 },   // slot 1 - green
-    { 0x00, 0x00, 0xFF },   // slot 2 - blue
-    { 0xFF, 0xFF, 0x00 },   // slot 3 - yellow
-    { 0xFF, 0x00, 0x00 },   // slot 4 - red
+    { 0x00, 0x00, 0xFF },   // slot 1 - blue
+    { 0xFF, 0xFF, 0x00 },   // slot 2 - yellow
+    { 0xFF, 0x00, 0xFF },   // slot 3 - magenta
+    { 0x00, 0xFF, 0xFF },   // slot 4 - cyan
 };
 
 static constexpr LV2_HMI_LED_Colour kSlotLedFallback[ambience::kNumSlots] = {
-    LV2_HMI_LED_Colour_Green,
     LV2_HMI_LED_Colour_Blue,
     LV2_HMI_LED_Colour_Yellow,
-    LV2_HMI_LED_Colour_Red,
+    LV2_HMI_LED_Colour_Magenta,
+    LV2_HMI_LED_Colour_Cyan,
 };
 
 // How often the LED thread wakes. It sends nothing when nothing changed, so

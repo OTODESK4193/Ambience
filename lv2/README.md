@@ -114,10 +114,10 @@ the pad's LED **colour**, not by which of four pads is lit:
 
 | slot | colour | stock-firmware fallback |
 |------|--------|-------------------------|
-| 1    | `#00FF00` green  | `LV2_HMI_LED_Colour_Green`  |
-| 2    | `#0000FF` blue   | `LV2_HMI_LED_Colour_Blue`   |
-| 3    | `#FFFF00` yellow | `LV2_HMI_LED_Colour_Yellow` |
-| 4    | `#FF0000` red    | `LV2_HMI_LED_Colour_Red`    |
+| 1    | `#0000FF` blue   | `LV2_HMI_LED_Colour_Blue`   |
+| 2    | `#FFFF00` yellow | `LV2_HMI_LED_Colour_Yellow` |
+| 3    | `#FF00FF` magenta  | `LV2_HMI_LED_Colour_Magenta`  |
+| 4    | `#00FFFF` cyan    | `LV2_HMI_LED_Colour_Cyan`    |
 
 **Every channel is 0 or 255, and that is load bearing.** The 4x4 pad's channels
 are three levels, not 256: `pad_intensity()` in LoopPad_Jack's `padd.c` maps
