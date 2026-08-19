@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "DelayMemory.h"
 #include "BiquadFilters.h"
 #include "MagnitudeResponseFitter.h"
@@ -8,6 +8,7 @@
 #include "OutputEQ.h"
 #include <JuceHeader.h>
 #include "DSPParams.h"
+#include "DSPConstants.h"
 #include <array>
 #include <cmath>
 
@@ -17,9 +18,9 @@ namespace FDNReverb {
 
     enum class ReverbTopology { Room, Hall, Plate, Spring, Goldfoil };
 
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  BandlimitedNoiseLFO: 逋ｽ濶ｲ繝弱う繧ｺ + 1谺｡ IIR LPF
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  BandlimitedNoiseLFO: 帯域制限ノイズ + 1次 IIR LPF
+    // ═══════════════════════════════════════════════════════════════════════════
     struct BandlimitedNoiseLFO {
         uint32_t state{ 12345u };
         float    smoothed{ 0.0f };
@@ -38,18 +39,17 @@ namespace FDNReverb {
         }
     };
 
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  ChorusLFO: 繧ｦ繧ｧ繝ｼ繝悶ユ繝ｼ繝悶Ν豁｣蠑ｦ豕｢・医さ繝ｼ繝ｩ繧ｹ蝙九ヴ繝・メ繝｢繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ・・
-    //  笘・繝代Λ繝懊Λ霑台ｼｼ繧貞ｻ・ｭ｢ 竊・1024轤ｹLUT+邱壼ｽ｢陬憺俣 (THD < -96dB)
-    //    繝代Λ繝懊Λ縺ｯ鬆らせ縺ｫ莠碁嚴蠕ｮ蛻・ｸ埼｣邯壽ｧ縺後≠繧翫：M螟芽ｪｿ繝弱う繧ｺ・磯≡螻樒噪髻ｿ縺搾ｼ峨・蜴溷屏縲・
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  ChorusLFO: ウェーブテーブル正弦波（コーラス的ピッチモジュレーション）
+    //  ★ パラボラ近似を廃止 → 1024点LUT+線形補間 (THD < -96dB)
+    // ═══════════════════════════════════════════════════════════════════════════
     struct ChorusLFO {
         float phase{ 0.0f };
         float phaseInc{ 0.0f };
-        float rateScale{ 1.0f };   // 繝√Ε繝ｳ繝阪Ν蝗ｺ譛峨・繝ｬ繝ｼ繝井ｿよ焚・磯ｻ・≡豈泌・蟶・ｼ・
+        float rateScale{ 1.0f };
 
         static constexpr int TABLE_SIZE = 1024;
-        static inline float sineTable[TABLE_SIZE + 1];  // +1: 陬憺俣繧ｬ繝ｼ繝峨・繧､繝ｳ繝・
+        static inline float sineTable[TABLE_SIZE + 1];
         static inline bool  tableInitialized = false;
 
         static void initTable() noexcept {
@@ -61,7 +61,6 @@ namespace FDNReverb {
             tableInitialized = true;
         }
 
-        // 笘・繧ｦ繧ｧ繝ｼ繝悶ユ繝ｼ繝悶Ν + 邱壼ｽ｢陬憺俣: CPU繧ｳ繧ｹ繝医・繝代Λ繝懊Λ縺ｨ蜷檎ｭ峨ゝHD縺ｯ邏・00蛟肴隼蝟・
         inline float tick() noexcept {
             phase += phaseInc;
             if (phase >= 1.0f) phase -= 1.0f;
@@ -104,7 +103,7 @@ namespace FDNReverb {
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
-        // 笏笏笏 FDN 繝ｫ繝ｼ繝怜・繝槭う繧ｯ繝ｭ繧ｵ繝√Η繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ 笏笏笏
+        // ═══ FDN ループ内マイクロサチュレーション ═══
         inline static float processMicroSaturation(float x) noexcept {
             constexpr float kInScale = 0.15f;
             constexpr float kOutScale = 1.0f / kInScale;
@@ -121,16 +120,22 @@ namespace FDNReverb {
         ReverbTopology  currentTopology{ ReverbTopology::Room };
 
         static constexpr int FDN_ORDER = 16;
-        static constexpr int SERIAL_APF_STAGES = 3;  // 笘・繧ｷ繝ｪ繧｢繝ｫAllpass繝√ぉ繝ｼ繝ｳ谿ｵ謨ｰ
+        static constexpr int SERIAL_APF_STAGES = 3;
 
-        // 笘・PreDelay 繝・ぅ繝ｬ繧､繝ｩ繧､繝ｳ (譛螟ｧ500ms)
-        LinearDelayLine                              preDelayLine;
+        // ★ パラメータ平滑化: updateTopologyAndRouting() の呼出頻度を制限
+        int topologyUpdateCounter{ 0 };
+        static constexpr int TOPOLOGY_UPDATE_INTERVAL = 64;
+        bool topologyUpdatePending{ false };
+
+        // ★ PreDelay ディレイライン (最大500ms) - L/R独立
+        LinearDelayLine                              preDelayLineL;
+        LinearDelayLine                              preDelayLineR;
         float                                        preDelaySamples{ 0.0f };
 
         LinearDelayLine                              erDelay;
         std::array<float, 16>                        erTaps;
         std::array<LinearDelayLine, 4>               inputDiffusers;
-        std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;  // 笘・Thiran allpass陬憺俣
+        std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;  // ★ Hermite 3次補間
         std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
         int                            currentERTapCount{ 0 };
@@ -138,7 +143,7 @@ namespace FDNReverb {
         std::array<float, MAX_ER_TAPS> currentERGains;
 
         OutputLimiter outputLimiter;
-        OutputEQ      outputEQ;        // 笘・Phase 5 霑ｽ蜉
+        OutputEQ      outputEQ;
 
         float duckingEnvelope{ 0.0f };
         float duckingAttackCoeff{ 0.0f };
@@ -153,30 +158,28 @@ namespace FDNReverb {
 #endif
 
         std::array<BandlimitedNoiseLFO, FDN_ORDER> lfos;
-        std::array<ChorusLFO, FDN_ORDER>           chorusLFOs;  // 笘・繧ｳ繝ｼ繝ｩ繧ｹ蝙九ヴ繝・メ繝｢繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ
+        std::array<ChorusLFO, FDN_ORDER>           chorusLFOs;
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples;
         std::array<float, FDN_ORDER>               fbVec;
 
         float apfGain{ 0.618f };
         bool  bypassER{ false };
-        bool  bypassInputDiffusers{ false };  // 笘・繝・ヵ繧ｩ繝ｫ繝医ｒ false 縺ｫ
+        bool  bypassInputDiffusers{ false };
         float lateMixScale{ 1.0f };
         float lateMakeupGainLinear{ 1.0f };
 
-        // 笘・Phase 5 霑ｽ蜉: 繧｢繝ｫ繧ｴ繝ｪ繧ｺ繝蛻･ Diffusion 諢溷ｺｦ
         float diffusionSensitivity{ 1.0f };
 
-        // 笘・驥大ｱ樣浹蟇ｾ遲・ DecayTime 萓晏ｭ倥・繝代Λ繝｡繝ｼ繧ｿ
-        float microSatBlend{ 1.0f };   // FDN繝ｫ繝ｼ繝怜・繝槭う繧ｯ繝ｭ繧ｵ繝√Η繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ縺ｮ驕ｩ逕ｨ驥・(0=繝舌う繝代せ, 1=繝輔Ν)
+        float microSatBlend{ 1.0f };
         float modDepthScale{ 1.0f };
-        float smoothedModAmount{ 0.0f };   // 繝｢繧ｸ繝･繝ｬ繝ｼ繧ｷ繝ｧ繝ｳ豺ｱ縺輔・繧ｹ繧ｱ繝ｼ繝ｪ繝ｳ繧ｰ (髟ｷ縺Дecay縺ｧ蠅怜刈)
+        float smoothedModAmount{ 0.0f };
 
-        // 笘・DC繝悶Ο繝・き繝ｼ: FDN繝ｫ繝ｼ繝怜・縺ｮDC闢・ｩ阪ｒ髦ｲ豁｢
+        // ★ DCブロッカー: FDNループ内のDC蓄積を阻止
         std::array<float, FDN_ORDER> dcX1;
         std::array<float, FDN_ORDER> dcY1;
         float dcBlockerCoeff{ 0.999f };
 
-        // 笘・Soft-knee繧ｳ繝ｳ繝励Ξ繝・す繝ｧ繝ｳ: FDN繝輔ぅ繝ｼ繝峨ヰ繝・け繝ｫ繝ｼ繝怜・
+        // ★ Soft-kneeコンプレッション: FDNフィードバックループ内
         std::array<float, FDN_ORDER> fdnRmsEnv;
         float rmsCoeff{ 0.002f };
 

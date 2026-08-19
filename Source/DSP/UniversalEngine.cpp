@@ -82,7 +82,9 @@ namespace FDNReverb {
 
         // 笘・PreDelay (max 500ms)
         ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.5), mask);
-        preDelayLine.init(ptr, mask);
+        preDelayLineL.init(ptr, mask);
+        ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.5), mask);
+        preDelayLineR.init(ptr, mask);
 
         ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask);
         erDelay.init(ptr, mask);
@@ -151,6 +153,7 @@ namespace FDNReverb {
     }
 
     void UniversalEngine::setParams(const DSPParams& p) {
+        const bool algoChanged = (activeParams.algorithmIndex != p.algorithmIndex);
         activeParams = p;
 
         switch (p.algorithmIndex) {
@@ -172,7 +175,12 @@ namespace FDNReverb {
         outputEQ.setLoCutHz(p.loCutHz);
         outputEQ.setHiCutHz(p.hiCutHz);
 
-        updateTopologyAndRouting();
+        if (algoChanged) {
+            updateTopologyAndRouting();
+            topologyUpdateCounter = 0;
+        } else {
+            topologyUpdatePending = true;
+        }
     }
 
     void UniversalEngine::calculatePrimePowerDelays() {
@@ -409,6 +417,13 @@ namespace FDNReverb {
         float* outL, float* outR,
         int numSamples) noexcept
     {
+        // ★ パラメータ平滑化: 保留中のトポロジー更新を64サンプル間隔で実行
+        topologyUpdateCounter += numSamples;
+        if (topologyUpdatePending && topologyUpdateCounter >= TOPOLOGY_UPDATE_INTERVAL) {
+            updateTopologyAndRouting();
+            topologyUpdatePending = false;
+            topologyUpdateCounter = 0;
+        }
         // 笘・CPU譛驕ｩ蛹・ fs 繧・float 縺ｫ繧ｭ繝｣繝・す繝･・・rocessBlock 蜈ｨ蝓溘〒菴ｿ逕ｨ・・
         const float fsf = static_cast<float>(fs);
 
@@ -480,22 +495,19 @@ namespace FDNReverb {
             smoothedModAmount += (targetModAmount - smoothedModAmount) * 0.005f;
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
             const float depthSamples = modAmtCurved * 0.003f * fsf * modDepthScale;
-            const float leftIn = inL[n];
-            const float rightIn = inR[n];
-            const float midIn = (leftIn + rightIn) * 0.5f;
-            const float sideIn = (leftIn - rightIn) * 0.5f;
+                        // ★ PreDelay: L/RそれぞれにPreDelayを適用し、その後にMid/Side分離を行う
+            preDelayLineL.write(inL[n]);
+            preDelayLineR.write(inR[n]);
+            const float delayedL = (preDelaySamples > 0.5f) ? preDelayLineL.read(preDelaySamples) : inL[n];
+            const float delayedR = (preDelaySamples > 0.5f) ? preDelayLineR.read(preDelaySamples) : inR[n];
+
+            const float midIn = (delayedL + delayedR) * 0.5f;
+            const float sideIn = (delayedL - delayedR) * 0.5f;
             float erOutL = 0.0f, erOutR = 0.0f;
 
-            // 笘・PreDelay: 蜴滄浹縺ｨ繝ｪ繝舌・繝悶・譎る俣逧・・髮｢
-            //   ER繝ｻFDN 荳｡譁ｹ縺ｮ蜈･蜉帙ｒ繝励Μ繝・ぅ繝ｬ繧､縺ｧ驕・ｻｶ縺輔○繧九・
-            //   縺薙ｌ縺ｫ繧医ｊ蜴滄浹縺ｮ繧｢繧ｿ繝・け逶ｴ蠕後↓繝ｪ繝舌・繝悶′蟋九∪繧峨★縲・
-            //   繝溘ャ繧ｯ繧ｹ縺ｮ譏守椚蠎ｦ (D50/C50) 縺悟､ｧ蟷・↓蜷台ｸ翫☆繧九・
-            preDelayLine.write(midIn);
-            const float delayedMid = (preDelaySamples > 0.5f)
-                ? preDelayLine.read(preDelaySamples)
-                : midIn;
+            const float delayedMid = midIn; // ERとLateに渡す用
 
-            const float inputPeak = juce::jmax(std::abs(leftIn), std::abs(rightIn));
+            const float inputPeak = juce::jmax(std::abs(inL[n]), std::abs(inR[n]));
             const float envCoeff = (inputPeak > duckingEnvelope)
                 ? duckingAttackCoeff : duckingReleaseCoeff;
             duckingEnvelope += (inputPeak - duckingEnvelope) * envCoeff;

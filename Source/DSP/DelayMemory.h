@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -6,9 +6,9 @@
 
 namespace FDNReverb {
 
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    // 邨ｱ蜷医Γ繝｢繝ｪ繝励・繝ｫ (Single-Large Buffer)
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 統合メモリプール (Single-Large Buffer)
+    // ═══════════════════════════════════════════════════════════════════════════
     class DelayMemoryPool {
     public:
         void allocate(size_t totalSamples) {
@@ -16,7 +16,6 @@ namespace FDNReverb {
             allocOffset = 0;
         }
 
-        // 隕∵ｱゅ＆繧後◆繧ｵ繧､繧ｺ繧偵梧ｬ｡縺ｮ2縺ｮ縺ｹ縺堺ｹ励阪↓蛻・ｊ荳翫￡縺ｦ繝昴う繝ｳ繧ｿ繧定ｿ斐☆・磯ｫ倬溘↑繝槭せ繧ｯ貍皮ｮ励・縺溘ａ・・
         float* requestMemory(size_t samplesNeeded, int& outMask) {
             size_t powerOfTwoSize = 1;
             while (powerOfTwoSize < samplesNeeded) powerOfTwoSize *= 2;
@@ -37,9 +36,13 @@ namespace FDNReverb {
         size_t allocOffset{ 0 };
     };
 
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    // 鬮倬溘Μ繝九い陬憺俣繝・ぅ繝ｬ繧､繝ｩ繧､繝ｳ
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Hermite 3次補間ディレイライン
+    //   線形補間は fs/4 で -3dB のシンク・ロールオフが発生し、FDNループ内で
+    //   指数関数的に高域が削れてテールが暗くなる。
+    //   Hermite 3次補間は FIR ベース（モジュレーション時も安全）で、
+    //   fs/3 までほぼフラットな周波数特性を持ち、シルキーな透明感を維持。
+    // ═══════════════════════════════════════════════════════════════════════════
     class LinearDelayLine {
     public:
         void resetState() noexcept {}
@@ -49,20 +52,27 @@ namespace FDNReverb {
             writeIndex = 0;
         }
 
-        // 邱壼ｽ｢陬憺俣・磯ｫ伜沺縺ｮ閾ｪ辟ｶ縺ｪAir Absorption繧堤函繧・・
         inline float read(float delayInSamples) const noexcept {
             int id = static_cast<int>(delayInSamples);
             float frac = delayInSamples - static_cast<float>(id);
 
-            // 雋縺ｮ謨ｰ縺ｫ蟇ｾ縺吶ｋ繝薙ャ繝域ｼ皮ｮ励・譛ｪ螳夂ｾｩ蜍穂ｽ懊ｒ螳悟・縺ｫ髦ｲ縺舌◆繧√「int32_t縺ｧ繝ｩ繝・・繧｢繝ｩ繧ｦ繝ｳ繝峨＆縺帙ｋ
             uint32_t uWrite = static_cast<uint32_t>(writeIndex);
-            uint32_t uId = static_cast<uint32_t>(id);
-            uint32_t uMask = static_cast<uint32_t>(mask);
+            uint32_t uId    = static_cast<uint32_t>(id);
+            uint32_t uMask  = static_cast<uint32_t>(mask);
 
-            int readIdx1 = static_cast<int>((uWrite - uId) & uMask);
-            int readIdx2 = static_cast<int>((uWrite - uId - 1) & uMask);
+            // 4点サンプル取得: y0(未来1) y1(現在) y2(過去1) y3(過去2)
+            float y0 = buffer[static_cast<int>((uWrite - uId + 1) & uMask)];
+            float y1 = buffer[static_cast<int>((uWrite - uId)     & uMask)];
+            float y2 = buffer[static_cast<int>((uWrite - uId - 1) & uMask)];
+            float y3 = buffer[static_cast<int>((uWrite - uId - 2) & uMask)];
 
-            return buffer[readIdx1] + frac * (buffer[readIdx2] - buffer[readIdx1]);
+            // Hermite 多項式係数
+            float c0 = y1;
+            float c1 = 0.5f * (y2 - y0);
+            float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+            float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+
+            return ((c3 * frac + c2) * frac + c1) * frac + c0;
         }
 
         inline void write(float input) noexcept {
@@ -76,11 +86,12 @@ namespace FDNReverb {
         int writeIndex{ 0 };
     };
 
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    // Thiran Allpass陬憺俣繝・ぅ繝ｬ繧､繝ｩ繧､繝ｳ・医ヵ繝ｩ繝・ヨ菴咲嶌蠢懃ｭ費ｼ・
-    //   邱壼ｽ｢陬憺俣縺ｯ鬮伜沺繧呈ｸ幄｡ｰ縺輔○繧具ｼ・inc(ﾏf)迚ｹ諤ｧ・峨′縲ゝhiran allpass縺ｯ
-    //   |H(ﾏ・|=1 繧堤ｶｭ謖√☆繧九◆繧√：DN繝輔ぅ繝ｼ繝峨ヰ繝・け繝ｫ繝ｼ繝怜・縺ｮ鬮伜沺騾乗・諢溘′蜷台ｸ翫・
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Thiran Allpass補間ディレイライン（フラット周波数特性）
+    //   |H(ω)| = 1 を維持するため FDN フィードバックループ内の高域透過感が向上
+    //   ※ モジュレーション時にIIR係数が急変しノイズが出るため、
+    //     モジュレーション対象のディレイには LinearDelayLine (Hermite) を使用すること
+    // ═══════════════════════════════════════════════════════════════════════════
     class ThiranDelayLine {
     public:
         void init(float* memory, int bitmask) {
@@ -96,13 +107,12 @@ namespace FDNReverb {
             thiranY1 = 0.0f;
         }
 
-        // Thiran 1谺｡ allpass: y[n] = a*x[n] + x[n-1] - a*y[n-1]
+        // Thiran 1次 allpass: y[n] = a*x[n] + x[n-1] - a*y[n-1]
         // a = (1-D)/(1+D), D = fractional delay
         inline float read(float delayInSamples) noexcept {
             int id = static_cast<int>(delayInSamples);
             float frac = delayInSamples - static_cast<float>(id);
 
-            // frac竊・ 縺ｧ a竊・ (荳榊ｮ牙ｮ・ 縺ｮ縺溘ａ荳矩剞繧ｯ繝ｩ繝ｳ繝・
             frac = std::max(frac, 0.1f);
             const float a = (1.0f - frac) / (1.0f + frac);
 
