@@ -7,10 +7,11 @@
 #   lv2/build.sh --no-regen            # skip the TTL/ports.h generator
 #
 # The toolchain is the SAME aarch64 gcc that built the device rootfs, so the
-# result is ABI-identical to the image by construction. Point LOOPPAD_ROOT at
-# the checkout if it is not in the default place:
+# result is ABI-identical to the image by construction. The checkout is found
+# alongside this one automatically; point LOOPPAD_ROOT at it if it lives
+# somewhere else:
 #
-#   LOOPPAD_ROOT=/path/to/LoopPad_Jack lv2/build.sh
+#   LOOPPAD_ROOT=/path/to/LoopPad_Jack2 lv2/build.sh
 #
 # NOTHING in the LoopPad_Jack tree is written to - it is read for the compiler,
 # the sysroot and the LV2 headers only.
@@ -30,7 +31,23 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "${HERE}/.." && pwd)"
 
-LOOPPAD_ROOT="${LOOPPAD_ROOT:-${HOME}/Sources/LoopPad_Jack}"
+# The LoopPad_Jack checkout is a SIBLING of the Pedals tree, not inside it, so
+# derive it from this script's own location rather than from ${HOME}. The old
+# hardcoded ~/Sources/LoopPad_Jack kept resolving to the pre-jack2 tree once the
+# work moved to LoopPad_Jack2, which cross-builds against the wrong sysroot and
+# produces a plugin that is ABI-correct for an image nobody is running. Prefers
+# whichever sibling checkout actually has a built output tree; set LOOPPAD_ROOT
+# explicitly to override.
+WORKSPACE="$(cd "${REPO}/../.." && pwd)"
+if [ -z "${LOOPPAD_ROOT:-}" ]; then
+    for candidate in "${WORKSPACE}/LoopPad_Jack2" "${WORKSPACE}/LoopPad_Jack"; do
+        if [ -d "${candidate}/Buildroot/build/output/host/bin" ]; then
+            LOOPPAD_ROOT="${candidate}"
+            break
+        fi
+    done
+fi
+LOOPPAD_ROOT="${LOOPPAD_ROOT:-${WORKSPACE}/LoopPad_Jack2}"
 OUT="${LOOPPAD_ROOT}/Buildroot/build/output"
 SYSROOT="${OUT}/staging"
 CXX="${OUT}/host/bin/aarch64-buildroot-linux-gnu-g++"
