@@ -2,14 +2,17 @@
 
 Hardware profile of `AmbienceReverb.lv2` running inside mod-host on `modpad`
 (Raspberry Pi 4B, Cortex-A72 @ 1.5 GHz, JACK 48 kHz / 64 frames / 1333 µs),
-26 Aug 2026. This is the record of what was measured, how, and what it means.
+26-27 Aug 2026. This is the record of what was measured, how, and what it means.
 `lv2/README.md` § CPU says the authoritative measurement is on the device —
 this is that measurement.
 
-The short version: Ambience is the most expensive pedal on the board by ~7x,
-three stages are 70% of it, and **most of that time is spent waiting on memory
-rather than computing reverb**. The single biggest lever is not in the DSP, it
-is in `DelayMemoryPool`.
+The short version: Ambience was the most expensive pedal on the board by ~7x,
+three stages are 70% of it, and **most of that time was spent waiting on memory
+rather than computing reverb**. The single biggest lever was not in the DSP at
+all, it was in `DelayMemoryPool` — and **that one is now fixed** (commit
+`f78e0ef`), which halved the cost and removed the boot-to-boot variance. See
+[The fix, measured](#the-fix-measured). Everything before that section
+describes the plugin as it was; everything after describes what is left.
 
 ```sh
 /data/perf/amb-profile.sh            # counters + verdict, ~30 s
@@ -228,16 +231,29 @@ sample is not.** That is the whole discriminator:
 
 | observation | conclusion |
 |---|---|
-| same instructions, more cycles, more misses | memory placement — the fixes below are the answer |
+| same instructions, more cycles, more L2 refills | memory placement again — something has re-created the aliasing |
 | more instructions | the plugin is doing more work; a parameter or preset differs |
+| both flat | not Ambience; look at the rest of the graph |
 
-Good-boot baseline, 15 s window: **4.78 G instructions / 5.41 G cycles /
-95.5 M cache-misses**, IPC 0.88, ~25% of a core. Reproduced across three runs
-to within 0.3% on instructions.
+The script's built-in baseline is the **padded build**, 15 s window:
+**4.79 G instructions / 5.09 G cycles / 58.4 M cache-misses**, IPC 0.94, 22.7%
+of a core. Reference points in cycles per audio sample:
 
-Saved profiles on the device: `amb-idle.data` (good state, cycles),
-`amb-bad.data` (slow boot, cycles), `amb-tlb.data` (slow boot, `L1D_TLB_REFILL`)
-and `amb-l2.data` (slow boot, `L2D_CACHE_REFILL`) — all in `/data/perf`.
+| | cycles/sample |
+|---|---|
+| unpadded, fresh boot (contiguous pool — worst) | 14,021 |
+| unpadded, 9 h uptime (fragmented pool — lucky) | 7,518 |
+| **padded (deterministic)** | **7,075** |
+
+Watch `L2D_CACHE_REFILL`, not `L1D_TLB_REFILL`. The TLB rate is ~112 per sample
+in every state measured, fixed or not — it is inherent to having ~70 streaming
+positions against a 32-entry dTLB, and it never moved. L2 refills went 79.7 ->
+18.6 and are what tracks the fault.
+
+Saved profiles on the device, all in `/data/perf`: `amb-idle.data` (unpadded,
+lucky fast state), `amb-bad.data` (unpadded slow boot), `amb-tlb.data` (slow
+boot, `L1D_TLB_REFILL`), `amb-l2.data` (slow boot, `L2D_CACHE_REFILL`) and
+`amb-fixed.data` (padded).
 
 ### Rebuilding perf
 
@@ -274,48 +290,38 @@ what makes the per-stage attribution possible at all.
 
 ## What to change
 
-Ranked by value per unit of risk. Savings are estimates derived from the
-profile, not measurements — each is one 15 s `perf stat` away from being real.
+Savings are estimates derived from the profile except where marked measured.
 
-| change | where | est. saving | audio risk |
+| change | where | saving | audio risk |
 |---|---|---|---|
-| **Right-size the buffers.** FDN 32768 -> 16384, allpass 2048 -> 1024. Halves the pool to ~1.7 MB, so far more of it sits in the 1 MB L2 alongside the GEQ coefficients instead of evicting them. Now the *primary* fix: the variance is an L2-capacity effect. | `UniversalEngine.cpp:70-75` | 10-30% | **none** if the bound holds |
-| **Pad between allocations.** Insert a rotating `(i mod 8) * 64`-byte gap between buffers. Sizes stay powers of two and the mask arithmetic is relative to each buffer's own pointer, so nothing else changes. Attacks the baseline L1 aliasing. | `DelayMemory.h:20-31` | 10-25% | **none** — bit-identical output |
-| **Log the pool's address and page colours in `prepare()`.** Not an optimisation — it makes the next slow boot self-diagnosing instead of requiring this whole investigation again. | `UniversalEngine.cpp:77` | — | **none** — diagnostic |
-| **NEON the absorption GEQ across channels.** The 16 channels are independent; run 4 per vector through the 10-stage cascade. Cuts the instruction count on the stage that takes the most damage. | `BiquadFilters.h:17-22` | 15-22% | low — fp ordering only |
-| **Fewer streaming positions.** The 48 serial-allpass lines are the largest single source of dTLB pressure. Dropping to 2 stages removes 16 of them. | `UniversalEngine.cpp:607-614` | 5-8% | medium — late-field density |
+| **DONE — pad between allocations.** Rotate each block's start by `(allocIndex % 16)` cache lines. Sizes stay powers of two and each mask is relative to that buffer's own pointer, so nothing else changes. | `DelayMemory.h` — commit `f78e0ef` | **measured 0.50x cycles** | **none** — output byte-identical |
+| **Right-size the buffers.** FDN 32768 -> 16384, allpass 2048 -> 1024, pool 3.19 MB -> ~1.7 MB. Attacks L2 *capacity* rather than aliasing, so it is independent of the padding. Needs the max-delay bound verified first. | `UniversalEngine.cpp:70-75` | was 10-30%, **re-estimate** | **none** if the bound holds |
+| **NEON the absorption GEQ across channels.** The 16 channels are independent; run 4 per vector through the 10-stage cascade. This one cuts *instructions*, so unlike the others it is unaffected by what the padding already fixed. | `BiquadFilters.h:17-22` | 15-22% | low — fp ordering only |
+| **Log the pool's address and page colours in `prepare()`.** Not an optimisation — it would make a future placement regression self-diagnosing instead of requiring this whole investigation again. It is also the only way to read the pool out of `/proc/<pid>/pagemap`, since glibc does not give it its own mapping. | `UniversalEngine.cpp:77` | — | **none** — diagnostic |
 | **Decimate AcousticMetrics.** Three integer `%` per sample feeding a display readout; every 8th sample is plenty. | `AcousticMetrics.cpp:39-79` | ~1% | none — UI only |
+| **Fewer streaming positions.** Drop the serial allpass from 3 stages to 2, removing 16 of the 48 lines. | `UniversalEngine.cpp:607-614` | 5-8% | medium — late-field density |
 | **GEQ 10 bands -> 6.** The largest single lever, and the only one that changes the reverb's voice. | `DSPConstants.h:29` | ~13% | **high** — changes the tone |
 
-The first two change no arithmetic whatsoever and are confined to about sixty
-lines of allocator code. They are the place to start, and they are aimed
-squarely at the measured cause: a pool that halves in size and stops
-self-colliding has far less ability to evict the GEQ coefficients, and far less
-to gain or lose from where the kernel happens to put it.
+Two of these were justified by reasoning that the measurements later
+contradicted, and the rationale has been corrected rather than quietly kept:
 
-**How to prove it.** The states cannot be A/B'd inside one boot — stopping the
-plugin reallocates and it comes back fast — so the protocol is: deploy the
-fix, then power-cycle several times and run `amb-profile.sh` on each boot. The
-fix is confirmed when the slow boot stops appearing, not when one boot is fast.
+- **Right-sizing is not "the primary fix".** It was promoted to that on the
+  theory that the variance was an L2 *capacity* effect. It was an L2
+  *conflict* effect, and padding alone removed it. Right-sizing is still worth
+  doing, but with DRAM traffic already down 6.2x the 10-30% estimate is stale
+  and should be re-measured before anyone spends effort on it.
+- **"Fewer streaming positions" was argued from dTLB pressure.** That argument
+  is dead: `L1D_TLB_REFILL` is ~112 per sample with the fix as without it. If
+  the allpass count is reduced it should be for cost or for taste, not for the
+  TLB.
 
-## Device state left behind
-
-- `/data/perf/` — `perf` 6.12.94, `libelf`/`libdw`, `amb-profile.sh`,
-  `amb-idle.data` (good-state profile), `graph-before.txt` (the JACK graph as
-  found, for comparison).
-- `/data/mod/lv2/AmbienceReverb.lv2/` carries the `--debug-info` bundle
-  (744 KB rather than 83 KB, **identical machine code**), so a profile can be
-  taken after the next power cycle without a rebuild.
-
-To put the normal bundle back:
-
-```sh
-lv2/build.sh --deploy root@modpad
-ssh root@modpad '/etc/init.d/S65modhost restart && /etc/init.d/S66modui restart'
-```
-
-The `jack_metro` client used for the signal test was killed and its connections
-removed; `jack_lsp -c` matches `graph-before.txt` exactly.
+**How this was proved.** The plan had been to deploy the fix and then
+power-cycle repeatedly, on the assumption that the two states could not be
+A/B'd inside one boot. That assumption was wrong: the slow state survives a
+mod-host restart when uptime is low and free memory is still unfragmented,
+which turned the slow boot into a stable test bed and allowed a true
+same-boot A/B with a 20 s restart per iteration. Worth remembering next time —
+the property that makes the bug annoying is what makes it measurable.
 
 ## The fix, measured
 
@@ -377,3 +383,31 @@ The padding was the zero-risk half. Right-sizing the buffers (FDN 32768 ->
 rather than aliasing and is still unclaimed, as is NEON-ing the GEQ. With DRAM
 traffic already down 6.2x the remaining headroom is smaller than it was, so
 measure before assuming.
+
+## Device state left behind
+
+- `/data/perf/` — `perf` 6.12.94 with `libelf`/`libdw`, `amb-profile.sh`,
+  `graph-before.txt` (the JACK graph as found), and the five saved profiles
+  listed above. `/data` is its own ext4 partition mounted `rw,noatime` with no
+  `noexec`, so all of it survives a power cycle. Inert unless invoked.
+- `/data/mod/lv2/AmbienceReverb.lv2/` carries the **normal 83,184-byte
+  bundle**, rebuilt without `--debug-info` after the work was finished and
+  verified to perform identically to the instrumented one it replaced
+  (7,077 vs 7,075 cycles per sample, IPC 0.94).
+- Nothing was written to the read-only rootfs, and no A/B slot was touched.
+- The `jack_metro` client used for the signal test was killed and its
+  connections removed; `jack_lsp -c` matches `graph-before.txt` exactly.
+
+In `LoopPad_Jack2`, the Buildroot config edit that built `perf` has been
+reverted and the tree is clean; a copy of the enabled config is kept at
+`Buildroot/build/output/.config.withperf`. `configs/` was never touched, so no
+image built from the shipping defconfig contains a profiler.
+
+## Commits
+
+| | |
+|---|---|
+| `c5af536` | `build.sh: an opt-in --debug-info for profiling on the device` |
+| `f78e0ef` | `Pad between delay blocks so they stop colliding in cache` |
+
+Branch `feature/lv2_mod_rpi`. Not pushed.
