@@ -11,9 +11,44 @@ namespace FDNReverb {
     // ─────────────────────────────────────────────────────────────────────────────
     class DelayMemoryPool {
     public:
+        // ─────────────────────────────────────────────────────────────────────
+        //  なぜブロック間にパディングを入れるのか / Why the blocks are padded
+        // ─────────────────────────────────────────────────────────────────────
+        // Every block is rounded up to the next power of two so the wrap can be
+        // a mask instead of a modulo. That part is a good idea. Packing the
+        // results back-to-back is the part that hurts: it puts every buffer at
+        // an exact power-of-two offset from every other one, so the 16 FDN
+        // lines land 128 KB apart and the 48 serial-allpass lines 8 KB apart.
+        //
+        // Caches on this target are indexed on low address bits - a 32 KB
+        // 4-way L1D on bits [11:6], and a physically-indexed 1 MB L2. Buffers
+        // spaced an exact multiple of 8 KB apart therefore map onto the SAME
+        // cache set at the same read offset, and 48 allpass reads end up
+        // competing for four ways.
+        //
+        // Measured on the device (Cortex-A72, 48 kHz, perf): 132 L1D misses
+        // per audio sample against the ~8.8 that pure streaming would compel -
+        // a 15x conflict rate. See Ambience-profile.md.
+        //
+        // Rotating each block's start by a whole number of cache lines breaks
+        // the stride and costs nothing else. The size stays a power of two and
+        // the mask is relative to each buffer's OWN pointer, so every wrap
+        // computation is unchanged and the DSP output is bit-identical.
+        static constexpr size_t kLineFloats  = 16;   // 64-byte cache line
+        static constexpr size_t kPadRotation = 16;   // distinct start colours
+        static constexpr size_t kMaxAllocs   = 128;  // prepare() makes 70
+
+        // Worst-case extra the rotation can consume. Kept as headroom inside
+        // the pool so requestMemory() can never start returning nullptr on
+        // account of the padding - prepare() does not null-check.
+        static constexpr size_t padHeadroom() {
+            return kMaxAllocs * (kPadRotation - 1) * kLineFloats;
+        }
+
         void allocate(size_t totalSamples) {
-            buffer.assign(totalSamples, 0.0f);
+            buffer.assign(totalSamples + padHeadroom(), 0.0f);
             allocOffset = 0;
+            allocIndex = 0;
         }
 
         // 要求されたサイズを「次の2のべき乗」に切り上げてポインタを返す（高速なマスク演算のため）
@@ -21,8 +56,12 @@ namespace FDNReverb {
             size_t powerOfTwoSize = 1;
             while (powerOfTwoSize < samplesNeeded) powerOfTwoSize *= 2;
 
-            if (allocOffset + powerOfTwoSize > buffer.size()) return nullptr;
+            const size_t pad = (allocIndex % kPadRotation) * kLineFloats;
+            ++allocIndex;
 
+            if (allocOffset + pad + powerOfTwoSize > buffer.size()) return nullptr;
+
+            allocOffset += pad;
             float* ptr = buffer.data() + allocOffset;
             outMask = static_cast<int>(powerOfTwoSize - 1);
             allocOffset += powerOfTwoSize;
@@ -35,6 +74,7 @@ namespace FDNReverb {
     private:
         std::vector<float> buffer;
         size_t allocOffset{ 0 };
+        size_t allocIndex{ 0 };
     };
 
     // ─────────────────────────────────────────────────────────────────────────────
