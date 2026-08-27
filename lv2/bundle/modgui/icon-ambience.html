@@ -1,0 +1,206 @@
+<!--
+  Ambience - MOD pedal face.
+
+  Mustache over mod-ui's template context. {{{cns}}} is the per-instance class
+  namespace mod-ui appends to every selector (it appears in the stylesheet
+  too); {{{ns}}} is the cache-busting suffix for resource URLs.
+
+  Only 13 of the 36 control ports are painted here. The rest - ducking, the ten
+  RT band trims, the three tilts, lo/hi cut, sat type, ER solo, Pro Mode -
+  still exist and still work: presets set them, the host can automate them, and
+  mod-ui exposes them for MIDI/CV addressing. They are simply not knobs on a
+  pedal, because 36 of those is not a usable pedal.
+-->
+<!--
+  The root class MUST be exactly what stylesheet-ambience.css selects, and it
+  must NOT be the bare "mod-pedal": mod-ui wraps this whole template in its own
+  <div class="mod-pedal"> (modgui.js:812), which is what carries mod-ui's drop
+  shadow, actions menu and jack positioning. Repeating the class here would put
+  a second .mod-pedal inside the first.
+
+  Note {{{cns}}} makes this a distinct class per plugin+version, so
+  "mod-pedal-ambience" never collides with anything. Avoid MOD's reserved
+  skin names (mod-pedal-boxy / -british / -japanese / -lata) - modgui.js:822
+  throws the whole icon away and falls back to the default template if it sees
+  one of those.
+-->
+<div class="mod-pedal-ambience{{{cns}}}">
+  <div mod-role="drag-handle" class="mod-drag-handle"></div>
+
+  <div class="ambience-header">
+    <div class="ambience-brand">{{brand}}</div>
+    <div class="ambience-title">{{label}}</div>
+  </div>
+
+  <section class="algorithm-row mod-control-group">
+    <!--
+      mod-widget="custom-select" shows [mod-role=input-control-value] as the
+      closed state and toggles .mod-enumerated-list on click (modgui.js:2593).
+      Seven algorithms is too many to lay out side by side, so this is the
+      dropdown form rather than dm-SpaceEcho's two-option segmented form.
+    -->
+    <div
+      class="mod-enumerated ambience-algorithm"
+      mod-role="input-control-port"
+      mod-port-symbol="algorithm"
+      mod-widget="custom-select"
+    >
+      <div class="ambience-algorithm-value" mod-role="input-control-value"></div>
+      <div class="mod-enumerated-list">
+        <div mod-role="enumeration-option" mod-port-value="0">ROOM 1</div>
+        <div mod-role="enumeration-option" mod-port-value="1">ROOM 2</div>
+        <div mod-role="enumeration-option" mod-port-value="2">HALL 1</div>
+        <div mod-role="enumeration-option" mod-port-value="3">HALL 2</div>
+        <div mod-role="enumeration-option" mod-port-value="4">PLATE</div>
+        <div mod-role="enumeration-option" mod-port-value="5">SPRING</div>
+        <div mod-role="enumeration-option" mod-port-value="6">GOLDFOIL</div>
+      </div>
+    </div>
+    <div class="ambience-algorithm-label">Algorithm</div>
+  </section>
+
+  <section class="knob-panel panel-space mod-control-group">
+    <div class="knob-row">
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="predelay"></div>
+        <div class="mod-param-title">Pre-Delay</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="roomsize"></div>
+        <div class="mod-param-title">Room Size</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="decaytime"></div>
+        <div class="mod-param-title">Decay Time</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="hfdamping"></div>
+        <div class="mod-param-title">HF Damping</div>
+      </div>
+    </div>
+
+    <div class="knob-row">
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="lfabsorption"></div>
+        <div class="mod-param-title">LF Absorption</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="diffusion"></div>
+        <div class="mod-param-title">Diffusion</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="modamount"></div>
+        <div class="mod-param-title">Mod Amount</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="modrate"></div>
+        <div class="mod-param-title">Mod Rate</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="knob-panel panel-mix mod-control-group">
+    <div class="knob-row">
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="stereowidth"></div>
+        <div class="mod-param-title">Stereo Width</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="erlevel"></div>
+        <div class="mod-param-title">ER Level</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="wetlevel"></div>
+        <div class="mod-param-title">Wet</div>
+      </div>
+      <div class="mod-knob">
+        <div class="mod-knob-image" mod-role="input-control-port" mod-port-symbol="drylevel"></div>
+        <div class="mod-param-title">Dry</div>
+      </div>
+    </div>
+  </section>
+
+  <!--
+    Preset slots. Four slots, each naming a preset, and ONE button that steps
+    through them - address it to a hardware pad in mod-ui and that pad becomes
+    the preset button. Slots left at "(None)" are skipped.
+
+    The LEDs are driven by the active_slot OUTPUT port via javascript.js, not
+    by the button's own value: the button is a trigger that the host resets to
+    0 straight after the press, so its value says nothing about which preset is
+    playing. Each slot's LED colour matches the colour the hardware pad shows
+    for that slot, so the screen and the pedal agree.
+  -->
+  <section class="slot-row mod-control-group">
+    <div class="ambience-slot">
+      <div class="ambience-slot-led" data-slot="1"></div>
+      <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
+           mod-port-symbol="slot1_preset" mod-widget="custom-select">
+        <div class="ambience-slot-value" mod-role="input-control-value"></div>
+      </div>
+    </div>
+
+    <div class="ambience-slot">
+      <div class="ambience-slot-led" data-slot="2"></div>
+      <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
+           mod-port-symbol="slot2_preset" mod-widget="custom-select">
+        <div class="ambience-slot-value" mod-role="input-control-value"></div>
+      </div>
+    </div>
+
+    <div class="ambience-slot">
+      <div class="ambience-slot-led" data-slot="3"></div>
+      <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
+           mod-port-symbol="slot3_preset" mod-widget="custom-select">
+        <div class="ambience-slot-value" mod-role="input-control-value"></div>
+      </div>
+    </div>
+
+    <div class="ambience-slot">
+      <div class="ambience-slot-led" data-slot="4"></div>
+      <div class="mod-enumerated ambience-slot-preset" mod-role="input-control-port"
+           mod-port-symbol="slot4_preset" mod-widget="custom-select">
+        <div class="ambience-slot-value" mod-role="input-control-value"></div>
+      </div>
+    </div>
+
+    <div class="ambience-slot ambience-slot-next">
+      <div class="mod-slot-button" mod-role="input-control-port" mod-port-symbol="slot_next"></div>
+      <div class="ambience-slot-caption">NEXT</div>
+    </div>
+  </section>
+
+  <div class="ambience-footer">
+    <div class="ambience-strapline">16-CHANNEL FDN REVERB</div>
+    <div class="mod-footswitch-container">
+      <div class="mod-footswitch" mod-role="bypass"></div>
+      <div class="mod-light" mod-role="bypass-light"></div>
+    </div>
+  </div>
+
+  <div class="mod-pedal-input">
+    {{#effect.ports.audio.input}}
+    <div
+      class="mod-input mod-input-disconnected"
+      title="{{name}}"
+      mod-role="input-audio-port"
+      mod-port-symbol="{{symbol}}"
+    >
+      <div class="mod-pedal-input-image"></div>
+    </div>
+    {{/effect.ports.audio.input}}
+  </div>
+
+  <div class="mod-pedal-output">
+    {{#effect.ports.audio.output}}
+    <div
+      class="mod-output mod-output-disconnected"
+      title="{{name}}"
+      mod-role="output-audio-port"
+      mod-port-symbol="{{symbol}}"
+    >
+      <div class="mod-pedal-output-image"></div>
+    </div>
+    {{/effect.ports.audio.output}}
+  </div>
+</div>

@@ -1,0 +1,237 @@
+/* ===========================================================================
+   Ambience - modgui behaviour
+
+   GENERATED: lv2/tools/gen_bundle.py substitutes the algorithm table below
+   from PRESET_DEFAULTS in Source/AlgorithmPresets.h. Edit javascript.js.in,
+   never javascript.js.
+
+   ---------------------------------------------------------------------------
+   What this reproduces and why it lives here
+
+   In the VST3, selecting an algorithm re-seeds seven other parameters from
+   that algorithm's own defaults (FDNReverbAudioProcessor::loadPresetDefaults,
+   Source/PluginProcessor.cpp:186) so you land on something that sounds like
+   the room you just picked instead of the previous room's settings.
+
+   An LV2 plugin cannot write its own control ports, so the DSP cannot do this.
+   mod-ui can: the modgui javascript hook is called as jsCallback(event, funcs)
+   and funcs.set_port_value(symbol, value) exists for exactly this purpose
+   ("added in v1: allow plugin js code to change plugin controls",
+   html/js/modgui.js:1682). This build is api_version 3.
+
+   ---------------------------------------------------------------------------
+   The trap this code is shaped around
+
+   mod-ui fires a 'change' event for EVERY port when a preset or a pedalboard
+   loads (modgui.js:507 and :523), in no defined order. A handler that simply
+   reacted to 'algorithm' would therefore overwrite each of the 28 presets'
+   Room Size / Decay / Diffusion / Mod / ER / Saturation with the algorithm's
+   generic defaults, at load, every time - silently ruining every preset.
+
+   So changes are batched into a microtask and only a LONE algorithm change is
+   treated as the user turning the knob. Several ports moving in one tick is a
+   bulk load and is left alone. This mirrors the VST3's own guard, which skips
+   the re-seed on the first call (`if (lastAlgorithmIndex >= 0)`).
+
+   State lives on event.data, not in closure variables: mod-ui caches one
+   compiled callback per plugin and shares it across instances
+   (modgui.js:156), so closure state would leak between two Ambiences on the
+   same pedalboard. event.data is per instance.
+   =========================================================================== */
+
+function (event, funcs) {
+
+    /* [ALGORITHM_DEFAULTS] */
+
+    /* [SLOT_PRESETS] */
+
+    var NUM_SLOTS = 4;
+
+    function applyDefaults(data, index) {
+        var def = ALGORITHM_DEFAULTS[index];
+        if (!def) {
+            return;
+        }
+
+        /* set_port_value re-enters this callback with a 'change' event per
+           port. That is harmless - 16 symbols in one tick is not a lone
+           algorithm change, so the guard below rejects it - but flagging it
+           keeps the intent obvious and the batch clean. */
+        data.applying = true;
+        try {
+            for (var symbol in def) {
+                if (Object.prototype.hasOwnProperty.call(def, symbol)) {
+                    funcs.set_port_value(symbol, def[symbol]);
+                }
+            }
+        } finally {
+            data.applying = false;
+        }
+    }
+
+    function flush(data) {
+        var symbols = Object.keys(data.pending);
+        var value = data.pending.algorithm;
+
+        data.pending = {};
+        data.timer = null;
+
+        /* The whole guard: exactly one port changed, and it was algorithm. */
+        if (data.started && symbols.length === 1 && symbols[0] === 'algorithm') {
+            applyDefaults(data, Math.round(value));
+        }
+    }
+
+    /* ---------------------------------------------------------------------
+       Preset slots
+       --------------------------------------------------------------------- */
+
+    /* Light exactly one slot button.
+       active_slot is 0 for "nothing recalled", 1..NUM_SLOTS otherwise. */
+    function showActiveSlot(active) {
+        for (var n = 1; n <= NUM_SLOTS; n++) {
+            var led = event.icon.find('.ambience-slot-led[data-slot="' + n + '"]');
+            if (led.length === 0) {
+                continue;
+            }
+            led.toggleClass('on', n === active);
+        }
+    }
+
+    /* Move the knobs to match the slot the DSP just stepped to.
+
+       The DSP has already applied these values internally - that is what makes
+       a footswitch work with no browser open. This exists only so the
+       on-screen controls stop showing the previous sound.
+
+       Writing all 36 lands as 36 'change' events in one tick, which the
+       algorithm guard above correctly reads as a bulk load and ignores. */
+    function syncKnobs(data, presetIndex) {
+        var values = SLOT_PRESETS[presetIndex];
+        if (!values) {
+            return;
+        }
+
+        data.applying = true;
+        try {
+            for (var symbol in values) {
+                if (Object.prototype.hasOwnProperty.call(values, symbol)) {
+                    funcs.set_port_value(symbol, values[symbol]);
+                }
+            }
+        } finally {
+            data.applying = false;
+        }
+    }
+
+    /* The DSP owns the cycle - it decides which slot a press lands on, and
+       says so on active_slot. So the knob sync hangs off that rather than off
+       the button: watching slot_next would mean reimplementing the skip rule
+       here, in a second place, where it could disagree.
+
+       The first report is a baseline, never a recall. active_slot is an output
+       port, so its value arrives shortly after load carrying whatever slot the
+       restored state named; treating that as a fresh step would push preset
+       values over the knob positions the pedalboard just restored. */
+    function handleActiveSlot(data, active) {
+        showActiveSlot(active);
+
+        var first = data.activeSlot === null || data.activeSlot === undefined;
+        var moved = data.activeSlot !== active;
+
+        data.activeSlot = active;
+
+        if (!data.started || first || !moved) {
+            return;
+        }
+
+        syncKnobs(data, Math.round(data.slotPreset[active] || 0));
+    }
+
+    /* Returns the slot number for slotN_preset, else 0.
+       "slot1_preset" is slot + digit + _ + suffix, i.e. 6 + suffix.length. */
+    function slotOf(symbol, suffix) {
+        if (symbol.length !== 6 + suffix.length ||
+            symbol.slice(0, 4) !== 'slot' ||
+            symbol.charAt(5) !== '_' ||
+            symbol.slice(6) !== suffix) {
+            return 0;
+        }
+        var n = parseInt(symbol.charAt(4), 10);
+        return (n >= 1 && n <= NUM_SLOTS) ? n : 0;
+    }
+
+    var data = event.data;
+
+    if (!data.pending) {
+        data.pending = {};
+        data.timer = null;
+        data.applying = false;
+        data.started = false;
+        data.slotPreset = {};
+        data.activeSlot = null;
+    }
+
+    if (event.type === 'start') {
+        /* The opening sweep reports every port's current value. Seeding the
+           algorithm here without applying anything is what stops a freshly
+           loaded pedalboard from being re-seeded out from under itself. The
+           same reasoning covers the slots: record which preset each holds and
+           which one is lit, but recall nothing. */
+        var ports = event.ports || {};
+        for (var i in ports) {
+            var sym = ports[i].symbol;
+            var slot = slotOf(sym, 'preset');
+            if (slot) {
+                data.slotPreset[slot] = ports[i].value;
+                continue;
+            }
+            if (sym === 'active_slot') {
+                data.activeSlot = Math.round(ports[i].value);
+                showActiveSlot(data.activeSlot);
+            }
+        }
+
+        data.started = true;
+        return;
+    }
+
+    if (event.type !== 'change' || data.applying) {
+        return;
+    }
+
+    /* Patch-parameter changes arrive with a uri instead of a symbol. */
+    if (typeof event.symbol !== 'string') {
+        return;
+    }
+
+    /* active_slot is an output port, monitored via modgui:monitoredOutputs.
+       It is the DSP telling us which slot is live - never a user action, so
+       it does not go through the algorithm batch below. */
+    if (event.symbol === 'active_slot') {
+        handleActiveSlot(data, Math.round(event.value));
+        return;
+    }
+
+    var presetSlot = slotOf(event.symbol, 'preset');
+    if (presetSlot) {
+        data.slotPreset[presetSlot] = event.value;
+        return;
+    }
+
+    /* slot_next is a trigger the user pressed on screen. The DSP acts on it
+       and answers on active_slot; there is nothing to do here, and it must
+       not reach the algorithm batch as a stray port change. */
+    if (event.symbol === 'slot_next') {
+        return;
+    }
+
+    data.pending[event.symbol] = event.value;
+
+    if (data.timer) {
+        clearTimeout(data.timer);
+    }
+    data.timer = setTimeout(function () {
+        flush(data);
+    }, 0);
+}
