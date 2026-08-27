@@ -5,6 +5,7 @@
 #   lv2/build.sh                       # build + package
 #   lv2/build.sh --deploy root@HOST    # build, package, install over ssh
 #   lv2/build.sh --no-regen            # skip the TTL/ports.h generator
+#   lv2/build.sh --debug-info          # add DWARF so perf can name source lines
 #
 # The toolchain is the SAME aarch64 gcc that built the device rootfs, so the
 # result is ABI-identical to the image by construction. The checkout is found
@@ -69,11 +70,13 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 # --- arguments -------------------------------------------------------------
 DEPLOY_HOST=""
 REGEN=1
+DEBUG_INFO=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --deploy)   [ $# -ge 2 ] || die "--deploy needs a user@host"
                     DEPLOY_HOST="$2"; shift 2 ;;
         --no-regen) REGEN=0; shift ;;
+        --debug-info) DEBUG_INFO=1; shift ;;
         -h|--help)  sed -n '2,18p' "$0" | sed 's/^# \?//'; exit 0 ;;
         *)          die "unknown argument: $1" ;;
     esac
@@ -150,6 +153,22 @@ COMMON=(--sysroot="${SYSROOT}" -std=c++20 -O3 -mcpu=cortex-a72
         -fPIC -fvisibility=hidden
         -DAMBIENCE_VERSION='"'"${VERSION}"'"'
         -I"${REPO}/Source" -I"${REPO}/Source/DSP" -I"${HERE}/src")
+
+# --debug-info adds DWARF and NOTHING else. -g does not change codegen, so a
+# bundle built with it is instruction-for-instruction the bundle that ships -
+# which is the whole point: perf on the device can then name a source line
+# instead of collapsing the entire engine into one inlined `run` symbol. The
+# .so roughly triples in size, so it is off by default.
+#
+#   lv2/build.sh --debug-info --deploy root@modpad
+#   ssh root@modpad 'LD_LIBRARY_PATH=/data/perf/lib /data/perf/perf record ...'
+#
+# Keep the -ffast-math / plain -O3 split below exactly as it is either way: it
+# is what keeps the wrapper's NaN guard from being compiled away.
+if [ "${DEBUG_INFO}" -eq 1 ]; then
+    COMMON+=(-g)
+    echo "  (--debug-info: DWARF on, codegen unchanged)"
+fi
 
 # Hot path: the reverb engine and its filter design code.
 DSP_SOURCES=(
