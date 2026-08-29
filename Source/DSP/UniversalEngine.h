@@ -142,8 +142,16 @@ namespace FDNReverb {
         LinearDelayLine                              preDelayLineR;
         float                                        preDelaySamples{ 0.0f };
 
+        // ★ 入力段 Bandwidth LPF ＆ 過渡平滑化 (アタックの過剰入力を防ぎコムフィルタリングを防止)
+        float inLpfStateL{ 0.0f };
+        float inLpfStateR{ 0.0f };
+        float inBandwidthCoeff{ 0.0f };
+        float inputTransientEnvFast{ 0.0f };
+        float inputTransientEnvSlow{ 0.0f };
+
         LinearDelayLine                              erDelay;
-        std::array<LinearDelayLine, 4>               inputDiffusers;
+        std::array<LinearDelayLine, 4>               inputDiffusersM;
+        std::array<LinearDelayLine, 4>               inputDiffusersS;
         std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;
         std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
@@ -183,7 +191,8 @@ namespace FDNReverb {
 
         // ★ ループ不変量事前計算キャッシュ (Hot Loop CPU 最適化)
         std::array<float, FDN_ORDER> cachedFreqModScales;
-        std::array<float, 4> cachedDiffuserDelaySmp;
+        std::array<float, 4> cachedDiffuserDelaySmpM;
+        std::array<float, 4> cachedDiffuserDelaySmpS;
         std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelaySmp;
         std::array<float, FDN_ORDER> dualLfoIncScale1;
         std::array<float, FDN_ORDER> dualLfoIncScale2;

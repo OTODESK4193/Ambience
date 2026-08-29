@@ -52,15 +52,19 @@ namespace FDNReverb {
             dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
         erLpfState.fill(0.0f);
+        inLpfStateL = 0.0f;
+        inLpfStateR = 0.0f;
+        inputTransientEnvFast = 0.0f;
+        inputTransientEnvSlow = 0.0f;
     }
 
     void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
         fs = sampleRate;
         DualGoldenLFO::initTable();
 
-        auto getPow2 = [](size_t n) -> size_t {
-            size_t p = 1;
-            while (p < n) p <<= 1;
+        auto getPow2 = [](size_t s) {
+            size_t p = 16;
+            while (p < s) p <<= 1;
             return p;
         };
 
@@ -68,7 +72,7 @@ namespace FDNReverb {
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5)) * 2;
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.1));
         for (int i = 0; i < 4; ++i)
-            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05));
+            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05)) * 2; // Mid & Side
         for (int i = 0; i < FDN_ORDER; ++i) {
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5));
             for (int s = 0; s < SERIAL_APF_STAGES; ++s)
@@ -88,7 +92,9 @@ namespace FDNReverb {
 
         for (int i = 0; i < 4; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
-            inputDiffusers[i].init(ptr, mask);
+            inputDiffusersM[i].init(ptr, mask);
+            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
+            inputDiffusersS[i].init(ptr, mask);
         }
 
         for (int i = 0; i < FDN_ORDER; ++i) {
@@ -117,8 +123,10 @@ namespace FDNReverb {
             dualLfoIncScale2[i] = (dualLFOs[i].rateScale * 0.6180339887f) / fsf;
         }
 
-        for (int i = 0; i < 4; ++i)
-            cachedDiffuserDelaySmp[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
+        for (int i = 0; i < 4; ++i) {
+            cachedDiffuserDelaySmpM[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
+            cachedDiffuserDelaySmpS[i] = (3.5f + i * 2.3f) * 0.001f * fsf;
+        }
 
         constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.7f, 2.8f, 4.4f };
         const float msToSmp = 0.001f * fsf;
@@ -129,6 +137,9 @@ namespace FDNReverb {
                 cachedApfBaseDelaySmp[i][s] = (apfBaseMs[s] + spreadMs) * msToSmp;
             }
         }
+
+        // ★ 入力段 Bandwidth LPF (12kHz 1次ローパス)
+        inBandwidthCoeff = 1.0f - std::exp(-6.2831853f * 12000.0f / fsf);
 
         duckingAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.010f));
         duckingReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.200f));
@@ -163,6 +174,11 @@ namespace FDNReverb {
         for (auto& chDelays : nestedAllpassDelays)
             for (auto& dl : chDelays) dl.resetState();
         erLpfState.fill(0.0f);
+
+        inLpfStateL = 0.0f;
+        inLpfStateR = 0.0f;
+        inputTransientEnvFast = 0.0f;
+        inputTransientEnvSlow = 0.0f;
     }
 
     void UniversalEngine::setParams(const DSPParams& p) {
@@ -465,8 +481,24 @@ namespace FDNReverb {
             const float delayedL = (preDelaySamples > 0.5f) ? preDelayLineL.read(preDelaySamples) : inL[n];
             const float delayedR = (preDelaySamples > 0.5f) ? preDelayLineR.read(preDelaySamples) : inR[n];
 
-            const float midIn = (delayedL + delayedR) * 0.5f;
-            const float sideIn = (delayedL - delayedR) * 0.5f;
+            // ★ 入力段 Bandwidth 1次 LPF (12kHz)
+            inLpfStateL += inBandwidthCoeff * (delayedL - inLpfStateL);
+            inLpfStateR += inBandwidthCoeff * (delayedR - inLpfStateR);
+            float midIn = (inLpfStateL + inLpfStateR) * 0.5f;
+            float sideIn = (inLpfStateL - inLpfStateR) * 0.5f;
+
+            // ★ 【過渡応答ソフトスロー (Transient Softener)】
+            // 急峻なアタック（スネアやピックの打撃音）の過剰入力をソフトに抑え、FDN内でのコムフィルタリングを防止
+            const float inputLevel = std::max(std::abs(midIn), std::abs(sideIn));
+            inputTransientEnvFast += (inputLevel - inputTransientEnvFast) * 0.05f;
+            inputTransientEnvSlow += (inputLevel - inputTransientEnvSlow) * 0.002f;
+            if (inputTransientEnvFast > inputTransientEnvSlow * 1.5f && inputTransientEnvFast > 0.05f) {
+                const float tamingGain = (inputTransientEnvSlow * 1.5f) / inputTransientEnvFast;
+                const float blendGain = 0.60f + 0.40f * tamingGain;
+                midIn *= blendGain;
+                sideIn *= blendGain;
+            }
+
             float erOutL = 0.0f, erOutR = 0.0f;
 
             const float inputPeak = juce::jmax(std::abs(inL[n]), std::abs(inR[n]));
@@ -480,13 +512,20 @@ namespace FDNReverb {
                 duckGainLinear = std::max(ratioGain, maxDuckReductionGain);
             }
 
+            // ★ Mid / Side 双方を 4段ディフューザーで完全拡散 (左右のアタックの角を溶かす)
             float fdnInputMid = midIn;
+            float fdnInputSide = sideIn;
             if (!skipInputDiffusers && !bypassInputDiffusers) {
                 for (int i = 0; i < 4; ++i) {
-                    float d = inputDiffusers[i].read(cachedDiffuserDelaySmp[i]);
-                    float w = fdnInputMid + diffuserGain * d;
-                    inputDiffusers[i].write(w);
-                    fdnInputMid = d - diffuserGain * w;
+                    float dm = inputDiffusersM[i].read(cachedDiffuserDelaySmpM[i]);
+                    float wm = fdnInputMid + diffuserGain * dm;
+                    inputDiffusersM[i].write(wm);
+                    fdnInputMid = dm - diffuserGain * wm;
+
+                    float ds = inputDiffusersS[i].read(cachedDiffuserDelaySmpS[i]);
+                    float ws = fdnInputSide + diffuserGain * ds;
+                    inputDiffusersS[i].write(ws);
+                    fdnInputSide = ds - diffuserGain * ws;
                 }
             }
 
@@ -554,7 +593,7 @@ namespace FDNReverb {
                     d = d + (sat - d) * microSatBlend;
                 }
 
-                // Schroeder Modulated Allpass
+                // Schroeder Modulated Allpass (B023 標準安全変調)
                 float apfOut = d;
                 if (apfGainStage > 0.001f) {
                     for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
@@ -573,7 +612,7 @@ namespace FDNReverb {
 
                 nextFb[i] = apfOut;
 
-                const float sideForCh = (i % 2 == 0 ? +sideIn : -sideIn) * sideBoost;
+                const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
                 const float fdnInputForThisCh = (fdnInputMid + sideForCh) * 0.25f;
                 fdnDelays[i].write(fdnInputForThisCh + currentFb[i]);
 
