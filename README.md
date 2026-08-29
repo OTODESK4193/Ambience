@@ -21,7 +21,7 @@
 
 ## Changelog
 
-### v1.2.1 Major Update
+### v1.2.1 Update!!
 
 **Dramatic Sound Quality Improvements:**
 - **Zero-Metallic Diffusion (Dual Golden-Ratio LFOs & 3-Stage SAPF)**: Fully integrated 16-channel asynchronous Dual Golden-Ratio LFOs with 3-stage serial Allpass phase smearing, completely eliminating metallic ringing, flutter echoes, and standing waves on high-register chords (e.g. B5–E6) and sharp percussive transients for a silky, ultra-transparent reverb tail.
