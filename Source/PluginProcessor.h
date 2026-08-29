@@ -19,8 +19,8 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "Ambience1.1"; }
-    double getTailLengthSeconds() const override { return 20.0; }
+    const juce::String getName() const override { return "Ambience1.2.1"; }
+    double getTailLengthSeconds() const override { return 120.0; }
     bool acceptsMidi()  const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -54,16 +54,25 @@ public:
 
     void loadPresetDefaults(int algorithmIndex);
 
+    bool isParamsLocked() const noexcept { return paramsLocked.load(); }
+    void setParamsLocked(bool locked) noexcept { paramsLocked.store(locked); }
+
+    juce::String getLastSavedPresetName() const noexcept { return lastSavedPresetName; }
+    void setLastSavedPresetName(const juce::String& name) noexcept { lastSavedPresetName = name; }
+
+    std::array<float, 2048> specFifoDry;
+    std::array<float, 2048> specFifoWet;
+    std::atomic<int> specFifoIndex{ 0 };
+    std::atomic<bool> specFifoReady{ false };
+
 private:
     void updateEngineParams();
 
     FDNReverb::UniversalEngine engine;
+    std::atomic<bool> paramsLocked{ false };
 
-    // 笏笏笏 繝繝ｼ繝・ぅ繝輔Λ繧ｰ: 繝代Λ繝｡繝ｼ繧ｿ螟牙喧縺後↑縺・ｴ蜷医↓ setParams 繧偵せ繧ｭ繝・・ 笏笏笏
-    // processBlock 縺ｯ豈弱ヰ繝・ヵ繧｡ updateEngineParams 繧貞他縺ｶ縺後・
-    // designStage2() ﾃ・16 縺ｮ WLS 貍皮ｮ励・螟牙喧縺後↑縺・ｴ蜷医↓螳溯｡後＆縺帙↑縺・・
     FDNReverb::DSPParams lastSentParams;
-    bool paramsNeedUpdate{ true };  // 蛻晏屓縺ｯ蠢・★騾√ｋ
+    bool paramsNeedUpdate{ true };
 
     int lastAlgorithmIndex{ -1 };
 
@@ -73,27 +82,8 @@ private:
     std::atomic<float> inputRMS_L{ 0.f }, inputRMS_R{ 0.f };
     std::atomic<float> outputRMS_L{ 0.f }, outputRMS_R{ 0.f };
     double lastSampleRate{ 0.0 };
-    
 
-    // 笘・霑ｽ蜉: 繧ｻ繝・す繝ｧ繝ｳ菫晏ｭ倡畑縺ｮ繝励Μ繧ｻ繝・ヨ蜷・
-// PresetManager 縺ｯ繧ｨ繝・ぅ繧ｿ繝ｼ蛛ｴ縺ｫ蟄伜惠縺吶ｋ縺溘ａ縲・
-// Processor 蛛ｴ縺ｧ繝励Μ繧ｻ繝・ヨ蜷阪・縺ｿ菫晄戟縺励※繧ｻ繝・す繝ｧ繝ｳ菫晏ｭ倥↓蟇ｾ蠢懊☆繧九・
     juce::String lastSavedPresetName;
-
-public:
-    std::array<float, 2048> specFifoDry;
-    std::array<float, 2048> specFifoWet;
-    std::atomic<int> specFifoIndex {0};
-    std::atomic<bool> specFifoReady {false};
-
-    // 繧ｨ繝・ぅ繧ｿ繝ｼ縺九ｉ蜻ｼ縺ｳ蜃ｺ縺励※繝励Μ繧ｻ繝・ヨ蜷阪ｒ Processor 縺ｫ騾夂衍縺吶ｋ
-    void setLastSavedPresetName(const juce::String& name) noexcept {
-        lastSavedPresetName = name;
-    }
-    juce::String getLastSavedPresetName() const noexcept {
-        return lastSavedPresetName;
-    }
-
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FDNReverbAudioProcessor)
 };

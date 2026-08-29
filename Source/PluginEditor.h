@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
@@ -56,14 +56,11 @@ private:
     VUMeter           vuIn, vuOut;
     juce::Label       titleLabel;
 
-    // ── Total Decay Time & Acoustics ──
-    juce::Label labelMetricsTitle;
-    juce::Label labelDecayLargeValue;
-    juce::Label labelBassRatioCaption, labelBassRatioValue;
-    juce::Label labelTrebleRatioCaption, labelTrebleRatioValue;
+    juce::Label labelDecayLine;
 
     juce::TextButton proModeButton;
     juce::TextButton erSoloButton;
+    juce::TextButton lockButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> proModeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> erSoloAttachment;
 

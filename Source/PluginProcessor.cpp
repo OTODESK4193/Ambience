@@ -1,4 +1,4 @@
-﻿#include "PluginProcessor.h"
+#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 using namespace FDNReverb;
@@ -35,7 +35,7 @@ void FDNReverbAudioProcessor::updateEngineParams()
 {
     int currentAlgo = (int)*apvts.getRawParameterValue(ParamID::Algorithm);
     if (currentAlgo != lastAlgorithmIndex) {
-        if (lastAlgorithmIndex >= 0)
+        if (!paramsLocked.load() && lastAlgorithmIndex >= 0)
             loadPresetDefaults(currentAlgo);
         lastAlgorithmIndex = currentAlgo;
         paramsNeedUpdate = true;

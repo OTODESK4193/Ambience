@@ -1,33 +1,52 @@
 ﻿#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+// ── V1.2.0 オリジナル定数レイアウト ──
+static constexpr int Y_HEADER = 8;
+static constexpr int Y_ALGO = 48;
+static constexpr int Y_SLABEL1 = 86;
+static constexpr int Y_ROW1 = 104;
+static constexpr int Y_SLABEL2 = 204;
+static constexpr int Y_ROW2 = 222;
+static constexpr int Y_VIZ = 326;
+
+static constexpr int SEC_TIME = 8;
+static constexpr int SEC_FREQUENCY = 254;
+static constexpr int SEC_DIFFUSION = 418;
+static constexpr int SEC_STEREO = 664;
+static constexpr int SEC_CHARACTER = 746;
+static constexpr int SEP_TF = 245;
+static constexpr int SEP_FD = 409;
+static constexpr int SEP_DS = 655;
+static constexpr int SEP_SC = 737;
+
 FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     : AudioProcessorEditor(&p),
     audioProcessor(p),
-    algoSelector(p.apvts),
     spectrumViz(p),
+    algoSelector(p.apvts),
     vuIn("IN", VUMeter::Side::Input),
     vuOut("OUT", VUMeter::Side::Output)
 {
     setLookAndFeel(&laf);
 
-    // ── Content Component の設定 (LIFT-X 式アスペクト比固定スケーリング) ──
+    // ── Content Component の設定 (80%縮小〜150%拡大) ──
     addAndMakeVisible(content);
     content.onPaint = [this](juce::Graphics& g) { paintContent(g); };
     content.onLayout = [this] { layoutContent(); };
 
     constrainer.setFixedAspectRatio((double)kBaseW / (double)kBaseH);
     constrainer.setSizeLimits(
-        static_cast<int>(kBaseW * 0.7), static_cast<int>(kBaseH * 0.7),
-        static_cast<int>(kBaseW * 2.0), static_cast<int>(kBaseH * 2.0));
+        static_cast<int>(kBaseW * 0.80), static_cast<int>(kBaseH * 0.80),
+        static_cast<int>(kBaseW * 1.50), static_cast<int>(kBaseH * 1.50));
     setConstrainer(&constrainer);
     setResizable(true, true);
     setSize(kBaseW, kBaseH);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B013", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B015", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
-        "Helvetica Neue", 14.f, juce::Font::bold)));
+        "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
     content.addAndMakeVisible(titleLabel);
 
@@ -53,7 +72,22 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     erSoloAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.apvts, "ersolo", erSoloButton);
 
-    // ── Algorithm Selector ──
+    // ── Lock Button (ノブロック切替) ──
+    lockButton.setButtonText("LOCK");
+    lockButton.setClickingTogglesState(true);
+    lockButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    lockButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    lockButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    lockButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    lockButton.onClick = [this] {
+        audioProcessor.setParamsLocked(lockButton.getToggleState());
+    };
+    content.addAndMakeVisible(lockButton);
+
+    // ── Algorithm Selector (Lock状態連携) ──
+    algoSelector.isLockedCallback = [this] {
+        return lockButton.getToggleState();
+    };
     content.addAndMakeVisible(algoSelector);
 
     // ── Normal Mode Knobs ──
@@ -70,7 +104,6 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     kERLevel.build(a, "erlevel", "ER LEVEL", &content, laf);
     kSaturation.build(a, "saturation", "SATURATE", &content, laf);
 
-    // ★ 正しい APVTS ID に修正 (wetlevel / drylevel)
     kWet.build(a, "wetlevel", "WET", &content, laf);
     kDry.build(a, "drylevel", "DRY", &content, laf);
 
@@ -165,18 +198,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     content.addAndMakeVisible(vuIn);
     content.addAndMakeVisible(vuOut);
 
-    // ── DECAY TIME 超特大表示 (右下端) ──
-    labelMetricsTitle.setText("DECAY TIME", juce::dontSendNotification);
-    labelMetricsTitle.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.5f, juce::Font::bold)));
-    labelMetricsTitle.setColour(juce::Label::textColourId, AmbienceColors::Accent.withAlpha(0.9f));
-    labelMetricsTitle.setJustificationType(juce::Justification::centredRight);
-    content.addAndMakeVisible(labelMetricsTitle);
-
-    labelDecayLargeValue.setText("--", juce::dontSendNotification);
-    labelDecayLargeValue.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 30.0f, juce::Font::bold)));
-    labelDecayLargeValue.setColour(juce::Label::textColourId, AmbienceColors::Accent);
-    labelDecayLargeValue.setJustificationType(juce::Justification::centredRight);
-    content.addAndMakeVisible(labelDecayLargeValue);
+    // ── DECAY TIME 1行表示 (DECAY TIME: 29.1 s) ──
+    labelDecayLine.setText("DECAY TIME: --", juce::dontSendNotification);
+    labelDecayLine.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 13.0f, juce::Font::bold)));
+    labelDecayLine.setColour(juce::Label::textColourId, AmbienceColors::Accent);
+    labelDecayLine.setJustificationType(juce::Justification::centredRight);
+    content.addAndMakeVisible(labelDecayLine);
 
     refreshPresetCombo();
     updatePanelVisibility();
@@ -202,9 +229,9 @@ void FDNReverbEditor::timerCallback() {
         const float edt = audioProcessor.getEDT();
 
         if (edt < 10.0f) {
-            labelDecayLargeValue.setText(juce::String(edt, 2) + " s", juce::dontSendNotification);
+            labelDecayLine.setText("DECAY TIME: " + juce::String(edt, 2) + " s", juce::dontSendNotification);
         } else {
-            labelDecayLargeValue.setText(juce::String(edt, 1) + " s", juce::dontSendNotification);
+            labelDecayLine.setText("DECAY TIME: " + juce::String(edt, 1) + " s", juce::dontSendNotification);
         }
     }
 
@@ -345,114 +372,108 @@ void FDNReverbEditor::resized() {
     content.setBounds(0, 0, kBaseW, kBaseH);
 }
 
+// ── V1.2.0 オリジナル完全一致レイアウト ──
 void FDNReverbEditor::layoutContent() {
-    int topY = PAD;
+    titleLabel.setBounds(PAD, Y_HEADER, 180, 32);
+    proModeButton.setBounds(196, Y_HEADER + 5, 52, 22);
+    erSoloButton.setBounds(254, Y_HEADER + 5, 68, 22);
+    lockButton.setBounds(328, Y_HEADER + 5, 52, 22);
 
-    titleLabel.setBounds(PAD + 6, topY + 4, 180, 20);
+    vuIn.setBounds(W - 220, Y_HEADER + 2, 96, 28);
+    vuOut.setBounds(W - 120, Y_HEADER + 2, 96, 28);
 
-    const int vuW = 100, vuH = 10;
-    const int vuX = W - PAD - vuW - 24;
-    vuIn.setBounds(vuX, topY + 2, vuW, vuH);
-    vuOut.setBounds(vuX, topY + 14, vuW, vuH);
+    algoSelector.setBounds(PAD, Y_ALGO, W - PAD * 2, 30);
 
-    int btnW = 54, btnH = 20;
-    proModeButton.setBounds(196, topY + 4, btnW, btnH);
-    erSoloButton.setBounds(256, topY + 4, 68, btnH);
-
-    int algoY = topY + 28;
-    int algoH = 26;
-    algoSelector.setBounds(PAD, algoY, W - PAD * 2, algoH);
-
-    int row1Y = algoY + algoH + 18;
-    auto placeKnob = [](ArcKnob& k, int x, int y) {
-        k.slider.setBounds(x, y + KNOB_LBL_H, KNOB_W, KNOB_H - KNOB_LBL_H);
-        k.label.setBounds(x - 4, y, KNOB_W + 8, KNOB_LBL_H);
+    auto place1 = [&](ArcKnob& k, int& x, int y) {
+        k.label.setBounds(x, y, KNOB_W, KNOB_LBL_H);
+        k.slider.setBounds(x, y + KNOB_LBL_H, KNOB_W, KNOB_H);
+        x += KNOB_W + ROW1_GAP;
+    };
+    auto place2 = [&](ArcKnob& k, int& x, int y) {
+        k.label.setBounds(x, y, KNOB_W, KNOB_LBL_H);
+        k.slider.setBounds(x, y + KNOB_LBL_H, KNOB_W, KNOB_H);
+        x += KNOB_W + PAD;
     };
 
     if (!isProMode) {
-        int x = PAD + 2;
-        placeKnob(kPreDelay, x, row1Y);       x += KNOB_W + 14;
-        placeKnob(kRoomSize, x, row1Y);       x += KNOB_W + 14;
-        placeKnob(kDecay, x, row1Y);          x += KNOB_W + ROW1_GAP + 14;
-        placeKnob(kHFDamp, x, row1Y);         x += KNOB_W + 14;
-        placeKnob(kLFAbsorb, x, row1Y);       x += KNOB_W + ROW1_GAP + 14;
-        placeKnob(kDiffusion, x, row1Y);      x += KNOB_W + 14;
-        placeKnob(kModAmt, x, row1Y);         x += KNOB_W + 14;
-        placeKnob(kModRate, x, row1Y);        x += KNOB_W + ROW1_GAP + 14;
-        placeKnob(kStereoW, x, row1Y);        x += KNOB_W + ROW1_GAP + 14;
-        placeKnob(kERLevel, x, row1Y);        x += KNOB_W + 14;
-        placeKnob(kSaturation, x, row1Y);
+        // Row 1
+        int kx = PAD;
+        place1(kPreDelay, kx, Y_ROW1);
+        place1(kRoomSize, kx, Y_ROW1);
+        place1(kDecay, kx, Y_ROW1);
+        place1(kHFDamp, kx, Y_ROW1);
+        place1(kLFAbsorb, kx, Y_ROW1);
+        place1(kDiffusion, kx, Y_ROW1);
+        place1(kModAmt, kx, Y_ROW1);
+        place1(kModRate, kx, Y_ROW1);
+        place1(kStereoW, kx, Y_ROW1);
+        place1(kERLevel, kx, Y_ROW1);
+        place1(kSaturation, kx, Y_ROW1);
 
-        int row2Y = row1Y + UNIT_H + 8;
-        x = PAD + 2;
-        // ── MIX ──
-        placeKnob(kWet, x, row2Y);            x += KNOB_W + 10;
-        placeKnob(kDry, x, row2Y);            x += KNOB_W + 18;
-        // ── OUT EQ ──
-        placeKnob(kLoCutNorm, x, row2Y);      x += KNOB_W + 10;
-        placeKnob(kHiCutNorm, x, row2Y);      x += KNOB_W + 18;
-        // ── DUCKING (ノブ終了位置 x=612 に収め、Preset との干渉を完全排除) ──
-        placeKnob(kDuckAmt, x, row2Y);        x += KNOB_W + 10;
-        placeKnob(kDuckThr, x, row2Y);        x += KNOB_W + 10;
-        placeKnob(kDuckAtt, x, row2Y);        x += KNOB_W + 10;
-        placeKnob(kDuckRel, x, row2Y);
+        // Row 2: MIX | OUT EQ | DUCKING
+        kx = PAD;
+        place2(kWet, kx, Y_ROW2);
+        place2(kDry, kx, Y_ROW2);
+        kx += 16;
+        place2(kLoCutNorm, kx, Y_ROW2);
+        place2(kHiCutNorm, kx, Y_ROW2);
+        kx += 16;
+        place2(kDuckAmt, kx, Y_ROW2);
+        place2(kDuckThr, kx, Y_ROW2);
+        place2(kDuckAtt, kx, Y_ROW2);
+        place2(kDuckRel, kx, Y_ROW2);
     } else {
-        int r1X = PAD + 2;
-        int bandSpacing = 68;
-        for (int i = 0; i < 7; ++i) {
-            placeKnob(kRTBands[i], r1X, row1Y);
-            r1X += bandSpacing;
-        }
-        int rightX = r1X + 8;
-        satTypeLabel.setBounds(rightX, row1Y, 76, KNOB_LBL_H);
-        satTypeCombo.setBounds(rightX, row1Y + KNOB_LBL_H + 4, 76, 22);
-        placeKnob(kTiltLow, rightX + 86, row1Y);
-        placeKnob(kTiltMid, rightX + 86 + 68, row1Y);
-        placeKnob(kTiltHigh, rightX + 86 + 136, row1Y);
+        int kx = PAD;
+        for (int i = 0; i < 10; ++i)
+            place1(kRTBands[i], kx, Y_ROW1);
 
-        int row2Y = row1Y + UNIT_H + 8;
-        int r2X = PAD + 2;
-        for (int i = 7; i < 10; ++i) {
-            placeKnob(kRTBands[i], r2X, row2Y);
-            r2X += bandSpacing;
-        }
-        r2X += 16;
-        placeKnob(kLoCutPro, r2X, row2Y); r2X += bandSpacing;
-        placeKnob(kHiCutPro, r2X, row2Y);
+        int kx2 = PAD;
+        satTypeLabel.setBounds(kx2, Y_SLABEL2, KNOB_W, KNOB_LBL_H);
+        satTypeCombo.setBounds(kx2, Y_SLABEL2 + KNOB_LBL_H + 2, KNOB_W + PAD, 24);
+        kx2 += KNOB_W + PAD + PAD + 8;
+        place2(kTiltLow, kx2, Y_ROW2);
+        place2(kTiltMid, kx2, Y_ROW2);
+        place2(kTiltHigh, kx2, Y_ROW2);
+        kx2 += 16;
+        place2(kLoCutPro, kx2, Y_ROW2);
+        place2(kHiCutPro, kx2, Y_ROW2);
     }
 
-    int row2Y = row1Y + UNIT_H + 8;
-    int prH = 22;
-    static constexpr int PRESET_X = 640;
-    presetPrevButton.setBounds(PRESET_X, row2Y + 14, 24, prH);
-    presetCombo.setBounds(PRESET_X + 28, row2Y + 14, 164, prH);
-    presetNextButton.setBounds(PRESET_X + 196, row2Y + 14, 24, prH);
+    // Preset Section
+    {
+        const int px = PRESET_PANEL_X;
+        const int btnH = 26;
 
-    int btnRowY = row2Y + 14 + prH + 6;
-    int smBtnW = 66, smBtnH = 22;
-    presetSaveButton.setBounds(PRESET_X + 2, btnRowY, smBtnW, smBtnH);
-    presetLoadButton.setBounds(PRESET_X + 72, btnRowY, smBtnW, smBtnH);
-    presetDeleteButton.setBounds(PRESET_X + 142, btnRowY, smBtnW + 10, smBtnH);
+        presetPrevButton.setBounds(px, Y_ROW2, 26, btnH);
+        presetCombo.setBounds(px + 30, Y_ROW2, 154, btnH);
+        presetNextButton.setBounds(px + 188, Y_ROW2, 26, btnH);
 
-    // ── Visualizers (RT60グラフ 112px 大画面, ER/LATE 74px 洗練バー) ──
-    int vizTop = row2Y + UNIT_H + 4;
-    int vizH = 112;
-    rt60Viz.setBounds(PAD, vizTop, W - PAD * 2, vizH);
-    spectrumViz.setBounds(PAD, vizTop, W - PAD * 2, vizH);
+        const int saveW = 68;
+        const int loadW = 68;
+        const int delW = 68;
+        presetSaveButton.setBounds(px, Y_ROW2 + 34, saveW, btnH);
+        presetLoadButton.setBounds(px + saveW + 4, Y_ROW2 + 34, loadW, btnH);
+        presetDeleteButton.setBounds(px + saveW + 4 + loadW + 4, Y_ROW2 + 34, delW, btnH);
+    }
 
-    int decayY = vizTop + vizH + 6;
-    int decayHeight = H - decayY - PAD;
+    // ── Visualizers: RT60 グラフ 135px、ER/LATE 64px ──
+    const int rt60Height = 135;
+    rt60Viz.setBounds(PAD, Y_VIZ, W - PAD * 2, rt60Height);
+    spectrumViz.setBounds(PAD, Y_VIZ, W - PAD * 2, rt60Height);
+
+    const int decayY = Y_VIZ + rt60Height + 4;
+    const int decayHeight = H - decayY - PAD;
     decayCurveViz.setBounds(PAD, decayY, W - PAD * 2, decayHeight);
 
-    // ── DECAY TIME 超特大表示 (右下端) ──
-    const int dtW = 160;
-    const int dtX = W - PAD - dtW - 12;
-    labelMetricsTitle.setBounds(dtX, decayY + 6, dtW, 12);
-    labelDecayLargeValue.setBounds(dtX, decayY + 18, dtW, 36);
+    // ── DECAY TIME 1行表示 (右側の元のDecayTime位置) ──
+    const int dtW = 220;
+    const int dtX = W - PAD - dtW - 8;
+    labelDecayLine.setBounds(dtX, decayY + 4, dtW, 16);
 }
 
 void FDNReverbEditor::paintContent(juce::Graphics& g) {
     g.fillAll(AmbienceColors::Background);
+
     juce::ColourGradient grad(
         AmbienceColors::Surface.withAlpha(0.12f), 0.f, 0.f,
         AmbienceColors::Background, 0.f, (float)H, false);
@@ -462,43 +483,65 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
     g.setFont(juce::Font(juce::FontOptions(8.f)));
     g.setColour(AmbienceColors::TextSecondary.withAlpha(0.6f));
     g.drawText("16ch FDN | SAPF | ISM-ER | 44.1-192kHz",
-        330, PAD + 8, 220, 14, juce::Justification::centredLeft);
+        390, Y_HEADER + 8, 200, 14, juce::Justification::centredLeft);
 
-    auto drawSectionHeader = [&](const juce::String& title, int x, int y, int w) {
-        g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::bold)));
-        g.setColour(AmbienceColors::Accent.withAlpha(0.85f));
-        g.drawText(title, x, y, w, 10, juce::Justification::left);
+    auto sl = [&](int x, int y, const char* text) {
+        g.setFont(juce::Font(juce::FontOptions(
+            "Helvetica Neue", 8.5f, juce::Font::bold)));
+        g.drawText(text, x, y, 120, KNOB_LBL_H, juce::Justification::centredLeft);
     };
 
-    int algoY = PAD + 28;
-    int row1Y = algoY + 26 + 18;
-    int secHdrY = row1Y - 14;
-
     if (!isProMode) {
-        int x = PAD + 2;
-        drawSectionHeader("TIME", x, secHdrY, KNOB_W * 3 + 28);
-        x += (KNOB_W + 14) * 3 + ROW1_GAP - 14;
-        drawSectionHeader("FREQUENCY", x, secHdrY, KNOB_W * 2 + 14);
-        x += (KNOB_W + 14) * 2 + ROW1_GAP - 14;
-        drawSectionHeader("DIFFUSION", x, secHdrY, KNOB_W * 3 + 28);
-        x += (KNOB_W + 14) * 3 + ROW1_GAP - 14;
-        drawSectionHeader("STEREO", x, secHdrY, KNOB_W);
-        x += KNOB_W + ROW1_GAP;
-        drawSectionHeader("CHARACTER", x, secHdrY, KNOB_W * 2 + 14);
+        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        sl(SEC_TIME, Y_SLABEL1, "TIME");
+        sl(SEC_FREQUENCY, Y_SLABEL1, "FREQUENCY");
+        sl(SEC_DIFFUSION, Y_SLABEL1, "DIFFUSION");
+        sl(SEC_STEREO, Y_SLABEL1, "STEREO");
+        sl(SEC_CHARACTER, Y_SLABEL1, "CHARACTER");
 
-        int row2Y = row1Y + UNIT_H + 8;
-        int secHdr2Y = row2Y - 14;
-        x = PAD + 2;
-        drawSectionHeader("MIX", x, secHdr2Y, KNOB_W * 2 + 10);
-        x += (KNOB_W + 10) * 2 + 18 - 10;
-        drawSectionHeader("OUT EQ", x, secHdr2Y, KNOB_W * 2 + 10);
-        x += (KNOB_W + 10) * 2 + 18 - 10;
-        drawSectionHeader("DUCKING", x, secHdr2Y, KNOB_W * 4 + 30);
-        drawSectionHeader("PRESET", 640, secHdr2Y, 200);
+        g.setColour(AmbienceColors::Separator);
+        auto drawSep = [&](int x) {
+            g.drawVerticalLine(x, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
+        };
+        drawSep(SEP_TF);
+        drawSep(SEP_FD);
+        drawSep(SEP_DS);
+        drawSep(SEP_SC);
+
+        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
+        g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(W - PAD));
+
+        const int outeq_x = PAD + 2 * (KNOB_W + PAD) + 16;
+        const int duck_x = outeq_x + 2 * (KNOB_W + PAD) + 16;
+
+        g.setColour(AmbienceColors::Separator);
+        g.drawVerticalLine(outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
+        drawSep(duck_x - 9);
+
+        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        sl(PAD, Y_SLABEL2, "MIX");
+        sl(outeq_x, Y_SLABEL2, "OUT EQ");
+        sl(duck_x, Y_SLABEL2, "DUCKING");
     } else {
-        int x = PAD + 2;
-        drawSectionHeader("BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)", x, secHdrY, 400);
-        int row2Y = row1Y + UNIT_H + 8;
-        drawSectionHeader("PRESET", 640, row2Y - 14, 200);
+        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        sl(PAD, Y_SLABEL1, "BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)");
+
+        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
+        g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(W - PAD));
+
+        const int tilt_x = PAD + KNOB_W + PAD + PAD + 8;
+        const int outeq_x = tilt_x + 3 * (KNOB_W + PAD) + 16;
+        g.setColour(AmbienceColors::Separator);
+        g.drawVerticalLine(outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
+
+        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        sl(tilt_x, Y_SLABEL2, "TILT EQ");
+        sl(outeq_x, Y_SLABEL2, "OUT EQ");
     }
+
+    g.setColour(AmbienceColors::Separator);
+    g.drawVerticalLine(PRESET_PANEL_X - 9,
+        (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
+    g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+    sl(PRESET_PANEL_X, Y_SLABEL2, "PRESET");
 }

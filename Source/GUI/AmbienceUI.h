@@ -100,6 +100,7 @@ public:
     ~AlgorithmSelector() override;
     void paint(juce::Graphics&) override;
     void resized() override;
+    std::function<bool()> isLockedCallback;
 private:
     void parameterChanged(const juce::String&, float) override;
     void updateButtonColors();

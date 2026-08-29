@@ -1,53 +1,13 @@
 ﻿#include "DecayCurveViz.h"
-#include <random>
 
 DecayCurveViz::DecayCurveViz() {
     cachedERDelayMs.fill(0.0f);
     cachedERGains.fill(0.0f);
-    initParticles();
     startTimerHz(30);
 }
 
 DecayCurveViz::~DecayCurveViz() {
     stopTimer();
-}
-
-void DecayCurveViz::initParticles() {
-    particles.resize(25);
-    std::mt19937 rng(1337);
-    std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
-    std::uniform_real_distribution<float> distSpeed(-0.003f, 0.003f);
-
-    for (auto& p : particles) {
-        p.x = dist01(rng);
-        p.y = dist01(rng);
-        p.vx = distSpeed(rng);
-        p.vy = -0.002f - dist01(rng) * 0.003f;
-        p.baseAlpha = 0.25f + dist01(rng) * 0.55f;
-        p.alpha = p.baseAlpha;
-        p.size = 1.0f + dist01(rng) * 1.8f;
-        p.phase = dist01(rng) * 6.28318f;
-    }
-}
-
-void DecayCurveViz::updateParticles() {
-    globalPhase += 0.05f;
-    if (globalPhase > 6.28318f) globalPhase -= 6.28318f;
-
-    for (auto& p : particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.phase += 0.04f;
-
-        if (p.y < 0.05f) {
-            p.y = 0.95f;
-            p.x = ((float)rand() / (float)RAND_MAX);
-        }
-        if (p.x < 0.0f) p.x += 1.0f;
-        if (p.x > 1.0f) p.x -= 1.0f;
-
-        p.alpha = p.baseAlpha * (0.6f + 0.4f * std::sin(p.phase));
-    }
 }
 
 void DecayCurveViz::timerCallback() {
@@ -70,8 +30,6 @@ void DecayCurveViz::timerCallback() {
             cachedERGains[i] = engine.getERTapGain(i);
         }
     }
-
-    updateParticles();
     repaint();
 }
 
@@ -84,8 +42,8 @@ void DecayCurveViz::paint(juce::Graphics& g)
 
     g.fillAll(AmbienceColors::Background);
 
-    const float topMargin = 8.0f;
-    const float bottomMargin = 16.0f;
+    const float topMargin = 4.0f;
+    const float bottomMargin = 14.0f;
     const float leftMargin = 30.0f;
     const float rightMargin = 8.0f;
     const float plotX = bounds.getX() + leftMargin;
@@ -114,7 +72,7 @@ void DecayCurveViz::paint(juce::Graphics& g)
         return plotY + (1.0f - normalized) * plotH;
     };
 
-    // ─── ER ゾーン背景 (微細なサイバーグリッド) ───
+    // ─── ER ゾーン背景 ───
     const float erZoneW = plotW * splitRatio;
     juce::ColourGradient erZoneGrad(
         juce::Colour(0xFF0F1B2A), plotX, plotY,
@@ -150,7 +108,7 @@ void DecayCurveViz::paint(juce::Graphics& g)
     for (float t = splitSec + timeStep; t <= maxTimeSec; t += timeStep)
         g.drawVerticalLine((int)timeToX(t), plotY, plotY + plotH);
 
-    // スプリット境界線 (ネオンシアンの発光境界)
+    // スプリット境界線
     const float splitX = timeToX(splitSec);
     g.setColour(juce::Colour(0xFF00E5FF).withAlpha(0.20f));
     g.drawVerticalLine((int)splitX, plotY, plotY + plotH);
@@ -171,12 +129,12 @@ void DecayCurveViz::paint(juce::Graphics& g)
         if (t >= maxTimeSec) break;
         g.drawText(juce::String((int)ms) + "ms",
             (int)(timeToX(t) - 18), (int)(plotY + plotH + 2),
-            36, 12, juce::Justification::centred);
+            36, 11, juce::Justification::centred);
     }
     for (float t = splitSec + timeStep; t <= maxTimeSec; t += timeStep) {
         g.drawText(juce::String(t, 1) + "s",
             (int)(timeToX(t) - 18), (int)(plotY + plotH + 2),
-            36, 12, juce::Justification::centred);
+            36, 11, juce::Justification::centred);
     }
 
     // ─── LATE REVERB 流麗なネオン指数減衰カーブ ───
@@ -206,29 +164,17 @@ void DecayCurveViz::paint(juce::Graphics& g)
         lateFill.lineTo(plotX + plotW, yBottom);
         lateFill.closeSubPath();
 
-        // 柔らかなサンセットグラデーション
         juce::ColourGradient fillGrad(
-            AmbienceColors::Accent.withAlpha(0.22f), plotX, plotY,
-            juce::Colour(0xFF100B1A).withAlpha(0.05f), plotX, yBottom, false);
+            AmbienceColors::Accent.withAlpha(0.20f), plotX, plotY,
+            juce::Colour(0xFF100B1A).withAlpha(0.04f), plotX, yBottom, false);
         g.setGradientFill(fillGrad);
         g.fillPath(lateFill);
 
-        // ネオンブルーム外光 (2重ストローク)
         g.setColour(AmbienceColors::Accent.withAlpha(0.25f));
-        g.strokePath(lateCurve, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved));
+        g.strokePath(lateCurve, juce::PathStrokeType(3.5f, juce::PathStrokeType::curved));
 
         g.setColour(AmbienceColors::Accent.withAlpha(0.90f));
         g.strokePath(lateCurve, juce::PathStrokeType(1.5f, juce::PathStrokeType::curved));
-    }
-
-    // ─── 浮遊パーティクル (Floating Ambient Particles) ───
-    for (const auto& p : particles) {
-        float px = plotX + p.x * plotW;
-        float py = plotY + p.y * plotH;
-        g.setColour(juce::Colour(0xFFFFB703).withAlpha(p.alpha * 0.40f));
-        g.fillEllipse(px - p.size * 1.5f, py - p.size * 1.5f, p.size * 3.0f, p.size * 3.0f);
-        g.setColour(juce::Colour(0xFFFFFFFF).withAlpha(p.alpha * 0.85f));
-        g.fillEllipse(px - p.size * 0.5f, py - p.size * 0.5f, p.size, p.size);
     }
 
     // ─── ER レーザーピン ＆ 発光ネオンオーブ ───
@@ -250,7 +196,7 @@ void DecayCurveViz::paint(juce::Graphics& g)
             // レーザーピン光線
             juce::ColourGradient pinGrad(
                 neonCyan.withAlpha(0.85f), x, yTop,
-                neonCyan.withAlpha(0.10f), x, yBottom, false);
+                neonCyan.withAlpha(0.08f), x, yBottom, false);
             g.setGradientFill(pinGrad);
             g.drawLine(x, yTop, x, yBottom, 1.2f);
 
@@ -267,8 +213,8 @@ void DecayCurveViz::paint(juce::Graphics& g)
     g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::bold)));
 
     g.setColour(juce::Colour(0xFF00E5FF).withAlpha(0.9f));
-    g.drawText("ER", (int)(plotX + 6), (int)(plotY + 3), 30, 12, juce::Justification::centredLeft);
+    g.drawText("ER", (int)(plotX + 6), (int)(plotY + 2), 30, 11, juce::Justification::centredLeft);
 
     g.setColour(AmbienceColors::Accent.withAlpha(0.9f));
-    g.drawText("LATE", (int)(splitX + 6), (int)(plotY + 3), 40, 12, juce::Justification::centredLeft);
+    g.drawText("LATE", (int)(splitX + 6), (int)(plotY + 2), 40, 11, juce::Justification::centredLeft);
 }

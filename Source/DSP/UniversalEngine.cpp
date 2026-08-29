@@ -245,7 +245,7 @@ namespace FDNReverb {
             else {
                 effectiveRT60[b] = scaledRT60[b];
             }
-            effectiveRT60[b] = juce::jlimit(0.05f, 30.0f, effectiveRT60[b]);
+            effectiveRT60[b] = juce::jlimit(0.05f, 150.0f, effectiveRT60[b]);
         }
 #else
         effectiveRT60 = scaledRT60;
