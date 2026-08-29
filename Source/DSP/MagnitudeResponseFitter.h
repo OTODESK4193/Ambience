@@ -81,9 +81,9 @@ namespace FDNReverb {
             float lfAbsorption);
 
         // ─────────────────────────────────────────────────────────────────────────
-        //  Stage 2c 設計関数（修正版）
+        //  Stage 2c 設計関数（インスタンス個別実行で完全スレッドセーフ）
         // ─────────────────────────────────────────────────────────────────────────
-        static DesignResultStage2 designStage2(
+        DesignResultStage2 designStage2(
             int delaySamples,
             double sampleRate,
             const std::array<float, NUM_BANDS>& rt60,
@@ -91,10 +91,10 @@ namespace FDNReverb {
             float lfAbsorption);
 
         // ─────────────────────────────────────────────────────────────────────────
-        //  Interaction Matrix の事前計算（起動時に1回呼ぶ）
+        //  Interaction Matrix の事前計算（prepare()時にインスタンスごとに呼ぶ）
         // ─────────────────────────────────────────────────────────────────────────
-        static void precomputeInteractionMatrix(double sampleRate);
-        static double getCachedSampleRate() noexcept { return cachedSampleRate; }
+        void precomputeInteractionMatrix(double sampleRate);
+        double getCachedSampleRate() const noexcept { return cachedSampleRate; }
 
     private:
         // ── Stage 1 ヘルパー ──
@@ -119,12 +119,12 @@ namespace FDNReverb {
         // これにより独立 DC スカラー適用と数学的に等価なフィルタになる
         static BiquadCoeffs absorbGainIntoBiquad(const BiquadCoeffs& c, float linearGain) noexcept;
 
-        // ── Stage 2 静的キャッシュ ──
-        static std::array<std::array<double, NUM_BANDS>, NUM_BANDS> cachedB;
-        static std::array<std::array<double, NUM_BANDS>, NUM_BANDS> cachedBtWB;
-        static std::array<double, NUM_BANDS> cachedW;
-        static double cachedSampleRate;
-        static bool cacheValid;
+        // ── Stage 2 インスタンス固有キャッシュ（マルチインスタンス完全分離） ──
+        std::array<std::array<double, NUM_BANDS>, NUM_BANDS> cachedB{};
+        std::array<std::array<double, NUM_BANDS>, NUM_BANDS> cachedBtWB{};
+        std::array<double, NUM_BANDS> cachedW{};
+        double cachedSampleRate{ 0.0 };
+        bool cacheValid{ false };
     };
 
 } // namespace FDNReverb

@@ -48,7 +48,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             juce::jlimit(static_cast<int>(kBaseH * 0.80), static_cast<int>(kBaseH * 1.50), savedH));
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B022", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B023", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -225,9 +225,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             presetManager->loadPreset(currentBasePresetName);
             setPresetModified(false);
             refreshPresetCombo();
-            juce::Timer::callAfterDelay(50, [this] {
-                if (loadingPresetCounter > 0) --loadingPresetCounter;
-                setPresetModified(false);
+            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+            juce::Timer::callAfterDelay(50, [safeThis] {
+                if (safeThis != nullptr) {
+                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                    safeThis->setPresetModified(false);
+                }
             });
         }
     };
@@ -245,9 +248,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             currentBasePresetName = name;
             setPresetModified(false);
             refreshPresetCombo();
-            juce::Timer::callAfterDelay(50, [this] {
-                if (loadingPresetCounter > 0) --loadingPresetCounter;
-                setPresetModified(false);
+            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+            juce::Timer::callAfterDelay(50, [safeThis] {
+                if (safeThis != nullptr) {
+                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                    safeThis->setPresetModified(false);
+                }
             });
         }
     };
@@ -277,9 +283,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             currentBasePresetName = name;
             setPresetModified(false);
             refreshPresetCombo();
-            juce::Timer::callAfterDelay(50, [this] {
-                if (loadingPresetCounter > 0) --loadingPresetCounter;
-                setPresetModified(false);
+            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+            juce::Timer::callAfterDelay(50, [safeThis] {
+                if (safeThis != nullptr) {
+                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                    safeThis->setPresetModified(false);
+                }
             });
         }
     };
@@ -290,9 +299,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             currentBasePresetName = presetManager->getCurrentPresetName();
             setPresetModified(false);
             refreshPresetCombo();
-            juce::Timer::callAfterDelay(50, [this] {
-                if (loadingPresetCounter > 0) --loadingPresetCounter;
-                setPresetModified(false);
+            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+            juce::Timer::callAfterDelay(50, [safeThis] {
+                if (safeThis != nullptr) {
+                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                    safeThis->setPresetModified(false);
+                }
             });
         }
     };
@@ -303,9 +315,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             currentBasePresetName = presetManager->getCurrentPresetName();
             setPresetModified(false);
             refreshPresetCombo();
-            juce::Timer::callAfterDelay(50, [this] {
-                if (loadingPresetCounter > 0) --loadingPresetCounter;
-                setPresetModified(false);
+            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+            juce::Timer::callAfterDelay(50, [safeThis] {
+                if (safeThis != nullptr) {
+                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                    safeThis->setPresetModified(false);
+                }
             });
         }
     };
@@ -492,9 +507,12 @@ void FDNReverbEditor::parameterChanged(const juce::String& paramID, float) {
     if (loadingPresetCounter > 0) return;
     if (paramID == "promode" || paramID == "theme") return;
     if (currentBasePresetName.isNotEmpty()) {
-        juce::MessageManager::callAsync([this] {
-            if (loadingPresetCounter == 0 && !isPresetModified) {
-                setPresetModified(true);
+        juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+        juce::MessageManager::callAsync([safeThis] {
+            if (safeThis != nullptr) {
+                if (safeThis->loadingPresetCounter == 0 && !safeThis->isPresetModified) {
+                    safeThis->setPresetModified(true);
+                }
             }
         });
     }

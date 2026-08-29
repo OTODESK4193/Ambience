@@ -59,12 +59,28 @@ public:
 
     void panic() noexcept;
 
-    juce::String getLastSavedPresetName() const noexcept { return lastSavedPresetName; }
-    void setLastSavedPresetName(const juce::String& name) noexcept { lastSavedPresetName = name; }
+    juce::String getLastSavedPresetName() const noexcept {
+        const juce::ScopedLock sl(stateLock);
+        return lastSavedPresetName;
+    }
+    void setLastSavedPresetName(const juce::String& name) noexcept {
+        const juce::ScopedLock sl(stateLock);
+        lastSavedPresetName = name;
+    }
 
-    int getSavedEditorWidth() const noexcept { return savedEditorWidth; }
-    int getSavedEditorHeight() const noexcept { return savedEditorHeight; }
-    void setSavedEditorSize(int w, int h) noexcept { savedEditorWidth = w; savedEditorHeight = h; }
+    int getSavedEditorWidth() const noexcept {
+        const juce::ScopedLock sl(stateLock);
+        return savedEditorWidth;
+    }
+    int getSavedEditorHeight() const noexcept {
+        const juce::ScopedLock sl(stateLock);
+        return savedEditorHeight;
+    }
+    void setSavedEditorSize(int w, int h) noexcept {
+        const juce::ScopedLock sl(stateLock);
+        savedEditorWidth = w;
+        savedEditorHeight = h;
+    }
 
     std::array<float, 2048> specFifoDry;
     std::array<float, 2048> specFifoWet;
@@ -89,6 +105,7 @@ private:
     std::atomic<float> outputRMS_L{ 0.f }, outputRMS_R{ 0.f };
     double lastSampleRate{ 0.0 };
 
+    mutable juce::CriticalSection stateLock;
     juce::String lastSavedPresetName;
     int savedEditorWidth{ 900 };
     int savedEditorHeight{ 540 };

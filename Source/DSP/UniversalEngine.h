@@ -105,6 +105,7 @@ namespace FDNReverb {
         float  getERTapGain(int idx) const noexcept {
             return (idx >= 0 && idx < currentERTapCount) ? currentERGains[idx] : 0.0f;
         }
+        bool   isPrepared() const noexcept { return isPreparedFlag; }
 
     private:
         void updateTopologyAndRouting();
@@ -200,6 +201,9 @@ namespace FDNReverb {
         AcousticMetrics acousticMetrics;
         Saturator saturatorL;
         Saturator saturatorR;
+
+        MagnitudeResponseFitter fitter;
+        bool isPreparedFlag{ false };
     };
 
 } // namespace FDNReverb

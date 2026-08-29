@@ -139,6 +139,9 @@ namespace FDNReverb {
         fdnRmsEnv.fill(0.0f);
         rmsCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.003f));
 
+        fitter.precomputeInteractionMatrix(fs);
+        isPreparedFlag = true;
+
         reset();
     }
 
@@ -219,7 +222,8 @@ namespace FDNReverb {
     void UniversalEngine::updateTopologyAndRouting() {
         calculatePrimePowerDelays();
 
-        auto& preset = *ALL_PRESETS[activeParams.algorithmIndex];
+        const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+        auto& preset = *ALL_PRESETS[safeAlgo];
 
         std::array<float, NUM_BANDS> scaledRT60 = preset.acoustics.rt60;
         for (auto& v : scaledRT60) v *= activeParams.decayScale;
@@ -247,7 +251,7 @@ namespace FDNReverb {
         targetDbAccum.fill(0.0f);
 
         for (int i = 0; i < FDN_ORDER; ++i) {
-            auto s2 = MagnitudeResponseFitter::designStage2(
+            auto s2 = fitter.designStage2(
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
@@ -404,6 +408,12 @@ namespace FDNReverb {
 
     void UniversalEngine::processBlock(const float* inL, const float* inR,
         float* outL, float* outR, int numSamples) noexcept {
+        if (!isPreparedFlag || inL == nullptr || inR == nullptr || outL == nullptr || outR == nullptr) {
+            if (outL && numSamples > 0) std::fill(outL, outL + numSamples, 0.0f);
+            if (outR && numSamples > 0) std::fill(outR, outR + numSamples, 0.0f);
+            return;
+        }
+
         if (topologyUpdatePending) {
             if (++topologyUpdateCounter >= TOPOLOGY_UPDATE_INTERVAL) {
                 updateTopologyAndRouting();

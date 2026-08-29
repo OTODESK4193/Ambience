@@ -53,6 +53,7 @@ namespace FDNReverb {
         }
 
         inline float read(float delayInSamples) const noexcept {
+            if (buffer == nullptr || mask < 5) return 0.0f;
             const float safeDelay = std::clamp(delayInSamples, 1.0f, static_cast<float>(mask - 4));
             const int id = static_cast<int>(safeDelay);
             const float frac = safeDelay - static_cast<float>(id);
@@ -77,6 +78,7 @@ namespace FDNReverb {
         }
 
         inline float readInt(int delayInSamples) const noexcept {
+            if (buffer == nullptr || mask < 1) return 0.0f;
             const uint32_t uWrite = static_cast<uint32_t>(writeIndex);
             const uint32_t uId    = static_cast<uint32_t>(delayInSamples);
             const uint32_t uMask  = static_cast<uint32_t>(mask);
@@ -84,6 +86,7 @@ namespace FDNReverb {
         }
 
         inline void write(float input) noexcept {
+            if (buffer == nullptr) return;
             buffer[writeIndex] = input;
             writeIndex = (writeIndex + 1) & mask;
         }

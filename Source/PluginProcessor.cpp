@@ -33,16 +33,15 @@ void FDNReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 
 void FDNReverbAudioProcessor::updateEngineParams()
 {
-    int currentAlgo = (int)*apvts.getRawParameterValue(ParamID::Algorithm);
+    int currentAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1,
+        (int)*apvts.getRawParameterValue(ParamID::Algorithm));
     if (currentAlgo != lastAlgorithmIndex) {
-        if (!paramsLocked.load() && lastAlgorithmIndex >= 0)
-            loadPresetDefaults(currentAlgo);
         lastAlgorithmIndex = currentAlgo;
         paramsNeedUpdate = true;
     }
 
     DSPParams p;
-    p.algorithmIndex = (int)*apvts.getRawParameterValue(ParamID::Algorithm);
+    p.algorithmIndex = currentAlgo;
     p.preDelayMs = *apvts.getRawParameterValue(ParamID::PreDelay);
     p.roomSizeScale = *apvts.getRawParameterValue(ParamID::RoomSize) - 0.5f;
 
@@ -108,6 +107,11 @@ void FDNReverbAudioProcessor::processBlock(
 {
     juce::ScopedNoDenormals noDenormals;
 
+    if (buffer.getNumSamples() == 0 || oversampler == nullptr || !engine.isPrepared()) {
+        buffer.clear();
+        return;
+    }
+
     updateEngineParams();
 
     inputRMS_L.store(buffer.getRMSLevel(0, 0, buffer.getNumSamples()));
@@ -152,6 +156,7 @@ void FDNReverbAudioProcessor::processBlock(
 }
 
 void FDNReverbAudioProcessor::getStateInformation(juce::MemoryBlock& d) {
+    const juce::ScopedLock sl(stateLock);
     auto state = apvts.copyState();
     if (lastSavedPresetName.isNotEmpty())
         state.setProperty("currentPresetName", lastSavedPresetName, nullptr);
@@ -166,9 +171,12 @@ void FDNReverbAudioProcessor::setStateInformation(const void* d, int s) {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(d, s));
     if (xml && xml->hasTagName(apvts.state.getType())) {
         auto tree = juce::ValueTree::fromXml(*xml);
-        lastSavedPresetName = tree.getProperty("currentPresetName", "").toString();
-        savedEditorWidth = tree.getProperty("editorWidth", 900);
-        savedEditorHeight = tree.getProperty("editorHeight", 540);
+        {
+            const juce::ScopedLock sl(stateLock);
+            lastSavedPresetName = tree.getProperty("currentPresetName", "").toString();
+            savedEditorWidth = tree.getProperty("editorWidth", 900);
+            savedEditorHeight = tree.getProperty("editorHeight", 540);
+        }
         apvts.replaceState(tree);
         paramsNeedUpdate = true;
     }

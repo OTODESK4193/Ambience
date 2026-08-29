@@ -345,10 +345,14 @@ AlgorithmSelector::~AlgorithmSelector() {
 void AlgorithmSelector::parameterChanged(const juce::String&, float newVal) {
     int newAlgo = juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1,
         juce::roundToInt(newVal));
-    juce::MessageManager::callAsync([this, newAlgo] {
-        currentAlgo = newAlgo;
-        updateButtonColors();
-        if (onAlgorithmChangedCallback) onAlgorithmChangedCallback(newAlgo);
+    juce::Component::SafePointer<AlgorithmSelector> safeThis(this);
+    juce::MessageManager::callAsync([safeThis, newAlgo] {
+        if (safeThis != nullptr) {
+            safeThis->currentAlgo = newAlgo;
+            safeThis->updateButtonColors();
+            if (safeThis->onAlgorithmChangedCallback)
+                safeThis->onAlgorithmChangedCallback(newAlgo);
+        }
     });
 }
 

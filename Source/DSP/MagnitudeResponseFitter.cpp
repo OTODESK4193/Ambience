@@ -7,15 +7,6 @@
 namespace FDNReverb {
 
     // ─────────────────────────────────────────────────────────────────────────────
-    //  静的メンバの定義
-    // ─────────────────────────────────────────────────────────────────────────────
-    std::array<std::array<double, NUM_BANDS>, NUM_BANDS> MagnitudeResponseFitter::cachedB;
-    std::array<std::array<double, NUM_BANDS>, NUM_BANDS> MagnitudeResponseFitter::cachedBtWB;
-    std::array<double, NUM_BANDS> MagnitudeResponseFitter::cachedW;
-    double MagnitudeResponseFitter::cachedSampleRate = 0.0;
-    bool MagnitudeResponseFitter::cacheValid = false;
-
-    // ─────────────────────────────────────────────────────────────────────────────
     //  バンド Q 値（オクターブバンド: Q ≈ √2 / (2^(1/2) - 2^(-1/2)) ≈ 1.414）
     // ─────────────────────────────────────────────────────────────────────────────
     static const std::array<float, NUM_BANDS> kBandQs = {
