@@ -23,24 +23,20 @@
 
 ### v1.2.1 Major Update
 
-**New Features & Architecture:**
-- **New Room Type: "Inchindown"**: Added a dedicated acoustic model simulating the world-record holding subterranean Inchindown Oil Tanks, supporting decay times up to 112 seconds with massive low-frequency resonance and rich ambient diffusion.
-- **10 Dynamic Color Themes (THEME Selector)**: Added a THEME combo box in Pro Mode with 10 distinct two-tone contrast themes (`Cyber Neon` [default], `Solar Flare`, `Matrix Glow`, `Vaporwave`, `Dark Amber`, `Nordic Frost`, `Deep Purple`, `Midnight`, `Blood Moon`, `Monochrome`). Theme changes dynamically update RT60 curves, ER/Late visualizers, knob arcs, and active button glows in real time.
-- **Smart Preset Management & REVERT Function**: 
-  - Added real-time preset edit tracking (`*` indicator, e.g. `Boston Symphony *`).
-  - Added dedicated **`REVERT` button** enabling instant 1-click recall of original preset parameters.
-  - Redesigned preset toolbar layout with wide combo box on top and 4-button group (`SAVE`, `REVERT`, `LOAD`, `DELETE`) on the bottom.
-- **SEND Mode Button**: Added instant toggle for Send/Return bus configuration (ON: Dry -60dB / Wet 0dB, OFF: Dry 0dB / Wet -12dB).
-- **PANIC Button**: Instant DSP emergency mute button that zero-clears all 16 delay lines, filters, FIFOs, and RMS meters safely.
-- **LOCK Button**: Parameter lock mode allowing users to switch RoomTypes while preserving all current knob settings.
-- **Scalable GUI (LIFT-X Standard)**: Smooth vector GUI scaling from 80% to 150% with fixed aspect ratio.
-- **Futuristic ER / LATE Visualizer**: Split neon time-axis displaying laser-pin ER reflections with bloom orbs and smooth exponential late-decay curves.
-- **Real-Time Decay Time Readout**: High-visibility single-line readout (`DECAY TIME: XX.X s`) updated dynamically with knob changes.
+**Dramatic Sound Quality Improvements:**
+- **Zero-Metallic Diffusion (Dual Golden-Ratio LFOs & 3-Stage SAPF)**: Fully integrated 16-channel asynchronous Dual Golden-Ratio LFOs with 3-stage serial Allpass phase smearing, completely eliminating metallic ringing, flutter echoes, and standing waves on high-register chords (e.g. B5–E6) and sharp percussive transients for a silky, ultra-transparent reverb tail.
+- **Asymmetric Micro-Saturation & Harmonic Warmth**: Embedded soft-knee asymmetric micro-saturation (precise even/odd harmonic blending) within the 16-channel FDN feedback loop, suppressing cold digital limit cycles and delivering analog-grade depth, lushness, and air absorption.
+- **Colossal Subterranean Resonance ("Inchindown")**: Added the world-record holding Inchindown Oil Tanks algorithm with decay times up to 112 seconds, featuring immense low-frequency resonance (31 Hz–125 Hz) and vast spatial envelopment.
+- **Seamless ISM Early Reflection Coupling**: Coupled algorithm-specific 12-tap Image Source Method (ISM) early reflections with frequency-dependent boundary absorption filters, achieving natural spatial depth without phase cancellation.
+- **22 Acoustically Calibrated Factory Presets**: Completely re-engineered all factory presets (including iconic concert halls, tracking rooms, and vintage chambers) with optimized multi-band RT60 profiles and unified Dry 0 dB / Wet -12 dB gain staging.
 
-**DSP & Sound Quality Enhancements:**
-- **Tube Saturation Scaling**: Scaled Tube saturation curve (effective 30% range mapping) to prevent harsh clipping and distortion.
-- **Optimized Plate Default**: Plate algorithm default saturation set to `Tape` for smooth vintage warmth.
-- **22 Deep-Researched Factory Presets**: Fully re-tuned all factory presets (including Inchindown) with default Dry 0dB / Wet -12dB and acoustic profiles tailored for modern production.
+**New Features & Architecture:**
+- **10 Dynamic Color Themes (THEME Selector)**: Added a THEME selector in Pro Mode featuring 10 distinct two-tone contrast themes (`Cyber Neon` [default], `Solar Flare`, `Matrix Glow`, `Vaporwave`, `Dark Amber`, `Nordic Frost`, `Deep Purple`, `Midnight`, `Blood Moon`, `Monochrome`) with real-time vector UI updates.
+- **Smart Preset Management & REVERT Function**: Added real-time preset edit tracking (`*` indicator) and a dedicated 1-click **`REVERT` button** to instantly restore original preset settings. Redesigned toolbar with a wide preset combo and bottom 4-button group (`SAVE`, `REVERT`, `LOAD`, `DELETE`).
+- **Control Enhancements**: Added **`SEND`** mode button (Dry -60 dB / Wet 0 dB for aux bus), **`PANIC`** emergency mute button, and **`LOCK`** parameter freeze button.
+- **Scalable GUI**: Smooth vector GUI resizing from 80% to 150% with fixed aspect ratio.
+- **Real-Time Decay Time Readout**: High-visibility single-line readout (`DECAY TIME: XX.X s`) updated dynamically with knob movements.
+- **DSP Performance Optimization**: Algebraic ducking optimization, integer delay bypass (`readInt`), invariant loop caching, and inactive GUI FFT idling for maximum CPU efficiency.
 
 ### v1.2.0 "No Compromise" Update
 
