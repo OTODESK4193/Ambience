@@ -115,7 +115,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=TestRework
+CMAKE_PROJECT_NAME:STATIC=WaveGen
 
 //Value Computed by CMake
 CMAKE_PROJECT_SPDX_LICENSE:STATIC=
@@ -207,6 +207,15 @@ CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //Value Computed by CMake
+DataGen_BINARY_DIR:STATIC=D:/VST_Project/Ambience/test_matrix_build
+
+//Value Computed by CMake
+DataGen_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
+DataGen_SOURCE_DIR:STATIC=D:/VST_Project/Ambience/test_matrix_build
+
+//Value Computed by CMake
 TestRework_BINARY_DIR:STATIC=D:/VST_Project/Ambience/test_matrix_build
 
 //Value Computed by CMake
@@ -214,6 +223,15 @@ TestRework_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
 TestRework_SOURCE_DIR:STATIC=D:/VST_Project/Ambience/test_matrix_build
+
+//Value Computed by CMake
+WaveGen_BINARY_DIR:STATIC=D:/VST_Project/Ambience/test_matrix_build
+
+//Value Computed by CMake
+WaveGen_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
+WaveGen_SOURCE_DIR:STATIC=D:/VST_Project/Ambience/test_matrix_build
 
 
 ########################

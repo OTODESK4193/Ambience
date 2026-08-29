@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\VST_Project\Ambience\build\JUCE\tools\CMakeFiles\af8af1bf7c12c629bce2572051aec462\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{249AE158-677B-3945-8AC5-282C48978DF7}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

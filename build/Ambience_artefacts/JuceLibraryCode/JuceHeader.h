@@ -40,9 +40,9 @@
 #if ! JUCE_DONT_DECLARE_PROJECTINFO
 namespace ProjectInfo
 {
-    const char* const  projectName    = "Ambience1.2";
+    const char* const  projectName    = "Ambience1.2.1";
     const char* const  companyName    = "OTODESK";
-    const char* const  versionString  = "1.2.0";
-    const int          versionNumber  =  0x10200;
+    const char* const  versionString  = "1.2.1";
+    const int          versionNumber  =  0x10201;
 }
 #endif

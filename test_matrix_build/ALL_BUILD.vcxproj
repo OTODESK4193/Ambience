@@ -174,9 +174,9 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ProjectReference>
-    <ProjectReference Include="D:\VST_Project\Ambience\test_matrix_build\TestRework.vcxproj">
-      <Project>{783F069F-87E0-3B3D-AF81-CC0A3F30A31F}</Project>
-      <Name>TestRework</Name>
+    <ProjectReference Include="D:\VST_Project\Ambience\test_matrix_build\WaveGen.vcxproj">
+      <Project>{0BD99B7C-A0BF-3A2C-89D2-DFEA4258B653}</Project>
+      <Name>WaveGen</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

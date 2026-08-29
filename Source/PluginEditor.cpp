@@ -1,4 +1,4 @@
-﻿#include "PluginProcessor.h"
+#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 static constexpr int Y_HEADER = 8;
@@ -34,8 +34,8 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setLookAndFeel(&laf);
     setSize(W, H);
 
-    // 笏笏 Title 笏笏
-    titleLabel.setText("AMBIENCE 1.2.0", juce::dontSendNotification);
+    // ── Title ──
+    titleLabel.setText("AMBIENCE 1.2.1 B002", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 14.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);

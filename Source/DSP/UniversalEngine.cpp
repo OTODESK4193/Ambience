@@ -1,4 +1,4 @@
-﻿#include "UniversalEngine.h"
+#include "UniversalEngine.h"
 
 namespace FDNReverb {
 
@@ -455,12 +455,12 @@ namespace FDNReverb {
         for (int i = 0; i < FDN_ORDER; ++i)
             freqModScales[i] = 0.5f + (1.0f - static_cast<float>(i) * invFdnM1) * 1.0f;
 
-        // 笘・CPU譛驕ｩ蛹・ 蜈･蜉帙ョ繧｣繝輔Η繝ｼ繧ｶ縺ｮ繝・ぅ繝ｬ繧､譎る俣繧剃ｺ句燕險育ｮ・
+        // 笘・CPU譛€驕ｩ蛹・ 蜈･蜉帙ョ繧｣繝輔Η繝ｼ繧ｶ縺ｮ繝・ぅ繝ｬ繧､譎る俣繧剃ｺ句燕險育ｮ・
         std::array<float, 4> diffuserDelaySmp;
         for (int i = 0; i < 4; ++i)
             diffuserDelaySmp[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
 
-        // 笘・CPU譛驕ｩ蛹・ Allpass繝吶・繧ｹ繝・ぅ繝ｬ繧､繧剃ｺ句燕險育ｮ暦ｼ・6ch ﾃ・3谿ｵ・・
+        // 笘・CPU譛€驕ｩ蛹・ Allpass繝吶・繧ｹ繝・ぅ繝ｬ繧､繧剃ｺ句燕險育ｮ暦ｼ・6ch ﾃ・3谿ｵ・・
         constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.5f, 2.3f, 3.7f };
         constexpr float apfSpreadMs[SERIAL_APF_STAGES] = { 0.73f, 0.91f, 1.13f };
         constexpr float apfModFrac[SERIAL_APF_STAGES]  = { 0.15f, 0.10f, 0.07f };
@@ -470,7 +470,7 @@ namespace FDNReverb {
             for (int s = 0; s < SERIAL_APF_STAGES; ++s)
                 apfBaseDelaySmp[i][s] = (apfBaseMs[s] + i * apfSpreadMs[s]) * msToSmp;
 
-        // 笘・CPU譛驕ｩ蛹・ ER tapGain 縺ｮ * 0.5f 繧剃ｺ句燕險育ｮ・
+        // 笘・CPU譛€驕ｩ蛹・ ER tapGain 縺ｮ * 0.5f 繧剃ｺ句燕險育ｮ・
         std::array<float, MAX_ER_TAPS> erTapGainsHalf;
         for (int t = 0; t < currentERTapCount; ++t)
             erTapGainsHalf[t] = currentERGains[t] * 0.5f;

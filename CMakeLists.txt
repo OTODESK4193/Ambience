@@ -1,23 +1,17 @@
 cmake_minimum_required(VERSION 3.22)
-project(Ambience VERSION 1.2.0 LANGUAGES C CXX)
-# ============================================================================
-# C++20
-# ============================================================================
+project(Ambience VERSION 1.2.1 LANGUAGES C CXX)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-# ============================================================================
-# JUCE
-# ============================================================================
-add_subdirectory(C:/JUCE $/JUCE)
-# ============================================================================
-# プラグイン定義
-# ============================================================================
+
+add_subdirectory(C:/JUCE ./JUCE)
+
 juce_add_plugin(Ambience
     COMPANY_NAME            "OTODESK"
     PLUGIN_MANUFACTURER_CODE "Otdk"
     PLUGIN_CODE             "Ambi"
     FORMATS                 VST3 Standalone
-    PRODUCT_NAME            "Ambience1.2"
+    PRODUCT_NAME            "Ambience1.2.1"
     PLUGIN_DESCRIPTION      "16-channel FDN Algorithmic Reverb"
     IS_SYNTH                FALSE
     NEEDS_MIDI_INPUT        FALSE
@@ -26,10 +20,9 @@ juce_add_plugin(Ambience
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     VST3_AUTO_MANIFEST      FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
-    VERSION                 "1.2.0"
+    VERSION                 "1.2.1"
 )
-# ============================================================================
-# ソース�E�存在するファイルのみ�E�E# ============================================================================
+
 target_sources(Ambience PRIVATE
     Source/PluginProcessor.h
     Source/PluginProcessor.cpp
@@ -37,8 +30,8 @@ target_sources(Ambience PRIVATE
     Source/PluginEditor.cpp
     Source/PluginParameters.h
     Source/PluginParameters.cpp
-    Source/PresetManager.h      # ☁E追加
-    Source/PresetManager.cpp    # ☁E追加
+    Source/PresetManager.h
+    Source/PresetManager.cpp
     Source/GUI/AmbienceUI.h
     Source/GUI/AmbienceUI.cpp
     Source/AlgorithmPresets.h
@@ -58,17 +51,13 @@ target_sources(Ambience PRIVATE
     Source/DSP/OutputLimiter.h
     Source/DSP/OutputEQ.h
 )
-# ============================================================================
-# インクルードパス
-# ============================================================================
+
 target_include_directories(Ambience PRIVATE
-    $/Source
-    $/Source/DSP
-    $/Source/GUI
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source/DSP
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source/GUI
 )
-# ============================================================================
-# JUCE モジュール
-# ============================================================================
+
 target_link_libraries(Ambience
     PRIVATE
         juce::juce_audio_basics
@@ -89,19 +78,15 @@ target_link_libraries(Ambience
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
-# ============================================================================
-# コンパイル定義
-# ============================================================================
+
 target_compile_definitions(Ambience PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
-    AMBIENCE_VERSION="1.2.0"
+    AMBIENCE_VERSION="1.2.1B002"
 )
-# ============================================================================
-# MSVC コンパイルオプション
-# ============================================================================
+
 if(MSVC)
     target_compile_options(Ambience PRIVATE
         /arch:AVX2
@@ -111,15 +96,42 @@ if(MSVC)
         $<$<CONFIG:Release>:/O2 /fp:fast>
     )
 endif()
-# ============================================================================
-# JUCE ヘッダー生�E
-# ============================================================================
+
 juce_generate_juce_header(Ambience)
+
 # ============================================================================
-# ビルドメチE��ージ
+# テストターゲット: NoiseBenchmarkRunner
 # ============================================================================
-message(STATUS "===========================================")
-message(STATUS "Ambience VST3 - CMake Configuration")
-message(STATUS "JUCE: C:/JUCE")
-message(STATUS "Build Type: $")
-message(STATUS "===========================================")
+juce_add_console_app(NoiseBenchmarkRunner
+    PRODUCT_NAME "NoiseBenchmarkRunner"
+)
+target_sources(NoiseBenchmarkRunner PRIVATE
+    TB/NoiseBenchmarkRunner.cpp
+    TB/UniversalEngine_v121.cpp
+    Source/DSP/UniversalEngine.cpp
+    Source/DSP/BiquadFilters.cpp
+    Source/DSP/MagnitudeResponseFitter.cpp
+    Source/DSP/AcousticMetrics.cpp
+)
+target_include_directories(NoiseBenchmarkRunner PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source/DSP
+    ${CMAKE_CURRENT_SOURCE_DIR}/Source/GUI
+    ${CMAKE_CURRENT_SOURCE_DIR}/TB
+)
+target_link_libraries(NoiseBenchmarkRunner PRIVATE
+    juce::juce_core
+    juce::juce_audio_basics
+    juce::juce_audio_processors
+    juce::juce_dsp
+)
+juce_generate_juce_header(NoiseBenchmarkRunner)
+if(MSVC)
+    target_compile_options(NoiseBenchmarkRunner PRIVATE
+        /arch:AVX2
+        /utf-8
+        /W3
+        /wd4819
+        $<$<CONFIG:Release>:/O2 /fp:fast>
+    )
+endif()

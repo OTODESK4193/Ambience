@@ -1,0 +1,482 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{BBF3D360-A30A-3833-8FD8-9FF576298B2E}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>RealEngine_FullComparisonRunner</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">RealEngine_FullComparisonRunner.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">RealEngine_FullComparisonRunner</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">RealEngine_FullComparisonRunner.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">RealEngine_FullComparisonRunner</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">RealEngine_FullComparisonRunner.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">RealEngine_FullComparisonRunner</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">RealEngine_FullComparisonRunner.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">RealEngine_FullComparisonRunner</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /utf-8 /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4819</DisableSpecificWarnings>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FloatingPointModel></FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;DEBUG=1;_DEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;DEBUG=1;_DEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/Debug/RealEngine_FullComparisonRunner.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/Debug/RealEngine_FullComparisonRunner.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /utf-8 /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <DisableSpecificWarnings>4819</DisableSpecificWarnings>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;NDEBUG=1;_NDEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;NDEBUG=1;_NDEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/Release/RealEngine_FullComparisonRunner.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/Release/RealEngine_FullComparisonRunner.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /utf-8 /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <DisableSpecificWarnings>4819</DisableSpecificWarnings>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FloatingPointModel></FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;NDEBUG=1;_NDEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;NDEBUG=1;_NDEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/MinSizeRel/RealEngine_FullComparisonRunner.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/MinSizeRel/RealEngine_FullComparisonRunner.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /utf-8 /bigobj</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>Default</BasicRuntimeChecks>
+      <BufferSecurityCheck></BufferSecurityCheck>
+      <CallingConvention></CallingConvention>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4819</DisableSpecificWarnings>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FloatingPointModel></FloatingPointModel>
+      <ForceConformanceInForLoopScope></ForceConformanceInForLoopScope>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <MinimalRebuild></MinimalRebuild>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RemoveUnreferencedCodeData></RemoveUnreferencedCodeData>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <SupportJustMyCode></SupportJustMyCode>
+      <TreatWChar_tAsBuiltInType></TreatWChar_tAsBuiltInType>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;NDEBUG=1;_NDEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;JUCE_STANDALONE_APPLICATION=1;_CONSOLE=1;JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1;NDEBUG=1;_NDEBUG=1;JUCE_MODULE_AVAILABLE_juce_core=1;JUCE_MODULE_AVAILABLE_juce_audio_basics=1;JUCE_MODULE_AVAILABLE_juce_audio_processors=1;JUCE_MODULE_AVAILABLE_juce_gui_extra=1;JUCE_MODULE_AVAILABLE_juce_gui_basics=1;JUCE_MODULE_AVAILABLE_juce_graphics=1;JUCE_MODULE_AVAILABLE_juce_events=1;JUCE_MODULE_AVAILABLE_juce_data_structures=1;JUCE_MODULE_AVAILABLE_juce_audio_processors_headless=1;JUCE_MODULE_AVAILABLE_juce_dsp=1;JUCE_MODULE_AVAILABLE_juce_audio_formats=1;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode;D:\VST_Project\Ambience\Source;D:\VST_Project\Ambience\Source\DSP;D:\VST_Project\Ambience\Source\GUI;D:\VST_Project\Ambience\TB;C:\JUCE\modules;C:\JUCE\modules\juce_audio_processors_headless\format_types\VST3_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lv2;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\serd;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sord\src;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\sratom;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv;C:\JUCE\modules\juce_audio_processors_headless\format_types\LV2_SDK\lilv\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_core/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_extra/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_gui_basics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_graphics/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_events/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_data_structures/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_processors_headless/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_dsp/libs/VisualStudio2026/x64/MDd/$(Configuration);C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd;C:/JUCE/modules/juce_audio_formats/libs/VisualStudio2026/x64/MDd/$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <DataExecutionPrevention></DataExecutionPrevention>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImageHasSafeExceptionHandlers></ImageHasSafeExceptionHandlers>
+      <ImportLibrary>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/RelWithDebInfo/RealEngine_FullComparisonRunner.lib</ImportLibrary>
+      <LinkErrorReporting></LinkErrorReporting>
+      <ProgramDataBaseFile>D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/RelWithDebInfo/RealEngine_FullComparisonRunner.pdb</ProgramDataBaseFile>
+      <RandomizedBaseAddress></RandomizedBaseAddress>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\VST_Project\Ambience\build\CMakeFiles\7cea1a80c1197b6914756402ba9189a6\JuceHeader.h.rule">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Generating RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/Debug/Defs.txt D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\Debug\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Generating RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/Release/Defs.txt D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\Release\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Generating RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/MinSizeRel/Defs.txt D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\MinSizeRel\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Generating RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+JUCE\tools\extras\Build\juceaide\juceaide_artefacts\Custom\juceaide.exe header D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/RelWithDebInfo/Defs.txt D:/VST_Project/Ambience/build/RealEngine_FullComparisonRunner_artefacts/JuceLibraryCode/JuceHeader.h
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\RelWithDebInfo\Defs.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\JuceHeader.h</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\VST_Project\Ambience\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/VST_Project/Ambience/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/VST_Project/Ambience -BD:/VST_Project/Ambience/build --check-stamp-file D:/VST_Project/Ambience/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeSystem.cmake;D:\VST_Project\Ambience\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\VST_Project\Ambience\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/VST_Project/Ambience/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/VST_Project/Ambience -BD:/VST_Project/Ambience/build --check-stamp-file D:/VST_Project/Ambience/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeSystem.cmake;D:\VST_Project\Ambience\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\VST_Project\Ambience\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule D:/VST_Project/Ambience/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/VST_Project/Ambience -BD:/VST_Project/Ambience/build --check-stamp-file D:/VST_Project/Ambience/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeSystem.cmake;D:\VST_Project\Ambience\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">D:\VST_Project\Ambience\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule D:/VST_Project/Ambience/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/VST_Project/Ambience -BD:/VST_Project/Ambience/build --check-stamp-file D:/VST_Project/Ambience/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCXXInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeCommonLanguageInclude.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeGenericSystem.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeInitializeConfigs.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeLanguageInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeRCInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\CMakeSystemSpecificInitialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Compiler\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCXXLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Internal\CMakeCommonLinkerInformation.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Linker\MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Linker\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-Initialize.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-C.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows-MSVC.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\Windows.cmake;C:\Program Files\CMake\share\cmake-4.3\Modules\Platform\WindowsPaths.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeCXXCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeRCCompiler.cmake;D:\VST_Project\Ambience\build\CMakeFiles\4.3.1\CMakeSystem.cmake;D:\VST_Project\Ambience\build\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">D:\VST_Project\Ambience\build\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D:\VST_Project\Ambience\TB\RealEngine_FullComparisonRunner.cpp" />
+    <ClCompile Include="D:\VST_Project\Ambience\TB\UniversalEngine_v121.cpp" />
+    <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\UniversalEngine.cpp" />
+    <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\BiquadFilters.cpp" />
+    <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\MagnitudeResponseFitter.cpp" />
+    <ClCompile Include="D:\VST_Project\Ambience\Source\DSP\AcousticMetrics.cpp" />
+    <ClInclude Include="D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_artefacts\JuceLibraryCode\JuceHeader.h" />
+    <ClCompile Include="C:\JUCE\modules\juce_core\juce_core.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_core\juce_core_CompilationTime.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_audio_basics\juce_audio_basics.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_audio_processors\juce_audio_processors.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_gui_extra\juce_gui_extra.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_gui_basics\juce_gui_basics.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_graphics\juce_graphics.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_graphics\juce_graphics_Harfbuzz.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_graphics\juce_graphics_Sheenbidi.c" />
+    <ClCompile Include="C:\JUCE\modules\juce_events\juce_events.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_data_structures\juce_data_structures.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_audio_processors_headless\juce_audio_processors_headless.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_audio_processors_headless\juce_audio_processors_headless_ara.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_audio_processors_headless\juce_audio_processors_headless_lv2_libs.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_dsp\juce_dsp.cpp" />
+    <ClCompile Include="C:\JUCE\modules\juce_audio_formats\juce_audio_formats.cpp" />
+    <Object Include="D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_rc_lib.dir\$(Configuration)\RealEngine_FullComparisonRunner_resources.res" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="D:\VST_Project\Ambience\build\ZERO_CHECK.vcxproj">
+      <Project>{0190B234-6F0B-37D1-AE92-341BA8E24921}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\VST_Project\Ambience\build\RealEngine_FullComparisonRunner_rc_lib.vcxproj">
+      <Project>{26E2AC6C-6CD4-3621-8830-11DC49A891C7}</Project>
+      <Name>RealEngine_FullComparisonRunner_rc_lib</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
