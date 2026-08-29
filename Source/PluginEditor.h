@@ -8,7 +8,8 @@
 #include "GUI/DecayCurveViz.h"
 
 class FDNReverbEditor : public juce::AudioProcessorEditor,
-    private juce::Timer
+    private juce::Timer,
+    private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     explicit FDNReverbEditor(FDNReverbAudioProcessor&);
@@ -19,11 +20,13 @@ public:
 
 private:
     void timerCallback() override;
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
     void updatePanelVisibility();
 
     void refreshPresetCombo();
     void savePresetWithDialog();
     void deleteCurrentPreset();
+    void setPresetModified(bool modified);
 
     FDNReverbAudioProcessor& audioProcessor;
     AmbienceLookAndFeel laf;
@@ -96,10 +99,15 @@ private:
     std::unique_ptr<PresetManager> presetManager;
     juce::TextButton presetPrevButton;
     juce::ComboBox   presetCombo;
+    juce::TextButton presetRevertButton;
     juce::TextButton presetNextButton;
     juce::TextButton presetSaveButton;
     juce::TextButton presetLoadButton;
     juce::TextButton presetDeleteButton;
+
+    juce::String currentBasePresetName;
+    bool isPresetModified{ false };
+    bool isInternalPresetLoading{ false };
 
     // ── Layout Constants ──
     static constexpr int PAD = 8;

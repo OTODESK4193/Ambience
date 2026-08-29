@@ -1,6 +1,6 @@
 # Ambience
 
-![Release](https://img.shields.io/badge/release-v1.2.0-blue)
+![Release](https://img.shields.io/badge/release-v1.2.1-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -12,14 +12,35 @@
 ## Demo Videos
 
 <p align="center">
-  <b>Introduction縲YoutubeLink</b><br>
+  <b>Introduction YoutubeLink</b><br>
   <a href="https://youtu.be/kytVu2M-t30">
     <img src="Source/Assets/Samnail.jpg"
-         alt="Ambience - Introduction縲YoutubeLink" width="640" height="360">
+         alt="Ambience - Introduction YoutubeLink" width="640" height="360">
   </a>
 </p>
 
 ## Changelog
+
+### v1.2.1 Major Update
+
+**New Features & Architecture:**
+- **New Room Type: "Inchindown"**: Added a dedicated acoustic model simulating the world-record holding subterranean Inchindown Oil Tanks, supporting decay times up to 112 seconds with massive low-frequency resonance and rich ambient diffusion.
+- **10 Dynamic Color Themes (THEME Selector)**: Added a THEME combo box in Pro Mode with 10 distinct two-tone contrast themes (`Cyber Neon` [default], `Solar Flare`, `Matrix Glow`, `Vaporwave`, `Dark Amber`, `Nordic Frost`, `Deep Purple`, `Midnight`, `Blood Moon`, `Monochrome`). Theme changes dynamically update RT60 curves, ER/Late visualizers, knob arcs, and active button glows in real time.
+- **Smart Preset Management & REVERT Function**: 
+  - Added real-time preset edit tracking (`*` indicator, e.g. `Boston Symphony *`).
+  - Added dedicated **`REVERT` button** enabling instant 1-click recall of original preset parameters.
+  - Redesigned preset toolbar layout with wide combo box on top and 4-button group (`SAVE`, `REVERT`, `LOAD`, `DELETE`) on the bottom.
+- **SEND Mode Button**: Added instant toggle for Send/Return bus configuration (ON: Dry -60dB / Wet 0dB, OFF: Dry 0dB / Wet -12dB).
+- **PANIC Button**: Instant DSP emergency mute button that zero-clears all 16 delay lines, filters, FIFOs, and RMS meters safely.
+- **LOCK Button**: Parameter lock mode allowing users to switch RoomTypes while preserving all current knob settings.
+- **Scalable GUI (LIFT-X Standard)**: Smooth vector GUI scaling from 80% to 150% with fixed aspect ratio.
+- **Futuristic ER / LATE Visualizer**: Split neon time-axis displaying laser-pin ER reflections with bloom orbs and smooth exponential late-decay curves.
+- **Real-Time Decay Time Readout**: High-visibility single-line readout (`DECAY TIME: XX.X s`) updated dynamically with knob changes.
+
+**DSP & Sound Quality Enhancements:**
+- **Tube Saturation Scaling**: Scaled Tube saturation curve (effective 30% range mapping) to prevent harsh clipping and distortion.
+- **Optimized Plate Default**: Plate algorithm default saturation set to `Tape` for smooth vintage warmth.
+- **22 Deep-Researched Factory Presets**: Fully re-tuned all factory presets (including Inchindown) with default Dry 0dB / Wet -12dB and acoustic profiles tailored for modern production.
 
 ### v1.2.0 "No Compromise" Update
 

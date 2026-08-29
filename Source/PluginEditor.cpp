@@ -44,7 +44,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setSize(kBaseW, kBaseH);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B017", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B018", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -103,23 +103,21 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     // ── Panic Button (発音即時停止) ──
     panicButton.setButtonText("PANIC");
     panicButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
-    panicButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEF4444)); // 赤アクセント
+    panicButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEF4444));
     panicButton.onClick = [this] {
         audioProcessor.panic();
     };
     content.addAndMakeVisible(panicButton);
 
-    // ── Algorithm Selector (Lock状態連携 & プリセット未選択化) ──
+    // ── Algorithm Selector (Lock状態連携 & 変更検知) ──
     algoSelector.isLockedCallback = [this] {
         return lockButton.getToggleState();
     };
     algoSelector.onAlgorithmChangedCallback = [this](int) {
-        if (presetManager) {
-            presetManager->setCurrentPresetName("");
+        if (isInternalPresetLoading) return;
+        if (currentBasePresetName.isNotEmpty()) {
+            setPresetModified(true);
         }
-        audioProcessor.setLastSavedPresetName("");
-        presetCombo.setTextWhenNothingSelected("-----");
-        presetCombo.setSelectedId(0, juce::dontSendNotification);
     };
     content.addAndMakeVisible(algoSelector);
 
@@ -212,12 +210,42 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     presetSaveButton.onClick = [this] { savePresetWithDialog(); };
     content.addAndMakeVisible(presetSaveButton);
 
+    presetRevertButton.setButtonText("REVERT");
+    presetRevertButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    presetRevertButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    presetRevertButton.setTooltip("Revert to saved preset settings");
+    presetRevertButton.setEnabled(false);
+    presetRevertButton.onClick = [this] {
+        if (currentBasePresetName.isNotEmpty() && presetManager) {
+            isInternalPresetLoading = true;
+            presetManager->loadPreset(currentBasePresetName);
+            setPresetModified(false);
+            refreshPresetCombo();
+            juce::MessageManager::callAsync([this] {
+                isInternalPresetLoading = false;
+                setPresetModified(false);
+            });
+        }
+    };
+    content.addAndMakeVisible(presetRevertButton);
+
     presetLoadButton.setButtonText("LOAD");
     presetLoadButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
     presetLoadButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
     presetLoadButton.onClick = [this] {
-        if (presetManager && presetCombo.getSelectedId() > 0)
-            presetManager->loadPreset(presetCombo.getText());
+        if (presetManager && presetCombo.getSelectedId() > 0) {
+            auto name = presetCombo.getText();
+            if (name.endsWith(" *")) name = name.dropLastCharacters(2);
+            isInternalPresetLoading = true;
+            presetManager->loadPreset(name);
+            currentBasePresetName = name;
+            setPresetModified(false);
+            refreshPresetCombo();
+            juce::MessageManager::callAsync([this] {
+                isInternalPresetLoading = false;
+                setPresetModified(false);
+            });
+        }
     };
     content.addAndMakeVisible(presetLoadButton);
 
@@ -230,15 +258,66 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     presetManager = std::make_unique<PresetManager>(audioProcessor);
     presetManager->onPresetLoaded = [this](const juce::String& name) {
         audioProcessor.setLastSavedPresetName(name);
+        currentBasePresetName = name;
+        setPresetModified(false);
         refreshPresetCombo();
     };
 
     presetCombo.onChange = [this] {
-        if (presetManager && presetCombo.getSelectedId() > 0)
-            presetManager->loadPreset(presetCombo.getText());
+        if (isInternalPresetLoading) return;
+        if (presetManager && presetCombo.getSelectedId() > 0) {
+            auto name = presetCombo.getText();
+            if (name.endsWith(" *")) name = name.dropLastCharacters(2);
+            isInternalPresetLoading = true;
+            presetManager->loadPreset(name);
+            currentBasePresetName = name;
+            setPresetModified(false);
+            refreshPresetCombo();
+            juce::MessageManager::callAsync([this] {
+                isInternalPresetLoading = false;
+                setPresetModified(false);
+            });
+        }
     };
-    presetPrevButton.onClick = [this] { if (presetManager) presetManager->loadPrevPreset(); };
-    presetNextButton.onClick = [this] { if (presetManager) presetManager->loadNextPreset(); };
+    presetPrevButton.onClick = [this] {
+        if (presetManager) {
+            isInternalPresetLoading = true;
+            presetManager->loadPrevPreset();
+            currentBasePresetName = presetManager->getCurrentPresetName();
+            setPresetModified(false);
+            refreshPresetCombo();
+            juce::MessageManager::callAsync([this] {
+                isInternalPresetLoading = false;
+                setPresetModified(false);
+            });
+        }
+    };
+    presetNextButton.onClick = [this] {
+        if (presetManager) {
+            isInternalPresetLoading = true;
+            presetManager->loadNextPreset();
+            currentBasePresetName = presetManager->getCurrentPresetName();
+            setPresetModified(false);
+            refreshPresetCombo();
+            juce::MessageManager::callAsync([this] {
+                isInternalPresetLoading = false;
+                setPresetModified(false);
+            });
+        }
+    };
+
+    // ── Register APVTS Parameter Listeners ──
+    static const juce::String kMonitoredParams[] = {
+        "algorithm", "predelay", "roomsize", "decaytime", "hfdamping", "lfabsorption",
+        "diffusion", "modamount", "modrate", "stereowidth", "erlevel", "saturation",
+        "sattype", "wetlevel", "drylevel", "duckamount", "duckattack", "duckrelease",
+        "duckthresh", "ersolo", "tiltlow", "tiltmid", "tilthigh",
+        "rtband0", "rtband1", "rtband2", "rtband3", "rtband4",
+        "rtband5", "rtband6", "rtband7", "rtband8", "rtband9",
+        "locut", "hicut"
+    };
+    for (const auto& pid : kMonitoredParams)
+        audioProcessor.apvts.addParameterListener(pid, this);
 
     // ── Visualizers ──
     rt60Viz.setProcessor(&p);
@@ -271,6 +350,19 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
 FDNReverbEditor::~FDNReverbEditor() {
     stopTimer();
+
+    static const juce::String kMonitoredParams[] = {
+        "algorithm", "predelay", "roomsize", "decaytime", "hfdamping", "lfabsorption",
+        "diffusion", "modamount", "modrate", "stereowidth", "erlevel", "saturation",
+        "sattype", "wetlevel", "drylevel", "duckamount", "duckattack", "duckrelease",
+        "duckthresh", "ersolo", "tiltlow", "tiltmid", "tilthigh",
+        "rtband0", "rtband1", "rtband2", "rtband3", "rtband4",
+        "rtband5", "rtband6", "rtband7", "rtband8", "rtband9",
+        "locut", "hicut"
+    };
+    for (const auto& pid : kMonitoredParams)
+        audioProcessor.apvts.removeParameterListener(pid, this);
+
     setLookAndFeel(nullptr);
     satTypeCombo.setLookAndFeel(nullptr);
     themeCombo.setLookAndFeel(nullptr);
@@ -348,8 +440,12 @@ void FDNReverbEditor::refreshPresetCombo() {
 
     if (presetManager->getCurrentPresetName().isEmpty()) {
         auto saved = audioProcessor.getLastSavedPresetName();
-        if (saved.isNotEmpty())
+        if (saved.isNotEmpty()) {
             presetManager->setCurrentPresetName(saved);
+            currentBasePresetName = saved;
+        }
+    } else {
+        currentBasePresetName = presetManager->getCurrentPresetName();
     }
 
     if (names.isEmpty()) {
@@ -359,11 +455,16 @@ void FDNReverbEditor::refreshPresetCombo() {
         presetLoadButton.setEnabled(false);
         presetPrevButton.setEnabled(false);
         presetNextButton.setEnabled(false);
+        presetRevertButton.setEnabled(false);
         return;
     }
 
-    for (int i = 0; i < names.size(); ++i)
-        presetCombo.addItem(names[i], i + 1);
+    for (int i = 0; i < names.size(); ++i) {
+        juce::String itemText = names[i];
+        if (itemText == currentBasePresetName && isPresetModified)
+            itemText += " *";
+        presetCombo.addItem(itemText, i + 1);
+    }
 
     int idx = presetManager->getCurrentPresetIndex();
     if (idx >= 0)
@@ -375,6 +476,36 @@ void FDNReverbEditor::refreshPresetCombo() {
     presetLoadButton.setEnabled(true);
     presetPrevButton.setEnabled(names.size() > 1);
     presetNextButton.setEnabled(names.size() > 1);
+    presetRevertButton.setEnabled(isPresetModified);
+}
+
+void FDNReverbEditor::parameterChanged(const juce::String& paramID, float) {
+    if (paramID == "promode" || paramID == "theme") return;
+    if (!isInternalPresetLoading && currentBasePresetName.isNotEmpty()) {
+        juce::MessageManager::callAsync([this] {
+            if (!isPresetModified) {
+                setPresetModified(true);
+            }
+        });
+    }
+}
+
+void FDNReverbEditor::setPresetModified(bool modified) {
+    isPresetModified = modified;
+    if (currentBasePresetName.isNotEmpty()) {
+        juce::String displayText = currentBasePresetName + (modified ? " *" : "");
+        int idx = presetManager ? presetManager->getCurrentPresetIndex() : -1;
+        if (idx >= 0 && idx < presetCombo.getNumItems()) {
+            presetCombo.changeItemText(idx + 1, displayText);
+        }
+        presetCombo.setTextWhenNothingSelected(displayText);
+    }
+    presetRevertButton.setEnabled(modified);
+    presetRevertButton.setColour(juce::TextButton::buttonColourId,
+        modified ? AmbienceColors::Accent : AmbienceColors::Surface);
+    presetRevertButton.setColour(juce::TextButton::textColourOffId,
+        modified ? AmbienceColors::Background : AmbienceColors::TextSecondary);
+    presetRevertButton.repaint();
 }
 
 void FDNReverbEditor::savePresetWithDialog() {
@@ -382,7 +513,7 @@ void FDNReverbEditor::savePresetWithDialog() {
     auto* dialog = new juce::AlertWindow(
         "Save Preset", "Enter a name for this preset:", juce::MessageBoxIconType::NoIcon);
 
-    dialog->addTextEditor("name", presetManager->getCurrentPresetName());
+    dialog->addTextEditor("name", currentBasePresetName);
     dialog->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
     dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
 
@@ -393,8 +524,12 @@ void FDNReverbEditor::savePresetWithDialog() {
         juce::ModalCallbackFunction::create([safeThis, dialog](int result) {
             if (safeThis != nullptr && result == 1) {
                 auto name = dialog->getTextEditorContents("name").trim();
-                if (name.isNotEmpty())
+                if (name.isNotEmpty()) {
                     safeThis->presetManager->savePreset(name);
+                    safeThis->currentBasePresetName = name;
+                    safeThis->setPresetModified(false);
+                    safeThis->refreshPresetCombo();
+                }
             }
         }),
         true
@@ -403,7 +538,7 @@ void FDNReverbEditor::savePresetWithDialog() {
 
 void FDNReverbEditor::deleteCurrentPreset() {
     if (!presetManager) return;
-    auto name = presetManager->getCurrentPresetName();
+    auto name = currentBasePresetName.isNotEmpty() ? currentBasePresetName : presetManager->getCurrentPresetName();
     if (name.isEmpty()) return;
 
     auto* dialog = new juce::AlertWindow(
@@ -417,8 +552,12 @@ void FDNReverbEditor::deleteCurrentPreset() {
     dialog->enterModalState(
         true,
         juce::ModalCallbackFunction::create([safeThis, name](int result) {
-            if (safeThis != nullptr && result == 1)
+            if (safeThis != nullptr && result == 1) {
                 safeThis->presetManager->deletePreset(name);
+                safeThis->currentBasePresetName.clear();
+                safeThis->setPresetModified(false);
+                safeThis->refreshPresetCombo();
+            }
         }),
         true
     );
@@ -507,7 +646,7 @@ void FDNReverbEditor::layoutContent() {
         themeCombo.setBounds(theme_x, Y_SLABEL2 + KNOB_LBL_H + 2, 100, 24);
     }
 
-    // Preset Section
+    // Preset Section (Idea B: Wide Combo Top, 4 Buttons Bottom)
     {
         const int px = PRESET_PANEL_X;
         const int btnH = 26;
@@ -516,12 +655,12 @@ void FDNReverbEditor::layoutContent() {
         presetCombo.setBounds(px + 30, Y_ROW2, 154, btnH);
         presetNextButton.setBounds(px + 188, Y_ROW2, 26, btnH);
 
-        const int saveW = 68;
-        const int loadW = 68;
-        const int delW = 68;
-        presetSaveButton.setBounds(px, Y_ROW2 + 34, saveW, btnH);
-        presetLoadButton.setBounds(px + saveW + 4, Y_ROW2 + 34, loadW, btnH);
-        presetDeleteButton.setBounds(px + saveW + 4 + loadW + 4, Y_ROW2 + 34, delW, btnH);
+        const int btnW = 50;
+        const int gap = 4;
+        presetSaveButton.setBounds(px, Y_ROW2 + 34, btnW, btnH);
+        presetRevertButton.setBounds(px + (btnW + gap) * 1, Y_ROW2 + 34, btnW, btnH);
+        presetLoadButton.setBounds(px + (btnW + gap) * 2, Y_ROW2 + 34, btnW, btnH);
+        presetDeleteButton.setBounds(px + (btnW + gap) * 3, Y_ROW2 + 34, btnW, btnH);
     }
 
     // ── Visualizers: RT60 グラフ 135px、ER/LATE 64px ──
@@ -622,6 +761,11 @@ void FDNReverbEditor::updateTheme(int idx) {
     sendModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
     presetSaveButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Accent);
     labelDecayLine.setColour(juce::Label::textColourId, AmbienceColors::Accent);
+
+    presetRevertButton.setColour(juce::TextButton::buttonColourId,
+        isPresetModified ? AmbienceColors::Accent : AmbienceColors::Surface);
+    presetRevertButton.setColour(juce::TextButton::textColourOffId,
+        isPresetModified ? AmbienceColors::Background : AmbienceColors::TextSecondary);
 
     algoSelector.updateButtonColors();
 
