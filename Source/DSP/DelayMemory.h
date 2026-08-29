@@ -53,24 +53,25 @@ namespace FDNReverb {
         }
 
         inline float read(float delayInSamples) const noexcept {
-            int id = static_cast<int>(delayInSamples);
-            float frac = delayInSamples - static_cast<float>(id);
+            const float safeDelay = std::clamp(delayInSamples, 1.0f, static_cast<float>(mask - 4));
+            const int id = static_cast<int>(safeDelay);
+            const float frac = safeDelay - static_cast<float>(id);
 
-            uint32_t uWrite = static_cast<uint32_t>(writeIndex);
-            uint32_t uId    = static_cast<uint32_t>(id);
-            uint32_t uMask  = static_cast<uint32_t>(mask);
+            const uint32_t uWrite = static_cast<uint32_t>(writeIndex);
+            const uint32_t uId    = static_cast<uint32_t>(id);
+            const uint32_t uMask  = static_cast<uint32_t>(mask);
 
-            // 4点サンプル取得: y0(未来1) y1(現在) y2(過去1) y3(過去2)
-            float y0 = buffer[static_cast<int>((uWrite - uId + 1) & uMask)];
-            float y1 = buffer[static_cast<int>((uWrite - uId)     & uMask)];
-            float y2 = buffer[static_cast<int>((uWrite - uId - 1) & uMask)];
-            float y3 = buffer[static_cast<int>((uWrite - uId - 2) & uMask)];
+            // 最新サンプルは (writeIndex - 1)
+            // delay = 1 -> id = 1 -> y1 = buffer[writeIndex - 2]
+            const float y0 = buffer[static_cast<int>((uWrite - uId)     & uMask)];
+            const float y1 = buffer[static_cast<int>((uWrite - uId - 1) & uMask)];
+            const float y2 = buffer[static_cast<int>((uWrite - uId - 2) & uMask)];
+            const float y3 = buffer[static_cast<int>((uWrite - uId - 3) & uMask)];
 
-            // Hermite 多項式係数
-            float c0 = y1;
-            float c1 = 0.5f * (y2 - y0);
-            float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
-            float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+            const float c0 = y1;
+            const float c1 = 0.5f * (y2 - y0);
+            const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+            const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
 
             return ((c3 * frac + c2) * frac + c1) * frac + c0;
         }

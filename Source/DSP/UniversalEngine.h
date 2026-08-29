@@ -173,6 +173,7 @@ namespace FDNReverb {
         float microSatBlend{ 1.0f };
         float modDepthScale{ 1.0f };
         float smoothedModAmount{ 0.0f };
+        float smoothedModRate{ 1.0f };
 
         // ★ DCブロッカー: FDNループ内のDC蓄積を阻止
         std::array<float, FDN_ORDER> dcX1;
