@@ -370,6 +370,8 @@ test_matrix_build/
 TB/
 *.raw
 *.txt
+!CMakeLists.txt
+!TB/CMakeLists.txt
 *.bin
 *.csv
 JUCE/
