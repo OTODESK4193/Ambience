@@ -1,3 +1,0 @@
-D:/VST_Project/Ambience/test_matrix_build/CMakeFiles/WaveGen.dir
-D:/VST_Project/Ambience/test_matrix_build/CMakeFiles/ALL_BUILD.dir
-D:/VST_Project/Ambience/test_matrix_build/CMakeFiles/ZERO_CHECK.dir

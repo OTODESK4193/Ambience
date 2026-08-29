@@ -361,3 +361,16 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ============================================================================
+# Ambience Project Specific Ignores
+# ============================================================================
+build/
+test_matrix_build/
+TB/
+*.raw
+*.txt
+*.bin
+*.csv
+JUCE/
+JuLibraryCode/

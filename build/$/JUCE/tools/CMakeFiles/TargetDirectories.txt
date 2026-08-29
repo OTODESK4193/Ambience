@@ -1,7 +1,0 @@
-D:/VST_Project/Ambience/build/$/JUCE/tools/CMakeFiles/INSTALL.dir
-D:/VST_Project/Ambience/build/$/JUCE/tools/CMakeFiles/ALL_BUILD.dir
-D:/VST_Project/Ambience/build/$/JUCE/tools/CMakeFiles/ZERO_CHECK.dir
-D:/VST_Project/Ambience/build/$/JUCE/tools/modules/CMakeFiles/INSTALL.dir
-D:/VST_Project/Ambience/build/$/JUCE/tools/extras/Build/CMakeFiles/INSTALL.dir
-D:/VST_Project/Ambience/build/$/JUCE/tools/extras/Build/juceaide/CMakeFiles/juceaide.dir
-D:/VST_Project/Ambience/build/$/JUCE/tools/extras/Build/juceaide/CMakeFiles/INSTALL.dir
