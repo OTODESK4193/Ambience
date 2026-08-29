@@ -1,0 +1,72 @@
+# Ambience DSP アルゴリズム最適化・音響物理モデリング ＆ 検証技術 完全アーカイブ
+
+本ドキュメントは、Ambience リバーブ（16次 FDN ＋ 3段シリアル Nested Allpass トポロジー）における DSP アルゴリズムの進化、音響工学的モデリング手法、客観的数値検証ロジック、およびトラブルシューティングの全知見を記録・永続化するアーカイブである。
+
+---
+
+## 1. 空間音響アーキテクチャ概要
+
+Ambience は、以下の 4 層ハイブリッド音響構造によって構成される：
+1. **Pre-Delay & Input Diffusers（入力拡散段）**: 4段シリアル Schroeder Allpass（遅延長 3ms〜9ms）。
+2. **Early Reflections Engine（初期反射段）**:
+   - 実測空間および物理媒体（Room, Hall, Plate, Spring, Goldfoil）に基づく 12本の幾何学的・過渡タップ。
+   - **実空間壁面吸収フィルタ（Wall Boundary Absorption 1次 LPF: $f_c = 8000\text{Hz} \times 0.91^{\text{tap}}$）**。
+   - **幾何学方位角ステレオパンニング（Azimuth Spatial Panning）**。
+3. **16次 Feedback Delay Network（FDN メインループ）**:
+   - **共約不可能（Incommensurate）素数べき乗遅延長**: 黄金比/白銀比分布によりモード重複（Harmonic Coincidence）を根絶。
+   - **直交ユニタリ Walsh-Hadamard 混合行列（FWHT）＋ 最適符号反転（Sign Flipping）**。
+   - **10バンド GEQ 吸収フィルタ（Stage-2 Biquad Absorptions）**: 実空間大気減衰（4k $\le$ 2k×0.9, 8k $\le$ 4k×0.75, 16k $\le$ 8k×0.60）を完全再現。
+   - **非同期デュアル黄金比 LFO（Dual Incommensurate LFO）**: 主周期＋黄金比副周期（0.618）の合成により、周期的うねりを完全破壊した有機的大気ドリフト。
+   - **ループ内非対称マイクロサチュレーション（$+0.035 x^2$）＋ 全チャンネル独立 5Hz DC ブロッカー ＋ RMS リミッター**。
+   - **Schroeder 型 Direct Form Modulated Allpass（3段シリアル）＋ 有界変調ガード（Bounded Safe Modulation $\le 40\%$）**。
+4. **Output Stage（出力段）**:
+   - **Vintage Warmth Saturator**: Warm (偶数・奇数黄金ブレンド), Tape (磁気飽和), Tube (3極真空管 Triode 2次倍音), Hard (トランス飽和)。
+   - **Output EQ (LoCut / HiCut) ＆ Output Lookahead Limiter**。
+
+---
+
+## 2. 課題と解決の DSP 理論
+
+### ① モジュレーションノイズ（ブチッ、バチッ音）の根絶
+- **発生メカニズム**: Allpass の変調深さが基準遅延長を超えて負（$<0$）になり、リングバッファのインデックスがラップアラウンドしてメモリ不正アクセス `nan`（非数バースト）を発生させていた。
+- **解決策**:
+  1. Schroeder 標準型 Direct Form Transposed トポロジーの採用（時間変動時でもエネルギー保存）。
+  2. **有界変調（Bounded Safe Modulation）**: 変調深さをベース遅延の最大 40% にクランプ（$D_{\text{safe}} = D_{\text{base}} + \text{lfo} \times \min(\text{depth}, D_{\text{base}} \times 0.40)$）。
+  3. `LinearDelayLine::read` に `std::clamp` による 4 サンプルの境界安全マージンを実装。
+  4. サンプル単位でのパラメータ 1次 IIR スムージング。
+
+### ② ピッチ揺らぎの自然化（有機的大気ドリフト）
+- **発生メカニズム**: 単一正弦波 LFO は周期的な往復パターンを耳が認識してしまい、機械的・デジタルなうねりを感じさせる。
+- **解決策**:
+  - **非同期デュアル黄金比 LFO**:
+    $$L_i(t) = 0.75 \sin(2\pi f_i t + \phi_i) + 0.25 \sin(2\pi (0.618 f_i) t + \psi_i)$$
+  - 16チャンネルすべての初期位相を黄金比で分散配置し、自己相関ピーク（Periodicity Index）を大幅に低減。
+
+### ③ デジタル臭さの解消と Vintage のぬくもり（2次偶数倍音モデリング）
+- **発生メカニズム**: 従来の対称サチュレーション（$\tanh$ や 3次多項式）では奇数倍音（H3: 3次高調波）しか発生せず、冷たい歪みとなっていた。
+- **解決策**:
+  - **非対称伝達関数の導入**:
+    - `Tube`: $f(x) = \frac{x_{\text{pos}}}{1 + 0.45 |x_{\text{pos}}|} + \frac{0.35 x^2}{1 + 2.0 |x|}$（2次偶数倍音 H2: -47.8dB を豊かに付加）。
+    - `Warm`: $f(x) = \tanh(x) + \frac{0.22 x^2 (1 - \tanh^2(x))}{1 + |x|}$。
+    - `Tape`: 磁気ヒステリシス多項式＋高域ソフトコンプレッション。
+  - **FDN ループ内マイクロサチュレーションの非対称化**: 微小な 2次非対称項（$+0.035 x^2$）により、残響が巡回するたびに自然なヴィンテージ倍音が蓄積。
+  - **暴発・発散の 4重安全保証**: 縮小写像（傾き $\le 1.0$）、全 16ch 独立 5Hz DC ブロッカー、ユニタリ直交行列、RMS リミッター。
+
+### ④ 初期反射（ER）の実空間壁面ダンピングと全アルゴリズム対応
+- **発生メカニズム**: 初期反射タップが高域減衰なしのフラットだったため、高域過多（$+9.8\text{ dB}$）となり、パチパチした硬い音が Late Reverb と分離していた。
+- **解決策**:
+  - 反射回数に応じた壁面吸収 1次 LPF（$f_c = 8000\text{Hz} \times 0.91^{\text{tap}}$）を導入。
+  - **Plate / Spring / Goldfoil の金属初期タップ（Dense Metallic Taps: 12 taps）の実装**: トランスデューサーからピックアップへの超初期金属分散振動（0.8ms〜15ms）をモデリングし、ER Solo でもしっかり音が鳴るように修復。
+
+---
+
+## 3. 客観的音響測定・ベンチマーク手法（数値検証ロジック）
+
+| 測定項目 | 数学・物理的指標 | 測定アルゴリズム | 判定基準 |
+| :--- | :--- | :--- | :--- |
+| **金属音・コムフィルタ鳴き** | **スペクトル平坦度（SFM: Spectral Flatness Measure）** | 幾何平均 / 算術平均（FFT パワースペクトル） | SFM が高いほどシルキーで平坦 |
+| **ピッチ揺らぎの自然さ** | **瞬時周波数偏差（IFD in Cents）＆ 周期性指数（Periodicity Peak）** | ヒルベルト変換による瞬時位相微分 ＋ 自己相関ピーク検出 | Periodicity Peak が低いほど有機的 |
+| **ヴィンテージ倍音特性** | **全高調波歪（THD %）＆ 2次/3次倍音比（H2/H3 in dB）** | 100Hz サイン波入力時の FFT ハーモニックピーク抽出 | H2 が豊か（Tube: -47dB）であること |
+| **初期反射の空間包まれ感** | **両耳間相互相関（IACC: Inter-Aural Cross Correlation）** | $1 - \max |R_{LR}(\tau)|$ (0〜150ms) | 包まれ感（$1-\text{IACC}$）$\ge 50\%$ |
+| **初期反射の高域バランス** | **ER HF/LF エネルギー比（dB）** | 4kHz〜12kHz エネルギー / 200Hz〜1kHz エネルギー | $+3\text{dB} \sim +6\text{dB}$ の自然な壁面減衰 |
+| **ループ内安定性** | **Lyapunov エネルギー減衰比 ＆ DC 蓄積量** | 極限ストレステスト（+0dBFS 連打 ＆ +0.5 DC 注入） | 25秒後/10秒後比 $\ll 1.0$、NaN=0 |
