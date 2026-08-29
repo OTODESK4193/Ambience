@@ -214,6 +214,17 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
     paramsNeedUpdate = true;
 }
 
+void FDNReverbAudioProcessor::panic() noexcept
+{
+    engine.reset();
+    inputRMS_L.store(0.0f);
+    inputRMS_R.store(0.0f);
+    outputRMS_L.store(0.0f);
+    outputRMS_R.store(0.0f);
+    specFifoIndex.store(0);
+    specFifoReady.store(false);
+}
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new FDNReverbAudioProcessor();
 }

@@ -4,19 +4,46 @@
 
 class FDNReverbAudioProcessor;
 
-// ─── Ambience Design System ──────────────────────────────────────────
+// ─── Ambience Design System (10 Dynamic Color Themes) ────────────────
 namespace AmbienceColors {
-    const juce::Colour Background{ 0xFF1A1A1A };
-    const juce::Colour Surface{ 0xFF242424 };
-    const juce::Colour Panel{ 0xFF2C2C2C };
-    const juce::Colour Border{ 0xFF3C3C3C };
-    const juce::Colour Accent{ 0xFFFF6B00 };
-    const juce::Colour AccentBlue{ 0xFF4090FF };
-    const juce::Colour TextPrimary{ 0xFFE8E8E8 };
-    const juce::Colour TextSecondary{ 0xFF888888 };
-    const juce::Colour ArcTrack{ 0xFF3A3A3A };
-    const juce::Colour ArcFill{ 0xFFFF6B00 };
-    const juce::Colour Separator{ 0xFF383838 };
+    struct ThemeInfo {
+        const char* name;
+        juce::Colour primary;    // 主アクセント色
+        juce::Colour secondary;  // 副アクセント色
+    };
+
+    inline const ThemeInfo THEMES[10] = {
+        { "Cyber Neon",   juce::Colour(0xFFFF6B00), juce::Colour(0xFF38BDF8) }, // デフォルト (オレンジ / シアン)
+        { "Solar Flare",  juce::Colour(0xFFFFB703), juce::Colour(0xFFE63946) }, // ゴールド / クリムゾン
+        { "Matrix Glow",  juce::Colour(0xFF10B981), juce::Colour(0xFF06D6A0) }, // ライム / エメラルド
+        { "Vaporwave",    juce::Colour(0xFFFF007F), juce::Colour(0xFF00F0FF) }, // ネオンピンク / アクア
+        { "Dark Amber",   juce::Colour(0xFFF59E0B), juce::Colour(0xFFFDE047) }, // ウォームアンバー / クリーム
+        { "Nordic Frost", juce::Colour(0xFF7DD3FC), juce::Colour(0xFFE0F2FE) }, // アイスブルー / フロストホワイト
+        { "Deep Purple",  juce::Colour(0xFFA855F7), juce::Colour(0xFFEC4899) }, // バイオレット / マゼンタ
+        { "Midnight",     juce::Colour(0xFF3B82F6), juce::Colour(0xFF14B8A6) }, // コバルト / ターコイズ
+        { "Blood Moon",   juce::Colour(0xFFEF4444), juce::Colour(0xFFFB923C) }, // ルビーレッド / アンバー
+        { "Monochrome",   juce::Colour(0xFFF8FAFC), juce::Colour(0xFF94A3B8) }  // ピュアホワイト / シルバー
+    };
+
+    inline int activeThemeIndex = 0;
+    inline juce::Colour Background{ 0xFF1A1A1A };
+    inline juce::Colour Surface{ 0xFF242424 };
+    inline juce::Colour Panel{ 0xFF2C2C2C };
+    inline juce::Colour Border{ 0xFF3C3C3C };
+    inline juce::Colour Accent{ 0xFFFF6B00 };
+    inline juce::Colour AccentBlue{ 0xFF38BDF8 };
+    inline juce::Colour ArcFill{ 0xFFFF6B00 };
+    inline juce::Colour TextPrimary{ 0xFFE8E8E8 };
+    inline juce::Colour TextSecondary{ 0xFF888888 };
+    inline juce::Colour ArcTrack{ 0xFF3A3A3A };
+    inline juce::Colour Separator{ 0xFF383838 };
+
+    inline void setTheme(int idx) noexcept {
+        activeThemeIndex = juce::jlimit(0, 9, idx);
+        Accent = THEMES[activeThemeIndex].primary;
+        AccentBlue = THEMES[activeThemeIndex].secondary;
+        ArcFill = THEMES[activeThemeIndex].primary;
+    }
 }
 
 // ─── Ambience LookAndFeel ────────────────────────────────────────────
@@ -101,9 +128,10 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     std::function<bool()> isLockedCallback;
+    std::function<void(int)> onAlgorithmChangedCallback;
+    void updateButtonColors();
 private:
     void parameterChanged(const juce::String&, float) override;
-    void updateButtonColors();
     std::array<juce::TextButton, FDNReverb::NUM_ALGORITHMS> buttons;
     juce::AudioProcessorValueTreeState& apvts;
     int currentAlgo{ 0 };

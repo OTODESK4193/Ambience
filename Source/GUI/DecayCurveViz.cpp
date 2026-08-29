@@ -1,4 +1,4 @@
-﻿#include "DecayCurveViz.h"
+#include "DecayCurveViz.h"
 
 DecayCurveViz::DecayCurveViz() {
     cachedERDelayMs.fill(0.0f);
@@ -179,7 +179,7 @@ void DecayCurveViz::paint(juce::Graphics& g)
 
     // ─── ER レーザーピン ＆ 発光ネオンオーブ ───
     if (!cachedERBypassed && cachedERTapCount > 0) {
-        const juce::Colour neonCyan(0xFF00E5FF);
+        const juce::Colour erColor = AmbienceColors::AccentBlue;
 
         for (int t = 0; t < cachedERTapCount; ++t) {
             const float timeSec = cachedERDelayMs[t] * 0.001f;
@@ -195,13 +195,13 @@ void DecayCurveViz::paint(juce::Graphics& g)
 
             // レーザーピン光線
             juce::ColourGradient pinGrad(
-                neonCyan.withAlpha(0.85f), x, yTop,
-                neonCyan.withAlpha(0.08f), x, yBottom, false);
+                erColor.withAlpha(0.85f), x, yTop,
+                erColor.withAlpha(0.08f), x, yBottom, false);
             g.setGradientFill(pinGrad);
             g.drawLine(x, yTop, x, yBottom, 1.2f);
 
             // 先端の発光ネオンオーブ (Bloom)
-            g.setColour(neonCyan.withAlpha(0.35f));
+            g.setColour(erColor.withAlpha(0.35f));
             g.fillEllipse(x - 3.5f, yTop - 3.5f, 7.0f, 7.0f);
 
             g.setColour(juce::Colours::white);
@@ -212,7 +212,7 @@ void DecayCurveViz::paint(juce::Graphics& g)
     // ─── ゾーンバッジ ───
     g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::bold)));
 
-    g.setColour(juce::Colour(0xFF00E5FF).withAlpha(0.9f));
+    g.setColour(AmbienceColors::AccentBlue.withAlpha(0.9f));
     g.drawText("ER", (int)(plotX + 6), (int)(plotY + 2), 30, 11, juce::Justification::centredLeft);
 
     g.setColour(AmbienceColors::Accent.withAlpha(0.9f));

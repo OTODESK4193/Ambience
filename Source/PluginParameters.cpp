@@ -81,6 +81,10 @@ namespace FDNReverb {
         addFloat(ParamID::LoCut, "Lo Cut", 20.0f, 500.0f, 20.0f, 0.3f, "Hz");
         addFloat(ParamID::HiCut, "Hi Cut", 1000.0f, 20000.0f, 20000.0f, 0.3f, "Hz");
 
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            ParamID::Theme, "Theme",
+            juce::StringArray{ "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber", "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome" }, 0));
+
         return { params.begin(), params.end() };
     }
 

@@ -1,4 +1,4 @@
-﻿#include "PluginProcessor.h"
+#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 // ── V1.2.0 オリジナル定数レイアウト ──
@@ -44,7 +44,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setSize(kBaseW, kBaseH);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B016", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B017", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -100,9 +100,26 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     };
     content.addAndMakeVisible(sendModeButton);
 
-    // ── Algorithm Selector (Lock状態連携) ──
+    // ── Panic Button (発音即時停止) ──
+    panicButton.setButtonText("PANIC");
+    panicButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    panicButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEF4444)); // 赤アクセント
+    panicButton.onClick = [this] {
+        audioProcessor.panic();
+    };
+    content.addAndMakeVisible(panicButton);
+
+    // ── Algorithm Selector (Lock状態連携 & プリセット未選択化) ──
     algoSelector.isLockedCallback = [this] {
         return lockButton.getToggleState();
+    };
+    algoSelector.onAlgorithmChangedCallback = [this](int) {
+        if (presetManager) {
+            presetManager->setCurrentPresetName("");
+        }
+        audioProcessor.setLastSavedPresetName("");
+        presetCombo.setTextWhenNothingSelected("-----");
+        presetCombo.setSelectedId(0, juce::dontSendNotification);
     };
     content.addAndMakeVisible(algoSelector);
 
@@ -154,6 +171,25 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     kTiltHigh.build(a, "tilthigh", "TILT HI", &content, laf);
     kLoCutPro.build(a, "locut", "LO CUT", &content, laf);
     kHiCutPro.build(a, "hicut", "HI CUT", &content, laf);
+
+    // ── Theme UI ──
+    themeLabel.setText("THEME", juce::dontSendNotification);
+    themeLabel.setFont(juce::Font(juce::FontOptions(9.f)));
+    themeLabel.setColour(juce::Label::textColourId, AmbienceColors::TextSecondary);
+    themeLabel.setJustificationType(juce::Justification::centred);
+    content.addAndMakeVisible(themeLabel);
+
+    themeCombo.addItemList(juce::StringArray{
+        "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber",
+        "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome"
+    }, 1);
+    themeCombo.setLookAndFeel(&laf);
+    content.addAndMakeVisible(themeCombo);
+    themeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        a, "theme", themeCombo);
+    themeCombo.onChange = [this] {
+        updateTheme(themeCombo.getSelectedItemIndex());
+    };
 
     // ── Preset UI ──
     presetPrevButton.setButtonText("<");
@@ -223,6 +259,13 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
     refreshPresetCombo();
     updatePanelVisibility();
+
+    int curTheme = 0;
+    if (auto* rawTheme = audioProcessor.apvts.getRawParameterValue("theme"))
+        curTheme = juce::jlimit(0, 9, juce::roundToInt(rawTheme->load()));
+    themeCombo.setSelectedItemIndex(curTheme, juce::dontSendNotification);
+    updateTheme(curTheme);
+
     startTimerHz(60);
 }
 
@@ -230,6 +273,7 @@ FDNReverbEditor::~FDNReverbEditor() {
     stopTimer();
     setLookAndFeel(nullptr);
     satTypeCombo.setLookAndFeel(nullptr);
+    themeCombo.setLookAndFeel(nullptr);
     presetCombo.setLookAndFeel(nullptr);
 }
 
@@ -293,6 +337,8 @@ void FDNReverbEditor::updatePanelVisibility() {
     kTiltHigh.slider.setVisible(isProMode); kTiltHigh.label.setVisible(isProMode);
     kLoCutPro.slider.setVisible(isProMode); kLoCutPro.label.setVisible(isProMode);
     kHiCutPro.slider.setVisible(isProMode); kHiCutPro.label.setVisible(isProMode);
+    themeLabel.setVisible(isProMode);
+    themeCombo.setVisible(isProMode);
 }
 
 void FDNReverbEditor::refreshPresetCombo() {
@@ -395,6 +441,7 @@ void FDNReverbEditor::layoutContent() {
     erSoloButton.setBounds(248, Y_HEADER + 5, 62, 22);
     lockButton.setBounds(314, Y_HEADER + 5, 48, 22);
     sendModeButton.setBounds(366, Y_HEADER + 5, 48, 22);
+    panicButton.setBounds(418, Y_HEADER + 5, 48, 22);
 
     vuIn.setBounds(W - 220, Y_HEADER + 2, 96, 28);
     vuOut.setBounds(W - 120, Y_HEADER + 2, 96, 28);
@@ -454,6 +501,10 @@ void FDNReverbEditor::layoutContent() {
         kx2 += 16;
         place2(kLoCutPro, kx2, Y_ROW2);
         place2(kHiCutPro, kx2, Y_ROW2);
+
+        const int theme_x = kx2 + 16;
+        themeLabel.setBounds(theme_x, Y_SLABEL2, 100, KNOB_LBL_H);
+        themeCombo.setBounds(theme_x, Y_SLABEL2 + KNOB_LBL_H + 2, 100, 24);
     }
 
     // Preset Section
@@ -496,11 +547,6 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         AmbienceColors::Background, 0.f, (float)H, false);
     g.setGradientFill(grad);
     g.fillAll();
-
-    g.setFont(juce::Font(juce::FontOptions(8.f)));
-    g.setColour(AmbienceColors::TextSecondary.withAlpha(0.6f));
-    g.drawText("16ch FDN | SAPF | ISM-ER | 44.1-192kHz",
-        424, Y_HEADER + 8, 200, 14, juce::Justification::centredLeft);
 
     auto sl = [&](int x, int y, const char* text) {
         g.setFont(juce::Font(juce::FontOptions(
@@ -548,12 +594,16 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
 
         const int tilt_x = PAD + KNOB_W + PAD + PAD + 8;
         const int outeq_x = tilt_x + 3 * (KNOB_W + PAD) + 16;
+        const int theme_x = outeq_x + 2 * (KNOB_W + PAD) + 16;
+
         g.setColour(AmbienceColors::Separator);
         g.drawVerticalLine(outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
+        g.drawVerticalLine(theme_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
 
         g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
         sl(tilt_x, Y_SLABEL2, "TILT EQ");
         sl(outeq_x, Y_SLABEL2, "OUT EQ");
+        sl(theme_x, Y_SLABEL2, "THEME");
     }
 
     g.setColour(AmbienceColors::Separator);
@@ -561,4 +611,22 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
     g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
     sl(PRESET_PANEL_X, Y_SLABEL2, "PRESET");
+}
+
+void FDNReverbEditor::updateTheme(int idx) {
+    AmbienceColors::setTheme(idx);
+
+    proModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    erSoloButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    lockButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    sendModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    presetSaveButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Accent);
+    labelDecayLine.setColour(juce::Label::textColourId, AmbienceColors::Accent);
+
+    algoSelector.updateButtonColors();
+
+    repaint();
+    content.repaint();
+    rt60Viz.repaint();
+    decayCurveViz.repaint();
 }

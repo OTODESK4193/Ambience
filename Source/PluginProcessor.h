@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <JuceHeader.h>
 #include "DSP/UniversalEngine.h"
@@ -56,6 +56,8 @@ public:
 
     bool isParamsLocked() const noexcept { return paramsLocked.load(); }
     void setParamsLocked(bool locked) noexcept { paramsLocked.store(locked); }
+
+    void panic() noexcept;
 
     juce::String getLastSavedPresetName() const noexcept { return lastSavedPresetName; }
     void setLastSavedPresetName(const juce::String& name) noexcept { lastSavedPresetName = name; }

@@ -62,6 +62,7 @@ private:
     juce::TextButton erSoloButton;
     juce::TextButton lockButton;
     juce::TextButton sendModeButton;
+    juce::TextButton panicButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> proModeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> erSoloAttachment;
 
@@ -84,6 +85,12 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> satTypeAttachment;
     ArcKnob kTiltLow, kTiltMid, kTiltHigh;
     ArcKnob kLoCutPro, kHiCutPro;
+
+    juce::Label    themeLabel;
+    juce::ComboBox themeCombo;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> themeAttachment;
+
+    void updateTheme(int idx);
 
     // ── Preset UI ──
     std::unique_ptr<PresetManager> presetManager;

@@ -348,7 +348,8 @@ void AlgorithmSelector::parameterChanged(const juce::String&, float newVal) {
     juce::MessageManager::callAsync([this, newAlgo] {
         currentAlgo = newAlgo;
         updateButtonColors();
-        });
+        if (onAlgorithmChangedCallback) onAlgorithmChangedCallback(newAlgo);
+    });
 }
 
 void AlgorithmSelector::updateButtonColors() {
