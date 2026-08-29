@@ -1,257 +1,205 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-static constexpr int Y_HEADER = 8;
-static constexpr int Y_ALGO = 48;
-static constexpr int Y_SLABEL1 = 86;
-static constexpr int Y_ROW1 = 104;
-static constexpr int Y_SLABEL2 = 204;
-static constexpr int Y_ROW2 = 222;
-static constexpr int Y_SEP = 322;
-static constexpr int Y_VIZ = 326;
-
-static constexpr int SEC_TIME = 8;
-static constexpr int SEC_FREQUENCY = 254;
-static constexpr int SEC_DIFFUSION = 418;
-static constexpr int SEC_STEREO = 664;
-static constexpr int SEC_CHARACTER = 746;
-static constexpr int SEP_TF = 245;
-static constexpr int SEP_FD = 409;
-static constexpr int SEP_DS = 655;
-static constexpr int SEP_SC = 737;
-
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  繧ｳ繝ｳ繧ｹ繝医Λ繧ｯ繧ｿ
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     : AudioProcessorEditor(&p),
     audioProcessor(p),
-    spectrumViz(p),
     algoSelector(p.apvts),
+    spectrumViz(p),
     vuIn("IN", VUMeter::Side::Input),
     vuOut("OUT", VUMeter::Side::Output)
 {
     setLookAndFeel(&laf);
-    setSize(W, H);
+
+    // ── Content Component の設定 (LIFT-X 式アスペクト比固定スケーリング) ──
+    addAndMakeVisible(content);
+    content.onPaint = [this](juce::Graphics& g) { paintContent(g); };
+    content.onLayout = [this] { layoutContent(); };
+
+    constrainer.setFixedAspectRatio((double)kBaseW / (double)kBaseH);
+    constrainer.setSizeLimits(
+        static_cast<int>(kBaseW * 0.7), static_cast<int>(kBaseH * 0.7),
+        static_cast<int>(kBaseW * 2.0), static_cast<int>(kBaseH * 2.0));
+    setConstrainer(&constrainer);
+    setResizable(true, true);
+    setSize(kBaseW, kBaseH);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B011", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B012", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 14.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
-    addAndMakeVisible(titleLabel);
+    content.addAndMakeVisible(titleLabel);
 
-    addAndMakeVisible(algoSelector);
-
-    auto BK = [&](ArcKnob& k, const char* id, const char* lbl) {
-        k.build(p.apvts, id, lbl, this, laf);
-        };
-
-    BK(kPreDelay, "predelay", "PRE-DELAY");
-    BK(kRoomSize, "roomsize", "ROOM SIZE");
-    BK(kDecay, "decaytime", "DECAY");
-    BK(kHFDamp, "hfdamping", "HF DAMP");
-    BK(kLFAbsorb, "lfabsorption", "LF ABSORB");
-    BK(kDiffusion, "diffusion", "DIFFUSION");
-    BK(kModAmt, "modamount", "MOD AMT");
-    BK(kModRate, "modrate", "MOD RATE");
-    BK(kStereoW, "stereowidth", "WIDTH");
-    BK(kERLevel, "erlevel", "ER LEVEL");
-    BK(kSaturation, "saturation", "SATURATE");
-    BK(kWet, "wetlevel", "WET");
-    BK(kDry, "drylevel", "DRY");
-    BK(kDuckAmt, "duckamount", "AMOUNT");
-    BK(kDuckThr, "duckthresh", "THRESH");
-    BK(kDuckAtt, "duckattack", "ATTACK");
-    BK(kDuckRel, "duckrelease", "RELEASE");
-    BK(kLoCutNorm, "locut", "LO CUT");
-    BK(kHiCutNorm, "hicut", "HI CUT");
-
-    // 笏笏 ProMode 繝懊ち繝ｳ 笏笏
+    // ── ProMode Button ──
     proModeButton.setButtonText("PRO");
     proModeButton.setClickingTogglesState(true);
-    proModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
     proModeButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
-    proModeButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    proModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
     proModeButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
-    addAndMakeVisible(proModeButton);
-    proModeAttachment.reset(
-        new juce::AudioProcessorValueTreeState::ButtonAttachment(
-            p.apvts, "promode", proModeButton));
+    proModeButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    content.addAndMakeVisible(proModeButton);
+    proModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "promode", proModeButton);
 
-    // 笏笏 ER SOLO 繝懊ち繝ｳ 笏笏
+    // ── ER Solo Button ──
     erSoloButton.setButtonText("ER SOLO");
     erSoloButton.setClickingTogglesState(true);
-    erSoloButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::AccentBlue);
     erSoloButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
-    erSoloButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    erSoloButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
     erSoloButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
-    addAndMakeVisible(erSoloButton);
-    erSoloAttachment.reset(
-        new juce::AudioProcessorValueTreeState::ButtonAttachment(
-            p.apvts, "ersolo", erSoloButton));
+    erSoloButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    content.addAndMakeVisible(erSoloButton);
+    erSoloAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "ersolo", erSoloButton);
 
-    // 笏笏 ProMode: RT60 蟶ｯ蝓溘ヮ繝・笏笏
-    static const char* rtBandIDs[] = {
-        "rtband0","rtband1","rtband2","rtband3","rtband4",
-        "rtband5","rtband6","rtband7","rtband8","rtband9"
-    };
-    static const char* rtBandLbls[] = {
-        "31Hz","63Hz","125Hz","250Hz","500Hz",
-        "1kHz","2kHz","4kHz","8kHz","16kHz"
+    // ── Algorithm Selector ──
+    content.addAndMakeVisible(algoSelector);
+
+    // ── Normal Mode Knobs ──
+    auto& a = audioProcessor.apvts;
+    kPreDelay.build(a, "predelay", "PRE-DELAY", &content, laf);
+    kRoomSize.build(a, "roomsize", "ROOM SIZE", &content, laf);
+    kDecay.build(a, "decaytime", "DECAY", &content, laf);
+    kHFDamp.build(a, "hfdamping", "HF DAMP", &content, laf);
+    kLFAbsorb.build(a, "lfabsorption", "LF ABSORB", &content, laf);
+    kDiffusion.build(a, "diffusion", "DIFFUSION", &content, laf);
+    kModAmt.build(a, "modamount", "MOD AMT", &content, laf);
+    kModRate.build(a, "modrate", "MOD RATE", &content, laf);
+    kStereoW.build(a, "stereowidth", "WIDTH", &content, laf);
+    kERLevel.build(a, "erlevel", "ER LEVEL", &content, laf);
+    kSaturation.build(a, "saturation", "SATURATE", &content, laf);
+    kWet.build(a, "wet", "WET", &content, laf);
+    kDry.build(a, "dry", "DRY", &content, laf);
+    kLoCutNorm.build(a, "locut", "LO CUT", &content, laf);
+    kHiCutNorm.build(a, "hicut", "HI CUT", &content, laf);
+    kDuckAmt.build(a, "duckamount", "AMOUNT", &content, laf);
+    kDuckThr.build(a, "duckthresh", "THRESH", &content, laf);
+    kDuckAtt.build(a, "duckattack", "ATTACK", &content, laf);
+    kDuckRel.build(a, "duckrelease", "RELEASE", &content, laf);
+
+    // ── ProMode Knobs ──
+    static const char* bandLabels[10] = {
+        "31","63","125","250","500","1k","2k","4k","8k","16k"
     };
     for (int i = 0; i < 10; ++i)
-        kRTBands[i].build(p.apvts, rtBandIDs[i], rtBandLbls[i], this, laf);
+        kRTBands[i].build(a, "rtband" + juce::String(i), bandLabels[i], &content, laf);
 
-    // 笏笏 ProMode: SatType 笏笏
     satTypeLabel.setText("SAT TYPE", juce::dontSendNotification);
     satTypeLabel.setFont(juce::Font(juce::FontOptions(9.f)));
     satTypeLabel.setColour(juce::Label::textColourId, AmbienceColors::TextSecondary);
     satTypeLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(satTypeLabel);
+    content.addAndMakeVisible(satTypeLabel);
 
-    satTypeCombo.addItemList({ "Warm","Tape","Tube","Hard" }, 1);
+    satTypeCombo.addItemList(juce::StringArray{ "Warm","Tape","Tube","Hard" }, 1);
     satTypeCombo.setLookAndFeel(&laf);
-    addAndMakeVisible(satTypeCombo);
-    satTypeAttachment.reset(
-        new juce::AudioProcessorValueTreeState::ComboBoxAttachment(
-            p.apvts, "sattype", satTypeCombo));
+    content.addAndMakeVisible(satTypeCombo);
+    satTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+        a, "sattype", satTypeCombo);
 
-    // 笏笏 ProMode: Tilt EQ + Output EQ 笏笏
-    BK(kTiltLow, "tiltlow", "TILT LOW");
-    BK(kTiltMid, "tiltmid", "TILT MID");
-    BK(kTiltHigh, "tilthigh", "TILT HIGH");
-    BK(kLoCutPro, "locut", "LO CUT");
-    BK(kHiCutPro, "hicut", "HI CUT");
+    kTiltLow.build(a, "tiltlow", "TILT LO", &content, laf);
+    kTiltMid.build(a, "tiltmid", "TILT MID", &content, laf);
+    kTiltHigh.build(a, "tilthigh", "TILT HI", &content, laf);
+    kLoCutPro.build(a, "locut", "LO CUT", &content, laf);
+    kHiCutPro.build(a, "hicut", "HI CUT", &content, laf);
 
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  繝励Μ繧ｻ繝・ヨ UI
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    presetManager = std::make_unique<PresetManager>(p);
-
-    // 笳 PREV
+    // ── Preset UI ──
     presetPrevButton.setButtonText("<");
     presetPrevButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
-    presetPrevButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextPrimary);
-    addAndMakeVisible(presetPrevButton);
-    presetPrevButton.onClick = [this] {
-        presetManager->loadPrevPreset();
-        };
+    presetPrevButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    content.addAndMakeVisible(presetPrevButton);
 
-    // 繝励Μ繧ｻ繝・ヨ蜷阪さ繝ｳ繝・
     presetCombo.setLookAndFeel(&laf);
-    addAndMakeVisible(presetCombo);
-    presetCombo.onChange = [this] {
-        int idx = presetCombo.getSelectedItemIndex();
-        auto names = presetManager->getPresetNames();
-        if (idx >= 0 && idx < names.size())
-            presetManager->loadPreset(names[idx]);
-        };
+    presetCombo.setTextWhenNothingSelected("Select Preset...");
+    content.addAndMakeVisible(presetCombo);
 
-    // 笆ｶ NEXT
     presetNextButton.setButtonText(">");
     presetNextButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
-    presetNextButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextPrimary);
-    addAndMakeVisible(presetNextButton);
-    presetNextButton.onClick = [this] {
-        presetManager->loadNextPreset();
-        };
+    presetNextButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    content.addAndMakeVisible(presetNextButton);
 
-    // SAVE
     presetSaveButton.setButtonText("SAVE");
-    presetSaveButton.setColour(juce::TextButton::buttonColourId,
-        AmbienceColors::Accent.withAlpha(0.75f));
+    presetSaveButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Accent);
     presetSaveButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::Background);
-    addAndMakeVisible(presetSaveButton);
     presetSaveButton.onClick = [this] { savePresetWithDialog(); };
+    content.addAndMakeVisible(presetSaveButton);
 
-    // 笏笏笏 螟画峩蠕・笏笏笏
-        // LOAD
     presetLoadButton.setButtonText("LOAD");
-    presetLoadButton.setColour(juce::TextButton::buttonColourId,
-        AmbienceColors::AccentBlue.withAlpha(0.75f));
-    presetLoadButton.setColour(juce::TextButton::textColourOffId,
-        AmbienceColors::Background);
-    addAndMakeVisible(presetLoadButton);
+    presetLoadButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    presetLoadButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
     presetLoadButton.onClick = [this] {
-        auto names = presetManager->getPresetNames();
-        int idx = presetCombo.getSelectedItemIndex();
-        if (idx >= 0 && idx < names.size())
-            presetManager->loadPreset(names[idx]);
-        };
+        if (presetManager && presetCombo.getSelectedId() > 0)
+            presetManager->loadPreset(presetCombo.getText());
+    };
+    content.addAndMakeVisible(presetLoadButton);
 
-    // DELETE
     presetDeleteButton.setButtonText("DELETE");
     presetDeleteButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
     presetDeleteButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
-    addAndMakeVisible(presetDeleteButton);
     presetDeleteButton.onClick = [this] { deleteCurrentPreset(); };
+    content.addAndMakeVisible(presetDeleteButton);
 
-    // 繧ｳ繝ｼ繝ｫ繝舌ャ繧ｯ險ｭ螳・
-// 繧ｳ繝ｳ繧ｹ繝医Λ繧ｯ繧ｿ蜀・・繧ｳ繝ｼ繝ｫ繝舌ャ繧ｯ險ｭ螳夐Κ蛻・
-    presetManager->onPresetListChanged = [this] { refreshPresetCombo(); };
-
-    // 笘・菫ｮ豁｣: 繝励Μ繧ｻ繝・ヨ蜷阪′螟峨ｏ繧九◆縺ｳ縺ｫ Processor 縺ｫ騾夂衍縺吶ｋ
+    presetManager = std::make_unique<PresetManager>(audioProcessor);
     presetManager->onPresetLoaded = [this](const juce::String& name) {
         audioProcessor.setLastSavedPresetName(name);
         refreshPresetCombo();
-        };
-    // 笏笏 Visualizers 笏笏
+    };
+
+    presetCombo.onChange = [this] {
+        if (presetManager && presetCombo.getSelectedId() > 0)
+            presetManager->loadPreset(presetCombo.getText());
+    };
+    presetPrevButton.onClick = [this] { if (presetManager) presetManager->loadPrevPreset(); };
+    presetNextButton.onClick = [this] { if (presetManager) presetManager->loadNextPreset(); };
+
+    // ── Visualizers ──
     rt60Viz.setProcessor(&p);
     decayCurveViz.setProcessor(&p);
-    addAndMakeVisible(rt60Viz);
-    addAndMakeVisible(spectrumViz);
-    addAndMakeVisible(decayCurveViz);
-    
+    content.addAndMakeVisible(rt60Viz);
+    content.addAndMakeVisible(spectrumViz);
+    content.addAndMakeVisible(decayCurveViz);
 
-    addAndMakeVisible(vuIn);
-    addAndMakeVisible(vuOut);
+    content.addAndMakeVisible(vuIn);
+    content.addAndMakeVisible(vuOut);
 
-    // 笏笏 AcousticMetrics 笏笏
-    labelMetricsTitle.setText("ACOUSTICS", juce::dontSendNotification);
-    labelMetricsTitle.setFont(juce::Font(juce::FontOptions(
-        "Helvetica Neue", 8.5f, juce::Font::bold)));
-    labelMetricsTitle.setColour(juce::Label::textColourId,
-        AmbienceColors::Accent.withAlpha(0.75f));
+    // ── Total Decay Time & Acoustic Labels (洗練デザイン) ──
+    labelMetricsTitle.setText("TOTAL DECAY TIME", juce::dontSendNotification);
+    labelMetricsTitle.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.0f, juce::Font::bold)));
+    labelMetricsTitle.setColour(juce::Label::textColourId, AmbienceColors::Accent);
     labelMetricsTitle.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(labelMetricsTitle);
+    content.addAndMakeVisible(labelMetricsTitle);
+
+    labelDecayLargeValue.setText("--", juce::dontSendNotification);
+    labelDecayLargeValue.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 17.0f, juce::Font::bold)));
+    labelDecayLargeValue.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
+    labelDecayLargeValue.setJustificationType(juce::Justification::centredLeft);
+    content.addAndMakeVisible(labelDecayLargeValue);
 
     auto setupCaption = [this](juce::Label& label, const juce::String& text) {
         label.setText(text, juce::dontSendNotification);
-        label.setFont(juce::Font(juce::FontOptions(
-            "Helvetica Neue", 8.0f, juce::Font::plain)));
-        label.setColour(juce::Label::textColourId,
-            AmbienceColors::TextSecondary.withAlpha(0.85f));
+        label.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::plain)));
+        label.setColour(juce::Label::textColourId, AmbienceColors::TextSecondary.withAlpha(0.85f));
         label.setJustificationType(juce::Justification::centredRight);
-        addAndMakeVisible(label);
-        };
+        content.addAndMakeVisible(label);
+    };
     auto setupValue = [this](juce::Label& label) {
         label.setText("--", juce::dontSendNotification);
-        label.setFont(juce::Font(juce::FontOptions(
-            "Helvetica Neue", 9.5f, juce::Font::bold)));
+        label.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.0f, juce::Font::bold)));
         label.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
         label.setJustificationType(juce::Justification::centredLeft);
-        addAndMakeVisible(label);
-        };
+        content.addAndMakeVisible(label);
+    };
 
-    setupCaption(labelD50Caption, "D50:");
-    setupCaption(labelC50Caption, "C50:");
-    setupCaption(labelC80Caption, "C80:");
-    setupCaption(labelEDTCaption, "EDT:");
-    setupValue(labelD50Value);
-    setupValue(labelC50Value);
-    setupValue(labelC80Value);
-    setupValue(labelEDTValue);
+    setupCaption(labelBassRatioCaption, "BASS:");
+    setupValue(labelBassRatioValue);
+    setupCaption(labelTrebleRatioCaption, "TREBLE:");
+    setupValue(labelTrebleRatioValue);
 
-    // 笏笏笏 螟画峩蠕・笏笏笏
-    refreshPresetCombo();     // 笘・霑ｽ蜉・夊ｵｷ蜍墓凾縺ｫ繧ｳ繝ｳ繝懊ｒ蛻晄悄蛹・
+    refreshPresetCombo();
     updatePanelVisibility();
     startTimerHz(60);
 }
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  繝・せ繝医Λ繧ｯ繧ｿ
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 FDNReverbEditor::~FDNReverbEditor() {
     stopTimer();
     setLookAndFeel(nullptr);
@@ -259,327 +207,78 @@ FDNReverbEditor::~FDNReverbEditor() {
     presetCombo.setLookAndFeel(nullptr);
 }
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  timerCallback
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-void FDNReverbEditor::timerCallback()
-{
-    vuIn.setLevels(audioProcessor.getInputRMSL(),
-        audioProcessor.getInputRMSR());
-    vuOut.setLevels(audioProcessor.getOutputRMSL(),
-        audioProcessor.getOutputRMSR());
+void FDNReverbEditor::timerCallback() {
+    vuIn.setLevels(audioProcessor.getInputRMSL(), audioProcessor.getInputRMSR());
+    vuOut.setLevels(audioProcessor.getOutputRMSL(), audioProcessor.getOutputRMSR());
     vuIn.repaint();
     vuOut.repaint();
 
     static int metricsCounter = 0;
     if (++metricsCounter >= 2) {
         metricsCounter = 0;
-        labelD50Value.setText(
-            juce::String(audioProcessor.getD50() * 100.0f, 1) + "%",
-            juce::dontSendNotification);
-        labelC50Value.setText(
-            juce::String(audioProcessor.getC50(), 1) + "dB",
-            juce::dontSendNotification);
-        labelC80Value.setText(
-            juce::String(audioProcessor.getC80(), 1) + "dB",
-            juce::dontSendNotification);
-        labelEDTValue.setText(
-            juce::String(audioProcessor.getEDT(), 2) + "s",
-            juce::dontSendNotification);
+        const float edt = audioProcessor.getEDT();
+        const float d50 = audioProcessor.getD50();
+        const float c80 = audioProcessor.getC80();
+
+        if (edt < 10.0f) {
+            labelDecayLargeValue.setText(juce::String(edt, 2) + " s", juce::dontSendNotification);
+        } else {
+            labelDecayLargeValue.setText(juce::String(edt, 1) + " s", juce::dontSendNotification);
+        }
+
+        labelBassRatioValue.setText(juce::String(d50 * 100.0f, 0) + "% (D50)", juce::dontSendNotification);
+        labelTrebleRatioValue.setText(juce::String(c80, 1) + "dB (C80)", juce::dontSendNotification);
     }
 
     bool newProMode = (*audioProcessor.apvts.getRawParameterValue("promode") > 0.5f);
     if (newProMode != isProMode) {
         isProMode = newProMode;
         updatePanelVisibility();
-        resized();
-        repaint();
+        layoutContent();
+        content.repaint();
     }
 }
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  updatePanelVisibility
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-void FDNReverbEditor::updatePanelVisibility()
-{
-    auto setKnob = [](ArcKnob& k, bool vis) {
-        k.slider.setVisible(vis);
-        k.label.setVisible(vis);
-        };
+void FDNReverbEditor::updatePanelVisibility() {
+    bool normal = !isProMode;
+    kPreDelay.slider.setVisible(normal);   kPreDelay.label.setVisible(normal);
+    kRoomSize.slider.setVisible(normal);   kRoomSize.label.setVisible(normal);
+    kDecay.slider.setVisible(normal);      kDecay.label.setVisible(normal);
+    kHFDamp.slider.setVisible(normal);     kHFDamp.label.setVisible(normal);
+    kLFAbsorb.slider.setVisible(normal);   kLFAbsorb.label.setVisible(normal);
+    kDiffusion.slider.setVisible(normal);  kDiffusion.label.setVisible(normal);
+    kModAmt.slider.setVisible(normal);     kModAmt.label.setVisible(normal);
+    kModRate.slider.setVisible(normal);    kModRate.label.setVisible(normal);
+    kStereoW.slider.setVisible(normal);    kStereoW.label.setVisible(normal);
+    kERLevel.slider.setVisible(normal);    kERLevel.label.setVisible(normal);
+    kSaturation.slider.setVisible(normal); kSaturation.label.setVisible(normal);
+    kWet.slider.setVisible(normal);        kWet.label.setVisible(normal);
+    kDry.slider.setVisible(normal);        kDry.label.setVisible(normal);
+    kLoCutNorm.slider.setVisible(normal);  kLoCutNorm.label.setVisible(normal);
+    kHiCutNorm.slider.setVisible(normal);  kHiCutNorm.label.setVisible(normal);
+    kDuckAmt.slider.setVisible(normal);    kDuckAmt.label.setVisible(normal);
+    kDuckThr.slider.setVisible(normal);    kDuckThr.label.setVisible(normal);
+    kDuckAtt.slider.setVisible(normal);    kDuckAtt.label.setVisible(normal);
+    kDuckRel.slider.setVisible(normal);    kDuckRel.label.setVisible(normal);
 
-    const bool showNormal = !isProMode;
-    const bool showPro = isProMode;
-
-    setKnob(kPreDelay, showNormal);
-    setKnob(kRoomSize, showNormal);
-    setKnob(kDecay, showNormal);
-    setKnob(kHFDamp, showNormal);
-    setKnob(kLFAbsorb, showNormal);
-    setKnob(kDiffusion, showNormal);
-    setKnob(kModAmt, showNormal);
-    setKnob(kModRate, showNormal);
-    setKnob(kStereoW, showNormal);
-    setKnob(kERLevel, showNormal);
-    setKnob(kSaturation, showNormal);
-    setKnob(kWet, showNormal);
-    setKnob(kDry, showNormal);
-    setKnob(kDuckAmt, showNormal);
-    setKnob(kDuckThr, showNormal);
-    setKnob(kDuckAtt, showNormal);
-    setKnob(kDuckRel, showNormal);
-    setKnob(kLoCutNorm, showNormal);
-    setKnob(kHiCutNorm, showNormal);
-
-    for (auto& k : kRTBands) setKnob(k, showPro);
-    satTypeLabel.setVisible(showPro);
-    satTypeCombo.setVisible(showPro);
-    setKnob(kTiltLow, showPro);
-    setKnob(kTiltMid, showPro);
-    setKnob(kTiltHigh, showPro);
-    setKnob(kLoCutPro, showPro);
-    setKnob(kHiCutPro, showPro);
-
-    // 繝励Μ繧ｻ繝・ヨ UI 縺ｯ蟶ｸ譎り｡ｨ遉ｺ
-    presetPrevButton.setVisible(true);
-    presetCombo.setVisible(true);
-    presetNextButton.setVisible(true);
-    // 笏笏笏 螟画峩蠕・笏笏笏
-    presetSaveButton.setVisible(true);
-    presetLoadButton.setVisible(true);    // 笘・霑ｽ蜉
-    presetDeleteButton.setVisible(true);
+    for (auto& k : kRTBands) {
+        k.slider.setVisible(isProMode);
+        k.label.setVisible(isProMode);
+    }
+    satTypeLabel.setVisible(isProMode);
+    satTypeCombo.setVisible(isProMode);
+    kTiltLow.slider.setVisible(isProMode);  kTiltLow.label.setVisible(isProMode);
+    kTiltMid.slider.setVisible(isProMode);  kTiltMid.label.setVisible(isProMode);
+    kTiltHigh.slider.setVisible(isProMode); kTiltHigh.label.setVisible(isProMode);
+    kLoCutPro.slider.setVisible(isProMode); kLoCutPro.label.setVisible(isProMode);
+    kHiCutPro.slider.setVisible(isProMode); kHiCutPro.label.setVisible(isProMode);
 }
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  resized
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-void FDNReverbEditor::resized()
-{
-    titleLabel.setBounds(PAD, Y_HEADER, 180, 32);
-    proModeButton.setBounds(196, Y_HEADER + 5, 52, 22);
-    erSoloButton.setBounds(256, Y_HEADER + 5, 72, 22);
-    vuIn.setBounds(W - 220, Y_HEADER + 2, 96, 28);
-    vuOut.setBounds(W - 120, Y_HEADER + 2, 96, 28);
-
-    algoSelector.setBounds(PAD, Y_ALGO, W - PAD * 2, 30);
-
-    auto place1 = [&](ArcKnob& k, int& x, int y) {
-        k.label.setBounds(x, y, KNOB_W, KNOB_LBL_H);
-        k.slider.setBounds(x, y + KNOB_LBL_H, KNOB_W, KNOB_H);
-        x += KNOB_W + ROW1_GAP;
-        };
-    auto place2 = [&](ArcKnob& k, int& x, int y) {
-        k.label.setBounds(x, y, KNOB_W, KNOB_LBL_H);
-        k.slider.setBounds(x, y + KNOB_LBL_H, KNOB_W, KNOB_H);
-        x += KNOB_W + PAD;
-        };
-
-    if (!isProMode) {
-        // 笏笏 Row 1 笏笏
-        int kx = PAD;
-        place1(kPreDelay, kx, Y_ROW1);
-        place1(kRoomSize, kx, Y_ROW1);
-        place1(kDecay, kx, Y_ROW1);
-        place1(kHFDamp, kx, Y_ROW1);
-        place1(kLFAbsorb, kx, Y_ROW1);
-        place1(kDiffusion, kx, Y_ROW1);
-        place1(kModAmt, kx, Y_ROW1);
-        place1(kModRate, kx, Y_ROW1);
-        place1(kStereoW, kx, Y_ROW1);
-        place1(kERLevel, kx, Y_ROW1);
-        place1(kSaturation, kx, Y_ROW1);
-
-        // 笏笏 Row 2: MIX | OUT EQ | DUCKING 笏笏
-        kx = PAD;
-        place2(kWet, kx, Y_ROW2);
-        place2(kDry, kx, Y_ROW2);
-        kx += 16;
-        place2(kLoCutNorm, kx, Y_ROW2);
-        place2(kHiCutNorm, kx, Y_ROW2);
-        kx += 16;
-        place2(kDuckAmt, kx, Y_ROW2);
-        place2(kDuckThr, kx, Y_ROW2);
-        place2(kDuckAtt, kx, Y_ROW2);
-        place2(kDuckRel, kx, Y_ROW2);
-
-    }
-    else {
-        // 笏笏 ProMode 1谿ｵ逶ｮ 笏笏
-        int kx = PAD;
-        for (int i = 0; i < 10; ++i)
-            place1(kRTBands[i], kx, Y_ROW1);
-
-        // 笏笏 ProMode 2谿ｵ逶ｮ 笏笏
-        int kx2 = PAD;
-        satTypeLabel.setBounds(kx2, Y_SLABEL2, KNOB_W, KNOB_LBL_H);
-        satTypeCombo.setBounds(kx2, Y_SLABEL2 + KNOB_LBL_H + 2, KNOB_W + PAD, 24);
-        kx2 += KNOB_W + PAD + PAD + 8;
-        place2(kTiltLow, kx2, Y_ROW2);
-        place2(kTiltMid, kx2, Y_ROW2);
-        place2(kTiltHigh, kx2, Y_ROW2);
-        kx2 += 16;
-        place2(kLoCutPro, kx2, Y_ROW2);
-        place2(kHiCutPro, kx2, Y_ROW2);
-    }
-
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  繝励Μ繧ｻ繝・ヨ UI (蟶ｸ譎ゅ・繝｢繝ｼ繝蛾撼萓晏ｭ・
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  驟咲ｽｮ (PRESET_PANEL_X=632 襍ｷ轤ｹ):
-    //
-    //  荳頑ｮｵ Y=Y_ROW2:   [笳(26)] gap4 [combo(154)] gap4 [笆ｶ(26)]  竊・蜿ｳ遶ｯ 848
-    //  荳区ｮｵ Y=Y_ROW2+34:[SAVE(104)] gap8 [DELETE(104)]           竊・蜿ｳ遶ｯ 848
-    //
-    //  繧ｻ繝代Ξ繝ｼ繧ｿ繝ｼ邵ｦ邱・ PRESET_PANEL_X - 9 = 623
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    {
-        const int px = PRESET_PANEL_X;
-        const int btnH = 26;
-
-        // 荳頑ｮｵ
-        presetPrevButton.setBounds(px, Y_ROW2, 26, btnH);
-        presetCombo.setBounds(px + 30, Y_ROW2, 154, btnH);
-        presetNextButton.setBounds(px + 188, Y_ROW2, 26, btnH);
-
-        // 笏笏笏 螟画峩蠕・笏笏笏
-               // 荳区ｮｵ: [SAVE(68)] [LOAD(68)] [DELETE(68)]
-        presetSaveButton.setBounds(px, Y_ROW2 + 34, 68, btnH);
-        presetLoadButton.setBounds(px + 72, Y_ROW2 + 34, 68, btnH);
-        presetDeleteButton.setBounds(px + 144, Y_ROW2 + 34, 68, btnH);
-    }
-
-    // 笏笏 Visualizers 笏笏
-    const int vizTotalH = H - Y_VIZ - PAD;
-    const int rt60Height = vizTotalH / 2 - 2;
-    const int decayHeight = vizTotalH / 2 - 2;
-    const int decayY = Y_VIZ + rt60Height + 4;
-
-    rt60Viz.setBounds(PAD, Y_VIZ, W - PAD * 2, rt60Height);
-    spectrumViz.setBounds(PAD, Y_VIZ, W - PAD * 2, rt60Height);
-    decayCurveViz.setBounds(PAD, decayY, W - PAD * 2, decayHeight);
-
-    // 笏笏 AcousticMetrics 笏笏
-    const int metricsRight = W - PAD - 8;
-    const int metricsW = 280;
-    const int metricsLeft = metricsRight - metricsW;
-    const int metricsTop = decayY + 6;
-    const int metricsRowH = 14;
-    const int metricsRow1Y = metricsTop + 14;
-    const int metricsRow2Y = metricsRow1Y + metricsRowH;
-    const int captionW = 28;
-    const int valueW = 52;
-    const int colSpacing = 8;
-    const int colW = captionW + valueW;
-
-    labelMetricsTitle.setBounds(metricsLeft, metricsTop, 80, 12);
-    labelD50Caption.setBounds(metricsLeft, metricsRow1Y, captionW, metricsRowH);
-    labelD50Value.setBounds(metricsLeft + captionW, metricsRow1Y, valueW, metricsRowH);
-    labelC50Caption.setBounds(metricsLeft + colW + colSpacing, metricsRow1Y, captionW, metricsRowH);
-    labelC50Value.setBounds(metricsLeft + colW + colSpacing + captionW, metricsRow1Y, valueW, metricsRowH);
-    labelC80Caption.setBounds(metricsLeft, metricsRow2Y, captionW, metricsRowH);
-    labelC80Value.setBounds(metricsLeft + captionW, metricsRow2Y, valueW, metricsRowH);
-    labelEDTCaption.setBounds(metricsLeft + colW + colSpacing, metricsRow2Y, captionW, metricsRowH);
-    labelEDTValue.setBounds(metricsLeft + colW + colSpacing + captionW, metricsRow2Y, valueW, metricsRowH);
-}
-
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  paint
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-void FDNReverbEditor::paint(juce::Graphics& g)
-{
-    g.fillAll(AmbienceColors::Background);
-    juce::ColourGradient grad(
-        AmbienceColors::Surface.withAlpha(0.12f), 0.f, 0.f,
-        AmbienceColors::Background, 0.f, (float)H, false);
-    g.setGradientFill(grad);
-    g.fillAll();
-
-    g.setFont(juce::Font(juce::FontOptions(8.f)));
-    g.setColour(AmbienceColors::TextSecondary.withAlpha(0.35f));
-    g.drawText("16ch FDN | SAPF | ISM-ER | 44.1-192kHz",
-        PAD + 336, Y_HEADER + 10, W / 2, 12,
-        juce::Justification::centredLeft);
-
-    g.setColour(AmbienceColors::Separator);
-    g.drawHorizontalLine(Y_SEP, (float)PAD, (float)(W - PAD));
-
-    g.setFont(juce::Font(juce::FontOptions(
-        "Helvetica Neue", 8.5f, juce::Font::bold)));
-
-    auto sl = [&](int x, int y, const char* t) {
-        g.drawText(t, x, y, 200, 14, juce::Justification::centredLeft);
-        };
-
-    if (!isProMode) {
-        // 笏笏 Row 1 繧ｻ繝代Ξ繝ｼ繧ｿ繝ｼ 笏笏
-        g.setColour(AmbienceColors::Separator);
-        g.drawVerticalLine(SEP_TF, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
-        g.drawVerticalLine(SEP_FD, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
-        g.drawVerticalLine(SEP_DS, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
-        g.drawVerticalLine(SEP_SC, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
-
-        // 笏笏 Row 2 繧ｻ繝代Ξ繝ｼ繧ｿ繝ｼ 笏笏
-        const int row2_outeq_x = PAD + 2 * (KNOB_W + PAD) + 16;
-        const int row2_duck_x = row2_outeq_x + 2 * (KNOB_W + PAD) + 16;
-        g.drawVerticalLine(row2_outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
-        g.drawVerticalLine(row2_duck_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
-
-        // 笏笏 繧ｻ繧ｯ繧ｷ繝ｧ繝ｳ蜷・笏笏
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
-        sl(SEC_TIME, Y_SLABEL1, "TIME");
-        sl(SEC_FREQUENCY, Y_SLABEL1, "FREQUENCY");
-        sl(SEC_DIFFUSION, Y_SLABEL1, "DIFFUSION");
-        sl(SEC_STEREO, Y_SLABEL1, "STEREO");
-        sl(SEC_CHARACTER, Y_SLABEL1, "CHARACTER");
-        sl(PAD, Y_SLABEL2, "MIX");
-        sl(row2_outeq_x, Y_SLABEL2, "OUT EQ");
-        sl(row2_duck_x, Y_SLABEL2, "DUCKING");
-
-    }
-    else {
-        // 笏笏 ProMode 笏笏
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
-        sl(PAD, Y_SLABEL1, "RT60 PER BAND");
-
-        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
-        g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(W - PAD));
-
-        const int tilt_x = PAD + KNOB_W + PAD + PAD + 8;
-        const int outeq_x = tilt_x + 3 * (KNOB_W + PAD) + 16;
-        g.setColour(AmbienceColors::Separator);
-        g.drawVerticalLine(outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
-
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
-        sl(tilt_x, Y_SLABEL2, "TILT EQ");
-        sl(outeq_x, Y_SLABEL2, "OUT EQ");
-    }
-
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  繝励Μ繧ｻ繝・ヨ繧ｻ繧ｯ繧ｷ繝ｧ繝ｳ (蟶ｸ譎ゅ・繝｢繝ｼ繝蛾撼萓晏ｭ・
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    g.setColour(AmbienceColors::Separator);
-    g.drawVerticalLine(PRESET_PANEL_X - 9,
-        (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
-    g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
-    sl(PRESET_PANEL_X, Y_SLABEL2, "PRESET");
-}
-
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  繝励Μ繧ｻ繝・ヨ UI 繝倥Ν繝代・
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-void FDNReverbEditor::refreshPresetCombo()
-{
+void FDNReverbEditor::refreshPresetCombo() {
+    if (!presetManager) return;
     presetCombo.clear(juce::dontSendNotification);
     auto names = presetManager->getPresetNames();
 
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  笘・菫ｮ豁｣: 襍ｷ蜍墓凾縺ｫ Processor 縺九ｉ菫晏ｭ俶ｸ医∩縺ｮ繝励Μ繧ｻ繝・ヨ蜷阪ｒ蠕ｩ蜈・
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  繧ｨ繝・ぅ繧ｿ繝ｼ縺碁哩縺倥ｉ繧後ｋ縺ｨ PresetManager 縺斐→遐ｴ譽・＆繧後ｋ縺溘ａ縲・
-    //  currentPresetName 縺檎ｩｺ縺ｫ縺ｪ繧九・
-    //  Processor 蛛ｴ縺ｫ lastSavedPresetName 縺ｨ縺励※豌ｸ邯壼喧縺励◆蜷榊燕繧・
-    //  縺薙％縺ｧ PresetManager 縺ｫ蜀阪そ繝・ヨ縺吶ｋ縺薙→縺ｧ縲・
-    //  繧ｳ繝ｳ繝懊・繝・け繧ｹ縺ｮ驕ｸ謚槭′豁｣縺励￥蠕ｩ蜈・＆繧後ｋ縲・
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
     if (presetManager->getCurrentPresetName().isEmpty()) {
         auto saved = audioProcessor.getLastSavedPresetName();
         if (saved.isNotEmpty())
@@ -611,17 +310,10 @@ void FDNReverbEditor::refreshPresetCombo()
     presetNextButton.setEnabled(names.size() > 1);
 }
 
-void FDNReverbEditor::savePresetWithDialog()
-{
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-    //  AlertWindow 繧剃ｽｿ縺｣縺溘・繝ｪ繧ｻ繝・ヨ蜷榊・蜉帙ム繧､繧｢繝ｭ繧ｰ
-    //  enterModalState(async callback) 繧剃ｽｿ逕ｨ: runModalLoop() 荳崎ｦ・
-    //  SafePointer 縺ｧ繧ｨ繝・ぅ繧ｿ縺悟・縺ｫ遐ｴ譽・＆繧後◆蝣ｴ蜷医ｒ螳牙・縺ｫ蜃ｦ逅・
-    // 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+void FDNReverbEditor::savePresetWithDialog() {
+    if (!presetManager) return;
     auto* dialog = new juce::AlertWindow(
-        "Save Preset",
-        "Enter a name for this preset:",
-        juce::MessageBoxIconType::NoIcon);
+        "Save Preset", "Enter a name for this preset:", juce::MessageBoxIconType::NoIcon);
 
     dialog->addTextEditor("name", presetManager->getCurrentPresetName());
     dialog->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
@@ -631,27 +323,24 @@ void FDNReverbEditor::savePresetWithDialog()
 
     dialog->enterModalState(
         true,
-        juce::ModalCallbackFunction::create(
-            [safeThis, dialog](int result) {
-                if (safeThis != nullptr && result == 1) {
-                    auto name = dialog->getTextEditorContents("name").trim();
-                    if (name.isNotEmpty())
-                        safeThis->presetManager->savePreset(name);
-                }
-            }),
-        true   // deleteWhenDismissed
+        juce::ModalCallbackFunction::create([safeThis, dialog](int result) {
+            if (safeThis != nullptr && result == 1) {
+                auto name = dialog->getTextEditorContents("name").trim();
+                if (name.isNotEmpty())
+                    safeThis->presetManager->savePreset(name);
+            }
+        }),
+        true
     );
 }
 
-void FDNReverbEditor::deleteCurrentPreset()
-{
+void FDNReverbEditor::deleteCurrentPreset() {
+    if (!presetManager) return;
     auto name = presetManager->getCurrentPresetName();
     if (name.isEmpty()) return;
 
     auto* dialog = new juce::AlertWindow(
-        "Delete Preset",
-        "Delete \"" + name + "\"?",
-        juce::MessageBoxIconType::WarningIcon);
+        "Delete Preset", "Delete \"" + name + "\"?", juce::MessageBoxIconType::WarningIcon);
 
     dialog->addButton("Delete", 1);
     dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
@@ -660,11 +349,187 @@ void FDNReverbEditor::deleteCurrentPreset()
 
     dialog->enterModalState(
         true,
-        juce::ModalCallbackFunction::create(
-            [safeThis, name](int result) {
-                if (safeThis != nullptr && result == 1)
-                    safeThis->presetManager->deletePreset(name);
-            }),
+        juce::ModalCallbackFunction::create([safeThis, name](int result) {
+            if (safeThis != nullptr && result == 1)
+                safeThis->presetManager->deletePreset(name);
+        }),
         true
     );
+}
+
+// ── paint & resized (ウィンドウサイズ変更時はスケーリングのみ行う) ──
+void FDNReverbEditor::paint(juce::Graphics& g) {
+    g.fillAll(AmbienceColors::Background);
+}
+
+void FDNReverbEditor::resized() {
+    const float scale = juce::jmax(0.25f, (float)getWidth() / (float)kBaseW);
+    content.setTransform(juce::AffineTransform::scale(scale));
+    content.setBounds(0, 0, kBaseW, kBaseH);
+}
+
+// ── layoutContent (論理 900x540 座標系での描画・配置) ──
+void FDNReverbEditor::layoutContent() {
+    int topY = PAD;
+
+    titleLabel.setBounds(PAD + 6, topY + 4, 180, 20);
+
+    const int vuW = 100, vuH = 10;
+    const int vuX = W - PAD - vuW - 24;
+    vuIn.setBounds(vuX, topY + 2, vuW, vuH);
+    vuOut.setBounds(vuX, topY + 14, vuW, vuH);
+
+    int btnW = 54, btnH = 20;
+    proModeButton.setBounds(196, topY + 4, btnW, btnH);
+    erSoloButton.setBounds(256, topY + 4, 68, btnH);
+
+    int algoY = topY + 28;
+    int algoH = 26;
+    algoSelector.setBounds(PAD, algoY, W - PAD * 2, algoH);
+
+    int row1Y = algoY + algoH + 18;
+    auto placeKnob = [](ArcKnob& k, int x, int y) {
+        k.slider.setBounds(x, y + KNOB_LBL_H, KNOB_W, KNOB_H - KNOB_LBL_H);
+        k.label.setBounds(x - 4, y, KNOB_W + 8, KNOB_LBL_H);
+    };
+
+    if (!isProMode) {
+        int x = PAD + 2;
+        placeKnob(kPreDelay, x, row1Y);       x += KNOB_W + 14;
+        placeKnob(kRoomSize, x, row1Y);       x += KNOB_W + 14;
+        placeKnob(kDecay, x, row1Y);          x += KNOB_W + ROW1_GAP + 14;
+        placeKnob(kHFDamp, x, row1Y);         x += KNOB_W + 14;
+        placeKnob(kLFAbsorb, x, row1Y);       x += KNOB_W + ROW1_GAP + 14;
+        placeKnob(kDiffusion, x, row1Y);      x += KNOB_W + 14;
+        placeKnob(kModAmt, x, row1Y);         x += KNOB_W + 14;
+        placeKnob(kModRate, x, row1Y);        x += KNOB_W + ROW1_GAP + 14;
+        placeKnob(kStereoW, x, row1Y);        x += KNOB_W + ROW1_GAP + 14;
+        placeKnob(kERLevel, x, row1Y);        x += KNOB_W + 14;
+        placeKnob(kSaturation, x, row1Y);
+
+        int row2Y = row1Y + UNIT_H + 8;
+        x = PAD + 2;
+        placeKnob(kWet, x, row2Y);            x += KNOB_W + 14;
+        placeKnob(kDry, x, row2Y);            x += KNOB_W + ROW1_GAP + 14;
+        placeKnob(kLoCutNorm, x, row2Y);      x += KNOB_W + 14;
+        placeKnob(kHiCutNorm, x, row2Y);      x += KNOB_W + ROW1_GAP + 14;
+        placeKnob(kDuckAmt, x, row2Y);        x += KNOB_W + 14;
+        placeKnob(kDuckThr, x, row2Y);        x += KNOB_W + 14;
+        placeKnob(kDuckAtt, x, row2Y);        x += KNOB_W + 14;
+        placeKnob(kDuckRel, x, row2Y);
+    } else {
+        int r1X = PAD + 2;
+        int bandSpacing = 68;
+        for (int i = 0; i < 7; ++i) {
+            placeKnob(kRTBands[i], r1X, row1Y);
+            r1X += bandSpacing;
+        }
+        int rightX = r1X + 8;
+        satTypeLabel.setBounds(rightX, row1Y, 76, KNOB_LBL_H);
+        satTypeCombo.setBounds(rightX, row1Y + KNOB_LBL_H + 4, 76, 22);
+        placeKnob(kTiltLow, rightX + 86, row1Y);
+        placeKnob(kTiltMid, rightX + 86 + 68, row1Y);
+        placeKnob(kTiltHigh, rightX + 86 + 136, row1Y);
+
+        int row2Y = row1Y + UNIT_H + 8;
+        int r2X = PAD + 2;
+        for (int i = 7; i < 10; ++i) {
+            placeKnob(kRTBands[i], r2X, row2Y);
+            r2X += bandSpacing;
+        }
+        r2X += 16;
+        placeKnob(kLoCutPro, r2X, row2Y); r2X += bandSpacing;
+        placeKnob(kHiCutPro, r2X, row2Y);
+    }
+
+    int row2Y = row1Y + UNIT_H + 8;
+    int prH = 22;
+    presetPrevButton.setBounds(PRESET_PANEL_X, row2Y + 14, 24, prH);
+    presetCombo.setBounds(PRESET_PANEL_X + 28, row2Y + 14, 170, prH);
+    presetNextButton.setBounds(PRESET_PANEL_X + 202, row2Y + 14, 24, prH);
+
+    int btnRowY = row2Y + 14 + prH + 6;
+    int smBtnW = 68, smBtnH = 22;
+    presetSaveButton.setBounds(PRESET_PANEL_X + 2, btnRowY, smBtnW, smBtnH);
+    presetLoadButton.setBounds(PRESET_PANEL_X + 74, btnRowY, smBtnW, smBtnH);
+    presetDeleteButton.setBounds(PRESET_PANEL_X + 146, btnRowY, smBtnW + 10, smBtnH);
+
+    int vizTop = row2Y + UNIT_H + 4;
+    int vizH = 82;
+    rt60Viz.setBounds(PAD, vizTop, W - PAD * 2, vizH);
+    spectrumViz.setBounds(PAD, vizTop, W - PAD * 2, vizH);
+
+    int decayY = vizTop + vizH + 6;
+    int decayHeight = H - decayY - PAD;
+    decayCurveViz.setBounds(PAD, decayY, W - PAD * 2, decayHeight);
+
+    // ── 洗練された Total Decay Time ＆ Metrics エリア ──
+    const int metricsRight = W - PAD - 12;
+    const int metricsW = 280;
+    const int metricsLeft = metricsRight - metricsW;
+    const int metricsTop = decayY + 4;
+
+    labelMetricsTitle.setBounds(metricsLeft, metricsTop, 160, 14);
+    labelDecayLargeValue.setBounds(metricsLeft, metricsTop + 14, 120, 24);
+
+    const int subColX = metricsLeft + 124;
+    const int subCapW = 44;
+    const int subValW = 90;
+    labelBassRatioCaption.setBounds(subColX, metricsTop + 8, subCapW, 14);
+    labelBassRatioValue.setBounds(subColX + subCapW + 2, metricsTop + 8, subValW, 14);
+
+    labelTrebleRatioCaption.setBounds(subColX, metricsTop + 22, subCapW, 14);
+    labelTrebleRatioValue.setBounds(subColX + subCapW + 2, metricsTop + 22, subValW, 14);
+}
+
+void FDNReverbEditor::paintContent(juce::Graphics& g) {
+    g.fillAll(AmbienceColors::Background);
+    juce::ColourGradient grad(
+        AmbienceColors::Surface.withAlpha(0.12f), 0.f, 0.f,
+        AmbienceColors::Background, 0.f, (float)H, false);
+    g.setGradientFill(grad);
+    g.fillAll();
+
+    g.setFont(juce::Font(juce::FontOptions(8.f)));
+    g.setColour(AmbienceColors::TextSecondary.withAlpha(0.6f));
+    g.drawText("16ch FDN | SAPF | ISM-ER | 44.1-192kHz",
+        330, PAD + 8, 220, 14, juce::Justification::centredLeft);
+
+    auto drawSectionHeader = [&](const juce::String& title, int x, int y, int w) {
+        g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::bold)));
+        g.setColour(AmbienceColors::Accent.withAlpha(0.85f));
+        g.drawText(title, x, y, w, 10, juce::Justification::left);
+    };
+
+    int algoY = PAD + 28;
+    int row1Y = algoY + 26 + 18;
+    int secHdrY = row1Y - 14;
+
+    if (!isProMode) {
+        int x = PAD + 2;
+        drawSectionHeader("TIME", x, secHdrY, KNOB_W * 3 + 28);
+        x += (KNOB_W + 14) * 3 + ROW1_GAP - 14;
+        drawSectionHeader("FREQUENCY", x, secHdrY, KNOB_W * 2 + 14);
+        x += (KNOB_W + 14) * 2 + ROW1_GAP - 14;
+        drawSectionHeader("DIFFUSION", x, secHdrY, KNOB_W * 3 + 28);
+        x += (KNOB_W + 14) * 3 + ROW1_GAP - 14;
+        drawSectionHeader("STEREO", x, secHdrY, KNOB_W);
+        x += KNOB_W + ROW1_GAP;
+        drawSectionHeader("CHARACTER", x, secHdrY, KNOB_W * 2 + 14);
+
+        int row2Y = row1Y + UNIT_H + 8;
+        int secHdr2Y = row2Y - 14;
+        x = PAD + 2;
+        drawSectionHeader("MIX", x, secHdr2Y, KNOB_W * 2 + 14);
+        x += (KNOB_W + 14) * 2 + ROW1_GAP - 14;
+        drawSectionHeader("OUT EQ", x, secHdr2Y, KNOB_W * 2 + 14);
+        x += (KNOB_W + 14) * 2 + ROW1_GAP - 14;
+        drawSectionHeader("DUCKING", x, secHdr2Y, KNOB_W * 4 + 42);
+        drawSectionHeader("PRESET", PRESET_PANEL_X, secHdr2Y, 200);
+    } else {
+        int x = PAD + 2;
+        drawSectionHeader("BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)", x, secHdrY, 400);
+        int row2Y = row1Y + UNIT_H + 8;
+        drawSectionHeader("PRESET", PRESET_PANEL_X, row2Y - 14, 200);
+    }
 }

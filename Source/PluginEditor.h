@@ -21,7 +21,6 @@ private:
     void timerCallback() override;
     void updatePanelVisibility();
 
-    // ─── プリセット UI ヘルパー ───
     void refreshPresetCombo();
     void savePresetWithDialog();
     void deleteCurrentPreset();
@@ -29,7 +28,27 @@ private:
     FDNReverbAudioProcessor& audioProcessor;
     AmbienceLookAndFeel laf;
 
-    // ─── 共通 ───
+    // ---- リサイズ対応 (LIFT-X 準拠: アスペクト比固定スケーリング) ----
+    static constexpr int kBaseW = 900;
+    static constexpr int kBaseH = 540;
+    static constexpr int W = kBaseW;
+    static constexpr int H = kBaseH;
+
+    struct ContentComponent : public juce::Component
+    {
+        std::function<void(juce::Graphics&)> onPaint;
+        std::function<void()> onLayout;
+        void paint(juce::Graphics& g) override { if (onPaint) onPaint(g); }
+        void resized() override { if (onLayout) onLayout(); }
+    };
+
+    ContentComponent content;
+    juce::ComponentBoundsConstrainer constrainer;
+
+    void paintContent(juce::Graphics& g);
+    void layoutContent();
+
+    // ── Components ──
     AlgorithmSelector algoSelector;
     RT60Visualizer    rt60Viz;
     SpectrumAnalyzer  spectrumViz;
@@ -37,11 +56,11 @@ private:
     VUMeter           vuIn, vuOut;
     juce::Label       titleLabel;
 
+    // ── Total Decay Time & Acoustics ──
     juce::Label labelMetricsTitle;
-    juce::Label labelD50Caption, labelD50Value;
-    juce::Label labelC50Caption, labelC50Value;
-    juce::Label labelC80Caption, labelC80Value;
-    juce::Label labelEDTCaption, labelEDTValue;
+    juce::Label labelDecayLargeValue;
+    juce::Label labelBassRatioCaption, labelBassRatioValue;
+    juce::Label labelTrebleRatioCaption, labelTrebleRatioValue;
 
     juce::TextButton proModeButton;
     juce::TextButton erSoloButton;
@@ -50,7 +69,7 @@ private:
 
     bool isProMode{ false };
 
-    // ─── Normal Mode ノブ ───
+    // ── Normal Mode Knobs ──
     ArcKnob kPreDelay, kRoomSize, kDecay;
     ArcKnob kHFDamp, kLFAbsorb;
     ArcKnob kDiffusion, kModAmt, kModRate;
@@ -60,7 +79,7 @@ private:
     ArcKnob kDuckAmt, kDuckThr, kDuckAtt, kDuckRel;
     ArcKnob kLoCutNorm, kHiCutNorm;
 
-    // ─── ProMode パネル ───
+    // ── Pro Mode Panel ──
     std::array<ArcKnob, 10> kRTBands;
     juce::Label    satTypeLabel;
     juce::ComboBox satTypeCombo;
@@ -68,28 +87,22 @@ private:
     ArcKnob kTiltLow, kTiltMid, kTiltHigh;
     ArcKnob kLoCutPro, kHiCutPro;
 
-    // ─── プリセット UI ───
+    // ── Preset UI ──
     std::unique_ptr<PresetManager> presetManager;
     juce::TextButton presetPrevButton;
     juce::ComboBox   presetCombo;
     juce::TextButton presetNextButton;
-    // 既存の presetSaveButton / presetDeleteButton の隣に追加
     juce::TextButton presetSaveButton;
-    juce::TextButton presetLoadButton;    // ★ 追加
+    juce::TextButton presetLoadButton;
     juce::TextButton presetDeleteButton;
 
-    // ─── Layout 定数 ───
-    static constexpr int W = 900;
-    static constexpr int H = 540;
+    // ── Layout Constants ──
     static constexpr int PAD = 8;
     static constexpr int KNOB_W = 64;
     static constexpr int KNOB_H = 72;
     static constexpr int KNOB_LBL_H = 14;
     static constexpr int UNIT_H = 88;
     static constexpr int ROW1_GAP = 18;
-
-    // プリセットパネルの固定 X 座標
-    // DUCKING 終端 (616) + gap(16) = 632
     static constexpr int PRESET_PANEL_X = 632;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FDNReverbEditor)

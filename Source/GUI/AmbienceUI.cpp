@@ -304,14 +304,14 @@ AlgorithmSelector::AlgorithmSelector(juce::AudioProcessorValueTreeState& a)
         int idx = i;
         buttons[i].onClick = [this, idx] {
             if (auto* param = apvts.getParameter("algorithm"))
-                param->setValueNotifyingHost(
-                    (float)idx / (float)(FDNReverb::NUM_ALGORITHMS - 1));
-            };
+                param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(idx)));
+        };
     }
     apvts.addParameterListener("algorithm", this);
-    currentAlgo = juce::roundToInt(
-        *apvts.getRawParameterValue("algorithm")
-        * (FDNReverb::NUM_ALGORITHMS - 1));
+    if (auto* rawAlgo = apvts.getRawParameterValue("algorithm")) {
+        currentAlgo = juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, juce::roundToInt(rawAlgo->load()));
+    }
+    updateButtonColors();
 }
 
 AlgorithmSelector::~AlgorithmSelector() {

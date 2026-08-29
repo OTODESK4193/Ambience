@@ -51,7 +51,7 @@ void DecayCurveViz::paint(juce::Graphics& g)
     const float plotW = bounds.getWidth() - leftMargin - rightMargin;
     const float plotH = bounds.getHeight() - topMargin - bottomMargin;
 
-    const float maxTimeSec = juce::jlimit(0.5f, 8.0f, cachedRT60Mid * 1.5f);
+    const float maxTimeSec = juce::jlimit(0.5f, 120.0f, cachedRT60Mid * 1.25f);
     const float minDB = -60.0f;
     const float maxDB = 0.0f;
 
@@ -71,17 +71,17 @@ void DecayCurveViz::paint(juce::Graphics& g)
             const float ratio = (timeSec - splitSec) / lateRange;
             return plotX + plotW * splitRatio + ratio * plotW * (1.0f - splitRatio);
         }
-        };
+    };
 
     auto dbToY = [&](float db) -> float {
         const float normalized = (db - minDB) / (maxDB - minDB);
         return plotY + (1.0f - normalized) * plotH;
-        };
+    };
 
     // ─── ER ゾーン背景 ───
     {
         const float erZoneW = plotW * splitRatio;
-        g.setColour(juce::Colour(0xFF1A2535));
+        g.setColour(juce::Colour(0xFF16202E));
         g.fillRect(plotX, plotY, erZoneW, plotH);
     }
 
@@ -93,7 +93,7 @@ void DecayCurveViz::paint(juce::Graphics& g)
     // ─── グリッド: ER ゾーン垂直線 (ms) ───
     {
         static const float erGridMs[] = { 20.0f, 50.0f, 100.0f, 150.0f, 200.0f };
-        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
+        g.setColour(AmbienceColors::Separator.withAlpha(0.4f));
         for (float ms : erGridMs) {
             const float t = ms * 0.001f;
             if (t >= maxTimeSec) break;
@@ -103,9 +103,11 @@ void DecayCurveViz::paint(juce::Graphics& g)
 
     // ─── グリッド: Late ゾーン垂直線 (s) ───
     float timeStep;
-    if (maxTimeSec <= 2.0f) timeStep = 0.5f;
-    else if (maxTimeSec <= 4.0f) timeStep = 1.0f;
-    else                         timeStep = 2.0f;
+    if (maxTimeSec <= 2.0f)       timeStep = 0.5f;
+    else if (maxTimeSec <= 5.0f)  timeStep = 1.0f;
+    else if (maxTimeSec <= 15.0f) timeStep = 3.0f;
+    else if (maxTimeSec <= 45.0f) timeStep = 10.0f;
+    else                          timeStep = 25.0f;
 
     g.setColour(AmbienceColors::Separator.withAlpha(0.3f));
     for (float t = splitSec + timeStep; t <= maxTimeSec; t += timeStep)
