@@ -1,7 +1,8 @@
-#pragma once
+﻿#pragma once
 #include <JuceHeader.h>
 #include "../PluginProcessor.h"
 #include "AmbienceUI.h"
+#include <vector>
 
 class DecayCurveViz : public juce::Component, private juce::Timer {
 public:
@@ -15,13 +16,19 @@ public:
 private:
     void timerCallback() override;
 
-    // ─── 時間軸変換ヘルパー ───────────────────────────────────────────────
-    //   スプリット時間軸:
-    //     0〜splitSec  : plotW × splitRatio の幅に拡大表示
-    //     splitSec〜max: 残りの幅に表示
-    //   これにより ER（0〜200ms）が 2 倍の解像度で見える
-    float timeToX(float timeSec, float plotX, float plotW,
-        float maxTimeSec) const noexcept;
+    struct AmbientParticle {
+        float x{ 0.0f };
+        float y{ 0.0f };
+        float vx{ 0.0f };
+        float vy{ 0.0f };
+        float alpha{ 0.0f };
+        float baseAlpha{ 0.0f };
+        float size{ 1.0f };
+        float phase{ 0.0f };
+    };
+
+    void initParticles();
+    void updateParticles();
 
     FDNReverbAudioProcessor* processor{ nullptr };
 
@@ -33,10 +40,11 @@ private:
     std::array<float, MAX_DISPLAY_TAPS> cachedERDelayMs;
     std::array<float, MAX_DISPLAY_TAPS> cachedERGains;
 
-    // ─── スプリット時間軸の設定 ───
-    // splitSec 以下の時間を splitRatio の割合の幅に拡大表示する
-    static constexpr float splitSec = 0.20f;  // 0〜200ms を拡大
-    static constexpr float splitRatio = 0.30f;  // 全幅の 30% を ER ゾーンに割り当て
+    std::vector<AmbientParticle> particles;
+    float globalPhase{ 0.0f };
+
+    static constexpr float splitSec = 0.20f;
+    static constexpr float splitRatio = 0.30f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DecayCurveViz)
 };

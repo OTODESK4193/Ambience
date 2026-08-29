@@ -1,4 +1,4 @@
-#include "PluginProcessor.h"
+﻿#include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
@@ -25,7 +25,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setSize(kBaseW, kBaseH);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B012", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B013", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 14.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -69,8 +69,11 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     kStereoW.build(a, "stereowidth", "WIDTH", &content, laf);
     kERLevel.build(a, "erlevel", "ER LEVEL", &content, laf);
     kSaturation.build(a, "saturation", "SATURATE", &content, laf);
-    kWet.build(a, "wet", "WET", &content, laf);
-    kDry.build(a, "dry", "DRY", &content, laf);
+
+    // ★ 正しい APVTS ID に修正 (wetlevel / drylevel)
+    kWet.build(a, "wetlevel", "WET", &content, laf);
+    kDry.build(a, "drylevel", "DRY", &content, laf);
+
     kLoCutNorm.build(a, "locut", "LO CUT", &content, laf);
     kHiCutNorm.build(a, "hicut", "HI CUT", &content, laf);
     kDuckAmt.build(a, "duckamount", "AMOUNT", &content, laf);
@@ -162,38 +165,18 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     content.addAndMakeVisible(vuIn);
     content.addAndMakeVisible(vuOut);
 
-    // ── Total Decay Time & Acoustic Labels (洗練デザイン) ──
-    labelMetricsTitle.setText("TOTAL DECAY TIME", juce::dontSendNotification);
-    labelMetricsTitle.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.0f, juce::Font::bold)));
-    labelMetricsTitle.setColour(juce::Label::textColourId, AmbienceColors::Accent);
-    labelMetricsTitle.setJustificationType(juce::Justification::centredLeft);
+    // ── DECAY TIME 超特大表示 (右下端) ──
+    labelMetricsTitle.setText("DECAY TIME", juce::dontSendNotification);
+    labelMetricsTitle.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.5f, juce::Font::bold)));
+    labelMetricsTitle.setColour(juce::Label::textColourId, AmbienceColors::Accent.withAlpha(0.9f));
+    labelMetricsTitle.setJustificationType(juce::Justification::centredRight);
     content.addAndMakeVisible(labelMetricsTitle);
 
     labelDecayLargeValue.setText("--", juce::dontSendNotification);
-    labelDecayLargeValue.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 17.0f, juce::Font::bold)));
-    labelDecayLargeValue.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
-    labelDecayLargeValue.setJustificationType(juce::Justification::centredLeft);
+    labelDecayLargeValue.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 30.0f, juce::Font::bold)));
+    labelDecayLargeValue.setColour(juce::Label::textColourId, AmbienceColors::Accent);
+    labelDecayLargeValue.setJustificationType(juce::Justification::centredRight);
     content.addAndMakeVisible(labelDecayLargeValue);
-
-    auto setupCaption = [this](juce::Label& label, const juce::String& text) {
-        label.setText(text, juce::dontSendNotification);
-        label.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::plain)));
-        label.setColour(juce::Label::textColourId, AmbienceColors::TextSecondary.withAlpha(0.85f));
-        label.setJustificationType(juce::Justification::centredRight);
-        content.addAndMakeVisible(label);
-    };
-    auto setupValue = [this](juce::Label& label) {
-        label.setText("--", juce::dontSendNotification);
-        label.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.0f, juce::Font::bold)));
-        label.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
-        label.setJustificationType(juce::Justification::centredLeft);
-        content.addAndMakeVisible(label);
-    };
-
-    setupCaption(labelBassRatioCaption, "BASS:");
-    setupValue(labelBassRatioValue);
-    setupCaption(labelTrebleRatioCaption, "TREBLE:");
-    setupValue(labelTrebleRatioValue);
 
     refreshPresetCombo();
     updatePanelVisibility();
@@ -217,17 +200,12 @@ void FDNReverbEditor::timerCallback() {
     if (++metricsCounter >= 2) {
         metricsCounter = 0;
         const float edt = audioProcessor.getEDT();
-        const float d50 = audioProcessor.getD50();
-        const float c80 = audioProcessor.getC80();
 
         if (edt < 10.0f) {
             labelDecayLargeValue.setText(juce::String(edt, 2) + " s", juce::dontSendNotification);
         } else {
             labelDecayLargeValue.setText(juce::String(edt, 1) + " s", juce::dontSendNotification);
         }
-
-        labelBassRatioValue.setText(juce::String(d50 * 100.0f, 0) + "% (D50)", juce::dontSendNotification);
-        labelTrebleRatioValue.setText(juce::String(c80, 1) + "dB (C80)", juce::dontSendNotification);
     }
 
     bool newProMode = (*audioProcessor.apvts.getRawParameterValue("promode") > 0.5f);
@@ -357,7 +335,6 @@ void FDNReverbEditor::deleteCurrentPreset() {
     );
 }
 
-// ── paint & resized (ウィンドウサイズ変更時はスケーリングのみ行う) ──
 void FDNReverbEditor::paint(juce::Graphics& g) {
     g.fillAll(AmbienceColors::Background);
 }
@@ -368,7 +345,6 @@ void FDNReverbEditor::resized() {
     content.setBounds(0, 0, kBaseW, kBaseH);
 }
 
-// ── layoutContent (論理 900x540 座標系での描画・配置) ──
 void FDNReverbEditor::layoutContent() {
     int topY = PAD;
 
@@ -409,13 +385,16 @@ void FDNReverbEditor::layoutContent() {
 
         int row2Y = row1Y + UNIT_H + 8;
         x = PAD + 2;
-        placeKnob(kWet, x, row2Y);            x += KNOB_W + 14;
-        placeKnob(kDry, x, row2Y);            x += KNOB_W + ROW1_GAP + 14;
-        placeKnob(kLoCutNorm, x, row2Y);      x += KNOB_W + 14;
-        placeKnob(kHiCutNorm, x, row2Y);      x += KNOB_W + ROW1_GAP + 14;
-        placeKnob(kDuckAmt, x, row2Y);        x += KNOB_W + 14;
-        placeKnob(kDuckThr, x, row2Y);        x += KNOB_W + 14;
-        placeKnob(kDuckAtt, x, row2Y);        x += KNOB_W + 14;
+        // ── MIX ──
+        placeKnob(kWet, x, row2Y);            x += KNOB_W + 10;
+        placeKnob(kDry, x, row2Y);            x += KNOB_W + 18;
+        // ── OUT EQ ──
+        placeKnob(kLoCutNorm, x, row2Y);      x += KNOB_W + 10;
+        placeKnob(kHiCutNorm, x, row2Y);      x += KNOB_W + 18;
+        // ── DUCKING (ノブ終了位置 x=612 に収め、Preset との干渉を完全排除) ──
+        placeKnob(kDuckAmt, x, row2Y);        x += KNOB_W + 10;
+        placeKnob(kDuckThr, x, row2Y);        x += KNOB_W + 10;
+        placeKnob(kDuckAtt, x, row2Y);        x += KNOB_W + 10;
         placeKnob(kDuckRel, x, row2Y);
     } else {
         int r1X = PAD + 2;
@@ -444,18 +423,20 @@ void FDNReverbEditor::layoutContent() {
 
     int row2Y = row1Y + UNIT_H + 8;
     int prH = 22;
-    presetPrevButton.setBounds(PRESET_PANEL_X, row2Y + 14, 24, prH);
-    presetCombo.setBounds(PRESET_PANEL_X + 28, row2Y + 14, 170, prH);
-    presetNextButton.setBounds(PRESET_PANEL_X + 202, row2Y + 14, 24, prH);
+    static constexpr int PRESET_X = 640;
+    presetPrevButton.setBounds(PRESET_X, row2Y + 14, 24, prH);
+    presetCombo.setBounds(PRESET_X + 28, row2Y + 14, 164, prH);
+    presetNextButton.setBounds(PRESET_X + 196, row2Y + 14, 24, prH);
 
     int btnRowY = row2Y + 14 + prH + 6;
-    int smBtnW = 68, smBtnH = 22;
-    presetSaveButton.setBounds(PRESET_PANEL_X + 2, btnRowY, smBtnW, smBtnH);
-    presetLoadButton.setBounds(PRESET_PANEL_X + 74, btnRowY, smBtnW, smBtnH);
-    presetDeleteButton.setBounds(PRESET_PANEL_X + 146, btnRowY, smBtnW + 10, smBtnH);
+    int smBtnW = 66, smBtnH = 22;
+    presetSaveButton.setBounds(PRESET_X + 2, btnRowY, smBtnW, smBtnH);
+    presetLoadButton.setBounds(PRESET_X + 72, btnRowY, smBtnW, smBtnH);
+    presetDeleteButton.setBounds(PRESET_X + 142, btnRowY, smBtnW + 10, smBtnH);
 
+    // ── Visualizers (RT60グラフ 112px 大画面, ER/LATE 74px 洗練バー) ──
     int vizTop = row2Y + UNIT_H + 4;
-    int vizH = 82;
+    int vizH = 112;
     rt60Viz.setBounds(PAD, vizTop, W - PAD * 2, vizH);
     spectrumViz.setBounds(PAD, vizTop, W - PAD * 2, vizH);
 
@@ -463,23 +444,11 @@ void FDNReverbEditor::layoutContent() {
     int decayHeight = H - decayY - PAD;
     decayCurveViz.setBounds(PAD, decayY, W - PAD * 2, decayHeight);
 
-    // ── 洗練された Total Decay Time ＆ Metrics エリア ──
-    const int metricsRight = W - PAD - 12;
-    const int metricsW = 280;
-    const int metricsLeft = metricsRight - metricsW;
-    const int metricsTop = decayY + 4;
-
-    labelMetricsTitle.setBounds(metricsLeft, metricsTop, 160, 14);
-    labelDecayLargeValue.setBounds(metricsLeft, metricsTop + 14, 120, 24);
-
-    const int subColX = metricsLeft + 124;
-    const int subCapW = 44;
-    const int subValW = 90;
-    labelBassRatioCaption.setBounds(subColX, metricsTop + 8, subCapW, 14);
-    labelBassRatioValue.setBounds(subColX + subCapW + 2, metricsTop + 8, subValW, 14);
-
-    labelTrebleRatioCaption.setBounds(subColX, metricsTop + 22, subCapW, 14);
-    labelTrebleRatioValue.setBounds(subColX + subCapW + 2, metricsTop + 22, subValW, 14);
+    // ── DECAY TIME 超特大表示 (右下端) ──
+    const int dtW = 160;
+    const int dtX = W - PAD - dtW - 12;
+    labelMetricsTitle.setBounds(dtX, decayY + 6, dtW, 12);
+    labelDecayLargeValue.setBounds(dtX, decayY + 18, dtW, 36);
 }
 
 void FDNReverbEditor::paintContent(juce::Graphics& g) {
@@ -520,16 +489,16 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         int row2Y = row1Y + UNIT_H + 8;
         int secHdr2Y = row2Y - 14;
         x = PAD + 2;
-        drawSectionHeader("MIX", x, secHdr2Y, KNOB_W * 2 + 14);
-        x += (KNOB_W + 14) * 2 + ROW1_GAP - 14;
-        drawSectionHeader("OUT EQ", x, secHdr2Y, KNOB_W * 2 + 14);
-        x += (KNOB_W + 14) * 2 + ROW1_GAP - 14;
-        drawSectionHeader("DUCKING", x, secHdr2Y, KNOB_W * 4 + 42);
-        drawSectionHeader("PRESET", PRESET_PANEL_X, secHdr2Y, 200);
+        drawSectionHeader("MIX", x, secHdr2Y, KNOB_W * 2 + 10);
+        x += (KNOB_W + 10) * 2 + 18 - 10;
+        drawSectionHeader("OUT EQ", x, secHdr2Y, KNOB_W * 2 + 10);
+        x += (KNOB_W + 10) * 2 + 18 - 10;
+        drawSectionHeader("DUCKING", x, secHdr2Y, KNOB_W * 4 + 30);
+        drawSectionHeader("PRESET", 640, secHdr2Y, 200);
     } else {
         int x = PAD + 2;
         drawSectionHeader("BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)", x, secHdrY, 400);
         int row2Y = row1Y + UNIT_H + 8;
-        drawSectionHeader("PRESET", PRESET_PANEL_X, row2Y - 14, 200);
+        drawSectionHeader("PRESET", 640, row2Y - 14, 200);
     }
 }

@@ -9,7 +9,7 @@ add_subdirectory(C:/JUCE ./JUCE)
 juce_add_plugin(Ambience
     COMPANY_NAME            "OTODESK"
     PLUGIN_MANUFACTURER_CODE "Otdk"
-    PLUGIN_CODE             "Ambi"
+    PLUGIN_CODE             "Amb1"
     FORMATS                 VST3 Standalone
     PRODUCT_NAME            "Ambience1.2.1"
     PLUGIN_DESCRIPTION      "16-channel FDN Algorithmic Reverb"
