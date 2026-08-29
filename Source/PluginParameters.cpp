@@ -21,11 +21,11 @@ namespace FDNReverb {
 
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             ParamID::Algorithm, "Algorithm",
-            juce::StringArray{ "ROOM1","ROOM2","HALL1","HALL2","PLATE","SPRING","GOLDFOIL" }, 0));
+            juce::StringArray{ "ROOM1","ROOM2","HALL1","HALL2","PLATE","SPRING","GOLDFOIL","INCHINDOWN" }, 0));
 
         addFloat(ParamID::PreDelay, "Pre-Delay", 0.0f, 500.0f, 10.0f, 1.0f, "ms");
         addFloat(ParamID::RoomSize, "Room Size", 0.3f, 2.0f, 1.0f);
-        addFloat(ParamID::DecayTime, "Decay Time", 0.1f, 20.0f, 1.5f, 0.35f, "s");
+        addFloat(ParamID::DecayTime, "Decay Time", 0.1f, 120.0f, 1.5f, 0.25f, "s");
         addFloat(ParamID::HFDamping, "HF Damping", 0.0f, 1.0f, 0.0f);
         addFloat(ParamID::LFAbsorption, "LF Absorption", 0.0f, 1.0f, 0.0f);
 

@@ -1,19 +1,9 @@
 ﻿#include "PluginProcessor.h"
-
 #include "PluginEditor.h"
 
 using namespace FDNReverb;
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//  笘・Step A: Wet 縺ｮ蜀・Κ繧ｪ繝輔そ繝・ヨ
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-//   繝ｦ繝ｼ繧ｶ繝ｼ陦ｨ遉ｺ縺ｯ -60縲・dB 縺縺後仝et 譛螟ｧ縺ｯ螳溷柑逧・↓ -3dB 縺ｫ縺励◆縺・・
-//   逅・罰: Wet=0dB 縺縺ｨ FDN 縺ｮ makeup 繧ｲ繧､繝ｳ縺ｨ蜷医ｏ縺輔ｊ OutputLimiter 縺・
-//         騾｣邯壻ｽ懷虚縺励※髻ｳ縺悟牡繧後ｋ縲・3dB 縺ｮ繝倥ャ繝峨Ν繝ｼ繝縺悟ｿ・ｦ√・
-//   螳溯｣・ APVTS 縺九ｉ蜿悶▲縺溷､縺ｫ -3dB 繧貞刈邂・(= 0.708 蛟・ 縺吶ｋ縺ｮ縺ｧ縺ｯ縺ｪ縺上・
-//         Decibels::decibelsToGain 蠕後↓荵礼ｮ励☆繧句ｽ｢縺梧焚蛟､逧・↓螳牙・縲・
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
-static constexpr float kWetInternalOffsetDB = -1.0f;
+static constexpr float kWetInternalOffsetDB = 0.0f;
 
 FDNReverbAudioProcessor::FDNReverbAudioProcessor()
     : AudioProcessor(BusesProperties()
@@ -67,15 +57,18 @@ void FDNReverbAudioProcessor::updateEngineParams()
     p.stereoWidth = *apvts.getRawParameterValue(ParamID::StereoWidth);
     p.erLevel = *apvts.getRawParameterValue(ParamID::ERLevel);
     p.saturation = *apvts.getRawParameterValue(ParamID::Saturation);
+    p.satTypeIdx = (int)*apvts.getRawParameterValue(ParamID::SatType);
     p.wetDB = *apvts.getRawParameterValue(ParamID::WetLevel);
     p.dryDB = *apvts.getRawParameterValue(ParamID::DryLevel);
+
     p.duckingAmount = *apvts.getRawParameterValue(ParamID::DuckAmount);
     p.duckingAttackMs = *apvts.getRawParameterValue(ParamID::DuckAttack);
     p.duckingRelMs = *apvts.getRawParameterValue(ParamID::DuckRelease);
     p.duckingThreshDB = *apvts.getRawParameterValue(ParamID::DuckThresh);
-    p.satTypeIdx = (int)*apvts.getRawParameterValue(ParamID::SatType);
-    p.erSolo = (*apvts.getRawParameterValue(ParamID::ERSolo)) > 0.5f;
-    p.proMode = (*apvts.getRawParameterValue(ParamID::ProMode)) > 0.5f;
+
+    p.erSolo = *apvts.getRawParameterValue(ParamID::ERSolo) > 0.5f;
+    p.proMode = *apvts.getRawParameterValue(ParamID::ProMode) > 0.5f;
+
     p.tiltLow = *apvts.getRawParameterValue(ParamID::TiltLow);
     p.tiltMid = *apvts.getRawParameterValue(ParamID::TiltMid);
     p.tiltHigh = *apvts.getRawParameterValue(ParamID::TiltHigh);
@@ -94,12 +87,9 @@ void FDNReverbAudioProcessor::updateEngineParams()
     p.loCutHz = *apvts.getRawParameterValue(ParamID::LoCut);
     p.hiCutHz = *apvts.getRawParameterValue(ParamID::HiCut);
 
-    // 笘・Step A: Wet 縺ｫ蜀・Κ -3dB 繧ｪ繝輔そ繝・ヨ繧帝←逕ｨ
-    // 繝ｦ繝ｼ繧ｶ繝ｼ謫堺ｽ懊・ -60縲・dB縲∝ｮ溷柑蛟､縺ｯ -63縲・3dB 縺ｨ縺ｪ繧九・
     smoothWetGain.setTargetValue(
         juce::Decibels::decibelsToGain(p.wetDB + kWetInternalOffsetDB));
 
-    // 笘・ER Solo譎ゅ・Dry髻ｳ繧貞ｮ悟・縺ｫ繝溘Η繝ｼ繝医☆繧・
     if (p.erSolo) {
         smoothDryGain.setTargetValue(0.0f);
     } else {
@@ -161,11 +151,6 @@ void FDNReverbAudioProcessor::processBlock(
 
 void FDNReverbAudioProcessor::getStateInformation(juce::MemoryBlock& d) {
     auto state = apvts.copyState();
-
-    // 笘・菫ｮ豁｣: 迴ｾ蝨ｨ縺ｮ繝励Μ繧ｻ繝・ヨ蜷阪ｒ ValueTree 縺ｫ菫晏ｭ・
-    // 繧ｨ繝・ぅ繧ｿ繝ｼ縺悟ｭ伜惠縺吶ｋ蝣ｴ蜷医￣resetManager 縺九ｉ蜷榊燕繧貞叙蠕励☆繧九・
-    // 繧ｨ繝・ぅ繧ｿ繝ｼ縺ｯ AudioProcessor 縺檎峩謗･菫晄戟縺励↑縺・◆繧√・
-    // 繝励Μ繧ｻ繝・ヨ蜷阪ｒ Processor 蛛ｴ縺ｧ邂｡逅・☆繧九ヵ繧｣繝ｼ繝ｫ繝峨ｒ霑ｽ蜉縺吶ｋ縲・
     if (lastSavedPresetName.isNotEmpty())
         state.setProperty("currentPresetName", lastSavedPresetName, nullptr);
 
@@ -177,10 +162,7 @@ void FDNReverbAudioProcessor::setStateInformation(const void* d, int s) {
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(d, s));
     if (xml && xml->hasTagName(apvts.state.getType())) {
         auto tree = juce::ValueTree::fromXml(*xml);
-
-        // 笘・菫ｮ豁｣: 繝励Μ繧ｻ繝・ヨ蜷阪ｒ蠕ｩ蜈・
         lastSavedPresetName = tree.getProperty("currentPresetName", "").toString();
-
         apvts.replaceState(tree);
         paramsNeedUpdate = true;
     }
@@ -192,7 +174,7 @@ juce::AudioProcessorEditor* FDNReverbAudioProcessor::createEditor() {
 
 void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
 {
-    if (algorithmIndex < 0 || algorithmIndex >= 7) return;
+    if (algorithmIndex < 0 || algorithmIndex >= NUM_ALGORITHMS) return;
 
     const auto& def = PRESET_DEFAULTS[algorithmIndex];
 
@@ -200,24 +182,20 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
         if (auto* param = apvts.getParameter(paramID)) {
             param->setValueNotifyingHost(param->convertTo0to1(value));
         }
-        };
+    };
 
     setParam(ParamID::RoomSize, def.roomSize);
     setParam(ParamID::DecayTime, def.decayTime);
-
-    // 笘・Step A: HF Damping / LF Absorption 縺ｯ蟶ｸ縺ｫ 0 縺ｫ繝ｪ繧ｻ繝・ヨ
-    //   AlgorithmPresets.h 縺ｮ def.hfDamp / def.lfAbsorb 縺ｯ菴ｿ繧上↑縺・・
-    //   逅・罰: 繧｢繝ｫ繧ｴ繝ｪ繧ｺ繝驕ｸ謚樒峩蠕後・縲後・繝ｪ繧ｻ繝・ヨ縺昴・繧ゅ・縺ｮ RT60 繧ｫ繝ｼ繝悶阪ｒ
-    //         縺昴・縺ｾ縺ｾ蜀咲樟縺吶ｋ縺ｮ縺梧ｭ｣縺励＞謖吝虚縲ゅΘ繝ｼ繧ｶ繝ｼ縺梧э蝗ｳ逧・↓陬懈ｭ｣繧・
-    //         蜉縺医ｋ蜑阪↓繝・ヵ繧ｩ繝ｫ繝医〒陬懈ｭ｣縺悟・繧九・縺ｯ荳崎・辟ｶ縲・
-    setParam(ParamID::HFDamping, 0.0f);
-    setParam(ParamID::LFAbsorption, 0.0f);
-
+    setParam(ParamID::PreDelay, def.preDelayMs);
+    setParam(ParamID::StereoWidth, def.stereoWidth);
+    setParam(ParamID::HFDamping, def.hfDamp);
+    setParam(ParamID::LFAbsorption, def.lfAbsorb);
     setParam(ParamID::Diffusion, def.diffusion);
     setParam(ParamID::ModAmount, def.modAmount);
     setParam(ParamID::ModRate, def.modRate);
     setParam(ParamID::ERLevel, def.erLevel);
     setParam(ParamID::Saturation, def.saturation);
+    setParam(ParamID::SatType, static_cast<float>(def.satType));
 
     setParam(ParamID::RTBand0, 1.0f);
     setParam(ParamID::RTBand1, 1.0f);

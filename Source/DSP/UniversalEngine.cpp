@@ -146,11 +146,12 @@ namespace FDNReverb {
         activeParams = p;
 
         switch (p.algorithmIndex) {
-        case 0: case 1: currentTopology = ReverbTopology::Room;     break;
-        case 2: case 3: currentTopology = ReverbTopology::Hall;     break;
-        case 4:         currentTopology = ReverbTopology::Plate;    break;
-        case 5:         currentTopology = ReverbTopology::Spring;   break;
-        case 6:         currentTopology = ReverbTopology::Goldfoil; break;
+        case 0: case 1: currentTopology = ReverbTopology::Room;       break;
+        case 2: case 3: currentTopology = ReverbTopology::Hall;       break;
+        case 4:         currentTopology = ReverbTopology::Plate;      break;
+        case 5:         currentTopology = ReverbTopology::Spring;     break;
+        case 6:         currentTopology = ReverbTopology::Goldfoil;   break;
+        case 7:         currentTopology = ReverbTopology::Inchindown; break;
         }
 
         const float attMs = juce::jmax(0.1f, p.duckingAttackMs);
@@ -267,10 +268,10 @@ namespace FDNReverb {
         constexpr float baseDB = 16.0f;
         float decayCompDB = 7.0f * std::log10(rt60Mid);
 
-        static constexpr std::array<float, 7> algorithmOffsetDB = {
-            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f
+        static constexpr std::array<float, 8> algorithmOffsetDB = {
+            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +0.0f
         };
-        float algoOffset = algorithmOffsetDB[juce::jlimit(0, 6, activeParams.algorithmIndex)];
+        float algoOffset = algorithmOffsetDB[juce::jlimit(0, 7, activeParams.algorithmIndex)];
 
         switch (currentTopology) {
         case ReverbTopology::Room:
@@ -293,11 +294,15 @@ namespace FDNReverb {
             bypassER = false; bypassInputDiffusers = false;
             apfGain = 0.52f;  diffusionSensitivity = 0.8f;
             break;
+        case ReverbTopology::Inchindown:
+            bypassER = false; bypassInputDiffusers = false;
+            apfGain = 0.70f;  diffusionSensitivity = 1.0f;
+            break;
         }
 
         // ★ 【ER 音響壁面減衰 & 立体パンニング設計】
         const auto& erPattern = PRESET_ER_PATTERNS[
-            juce::jlimit(0, 6, activeParams.algorithmIndex)];
+            juce::jlimit(0, 7, activeParams.algorithmIndex)];
         currentERTapCount = erPattern.numTaps;
         float erSizeScale = 0.5f + activeParams.roomSizeScale;
 
@@ -324,21 +329,23 @@ namespace FDNReverb {
 
         float edtCoeff = 0.7f;
         switch (currentTopology) {
-        case ReverbTopology::Room:     edtCoeff = 0.70f; break;
-        case ReverbTopology::Hall:     edtCoeff = 0.95f; break;
-        case ReverbTopology::Plate:    edtCoeff = 0.60f; break;
-        case ReverbTopology::Spring:   edtCoeff = 0.50f; break;
-        case ReverbTopology::Goldfoil: edtCoeff = 0.85f; break;
+        case ReverbTopology::Room:       edtCoeff = 0.70f; break;
+        case ReverbTopology::Hall:       edtCoeff = 0.95f; break;
+        case ReverbTopology::Plate:      edtCoeff = 0.60f; break;
+        case ReverbTopology::Spring:     edtCoeff = 0.50f; break;
+        case ReverbTopology::Goldfoil:   edtCoeff = 0.85f; break;
+        case ReverbTopology::Inchindown: edtCoeff = 1.00f; break;
         }
         theoreticalEDT = rt60Mid * edtCoeff;
 
         float satMultiplier = 1.0f;
         switch (currentTopology) {
-        case ReverbTopology::Room:     satMultiplier = 0.90f; break;
-        case ReverbTopology::Hall:     satMultiplier = 0.93f; break;
-        case ReverbTopology::Plate:    satMultiplier = 1.00f; break;
-        case ReverbTopology::Spring:   satMultiplier = 1.05f; break;
-        case ReverbTopology::Goldfoil: satMultiplier = 1.02f; break;
+        case ReverbTopology::Room:       satMultiplier = 0.90f; break;
+        case ReverbTopology::Hall:       satMultiplier = 0.93f; break;
+        case ReverbTopology::Plate:      satMultiplier = 1.00f; break;
+        case ReverbTopology::Spring:     satMultiplier = 1.05f; break;
+        case ReverbTopology::Goldfoil:   satMultiplier = 1.02f; break;
+        case ReverbTopology::Inchindown: satMultiplier = 0.90f; break;
         }
 
         float effectiveSatAmount = juce::jlimit(0.0f, 1.0f,
@@ -426,8 +433,6 @@ namespace FDNReverb {
 
         constexpr float compThresh = 0.35f;
         constexpr float compThreshSq = compThresh * compThresh;
-
-        const float wetGain = juce::Decibels::decibelsToGain(activeParams.wetDB);
 
         for (int n = 0; n < numSamples; ++n) {
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
@@ -593,7 +598,7 @@ namespace FDNReverb {
 
             outputEQ.process(wetL, wetR);
 
-            const float finalWetGain = wetGain * duckGainLinear;
+            const float finalWetGain = duckGainLinear;
             outL[n] = wetL * finalWetGain;
             outR[n] = wetR * finalWetGain;
 

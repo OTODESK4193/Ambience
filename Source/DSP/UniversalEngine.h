@@ -26,7 +26,8 @@ namespace FDNReverb {
         Hall,
         Plate,
         Spring,
-        Goldfoil
+        Goldfoil,
+        Inchindown
     };
 
     // ═══════════════════════════════════════════════════════════════════════════

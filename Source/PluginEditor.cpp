@@ -35,7 +35,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setSize(W, H);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B010", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B011", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 14.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);

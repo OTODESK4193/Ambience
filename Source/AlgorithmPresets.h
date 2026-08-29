@@ -5,7 +5,7 @@
 namespace FDNReverb {
 
     static constexpr int NUM_BANDS = 10;
-    static constexpr int NUM_ALGORITHMS = 7;
+    static constexpr int NUM_ALGORITHMS = 8;
     static constexpr std::array<float, NUM_BANDS> BAND_FREQ = {
         31.25f, 62.5f, 125.0f, 250.0f, 500.0f, 1000.0f, 2000.0f, 4000.0f, 8000.0f, 16000.0f
     };
@@ -23,24 +23,29 @@ namespace FDNReverb {
         float preDelayMs;
         float erLevel;
         float lateLevel;
+        float hfDamp;
+        float lfAbsorb;
         float saturation;
+        int   satType; // 0=Warm, 1=Tape, 2=Tube, 3=Hard
     };
 
-    static constexpr std::array<PresetDefaults, 7> PRESET_DEFAULTS = { {
-        // Room1
-        { 0.85f, 0.21f, 0.55f, 0.45f, 1.0f, 0.55f, 0.20f, 0.40f, 0.70f, 0.00f },
-        // Room2
-        { 1.00f, 1.38f, 0.50f, 0.40f, 1.0f, 0.60f, 0.25f, 0.45f, 0.65f, 0.05f },
-        // Hall1
-        { 1.30f, 1.89f, 0.45f, 0.35f, 0.8f, 0.70f, 0.30f, 0.30f, 0.60f, 0.10f },
-        // Hall2
-        { 1.50f, 2.08f, 0.50f, 0.30f, 0.8f, 0.75f, 0.30f, 0.30f, 0.55f, 0.10f },
-        // Plate
-        { 0.70f, 1.14f, 0.65f, 0.55f, 1.2f, 0.85f, 0.15f, 0.50f, 0.20f, 0.15f },
-        // Spring
-        { 0.50f, 2.93f, 0.70f, 0.60f, 1.5f, 0.65f, 0.26f, 0.33f, 0.10f, 0.20f },
-        // Goldfoil
-        { 0.95f, 2.06f, 0.55f, 0.40f, 1.0f, 0.80f, 0.35f, 0.45f, 0.30f, 0.18f }
+    static constexpr std::array<PresetDefaults, NUM_ALGORITHMS> PRESET_DEFAULTS = { {
+        // Room1: 小型ライブ部屋 (40 m³)
+        { 0.80f, 0.21f, 0.55f, 0.15f, 0.40f, 0.75f,  5.0f, 0.70f, 1.0f, 0.20f, 0.15f, 0.10f, 0 },
+        // Room2: 中型ライブ部屋 (100 m³)
+        { 1.00f, 1.38f, 0.65f, 0.22f, 0.45f, 0.85f, 10.0f, 0.60f, 1.0f, 0.25f, 0.20f, 0.15f, 1 },
+        // Hall1: 中型コンサートホール (2000 m³)
+        { 1.30f, 1.89f, 0.75f, 0.28f, 0.50f, 0.90f, 20.0f, 0.50f, 1.0f, 0.30f, 0.15f, 0.12f, 0 },
+        // Hall2: 大型シンフォニーホール (12000 m³)
+        { 1.60f, 2.08f, 0.85f, 0.32f, 0.45f, 1.00f, 30.0f, 0.45f, 1.0f, 0.35f, 0.10f, 0.10f, 0 },
+        // Plate: 金属板 (EMT 140)
+        { 0.75f, 1.14f, 0.90f, 0.20f, 0.60f, 0.85f,  0.0f, 0.65f, 1.0f, 0.40f, 0.45f, 0.35f, 2 },
+        // Spring: スプリングリバーブ (Vintage Tank)
+        { 0.50f, 2.93f, 0.60f, 0.35f, 0.70f, 0.70f,  0.0f, 0.55f, 1.0f, 0.50f, 0.55f, 0.40f, 3 },
+        // Goldfoil: 金箔リバーブ (EMT 240)
+        { 0.95f, 2.06f, 0.85f, 0.25f, 0.55f, 0.90f,  5.0f, 0.60f, 1.0f, 0.20f, 0.25f, 0.25f, 1 },
+        // Inchindown: 巨大地下トンネル (Guinness Record 112s)
+        { 2.00f, 35.0f, 0.95f, 0.45f, 0.20f, 1.00f, 60.0f, 0.40f, 1.0f, 0.65f, 0.00f, 0.15f, 0 }
     } };
 
     static constexpr int MAX_ER_TAPS = 12;
@@ -55,7 +60,7 @@ namespace FDNReverb {
         std::array<ERTap, MAX_ER_TAPS> taps;
     };
 
-    static constexpr std::array<ERPattern, 7> PRESET_ER_PATTERNS = { {
+    static constexpr std::array<ERPattern, NUM_ALGORITHMS> PRESET_ER_PATTERNS = { {
         // Room1
         { 12, {{
             { 5.2f,  0.65f }, { 8.7f,  0.58f }, { 12.4f, 0.52f }, { 15.8f, 0.46f },
@@ -97,6 +102,12 @@ namespace FDNReverb {
             { 0.8f,  0.75f }, { 1.8f,  0.68f }, { 3.1f,  0.61f }, { 4.7f,  0.55f },
             { 6.6f,  0.49f }, { 8.8f,  0.43f }, { 11.3f, 0.38f }, { 14.2f, 0.33f },
             { 17.5f, 0.28f }, { 21.2f, 0.24f }, { 25.4f, 0.20f }, { 30.2f, 0.16f }
+        }}},
+        // Inchindown: 巨大地下燃料タンク (全長237m) 長大空間過渡タップ
+        { 12, {{
+            { 18.0f, 0.60f }, { 32.5f, 0.55f }, { 49.0f, 0.50f }, { 68.5f, 0.45f },
+            { 91.0f, 0.40f }, { 116.5f, 0.35f }, { 145.0f, 0.30f }, { 176.5f, 0.25f },
+            { 211.0f, 0.20f }, { 248.5f, 0.16f }, { 289.0f, 0.12f }, { 332.5f, 0.09f }
         }}}
     } };
 
@@ -164,25 +175,25 @@ namespace FDNReverb {
     static constexpr AlgorithmPreset PRESET_HALL2 = {
         "HALL2", "Real Hall 2 (OpenAIR)", 12000.0f,
         {
-            {{ 2.15f, 1.48f, 1.63f, 1.91f, 2.08f, 2.09f, 1.82f, 1.60f, 1.18f, 0.71f }},
-            {{ 1.83f, 1.45f, 1.45f, 2.34f, 2.22f, 1.96f, 1.83f, 1.60f, 1.18f, 0.71f }},
-            {{ 0.08f, 0.2f, 0.4f, 0.16f, 0.21f, 0.29f, 0.37f, 0.3f, 0.33f, 0.44f }},
-            {{ -10.33f, -6.01f, -1.69f, -7.33f, -5.82f, -3.83f, -2.34f, -3.73f, -3.08f, -1.f }},
-            {{ -2.99f, -3.18f, -0.69f, -3.02f, -3.05f, -0.92f, -0.36f, -0.77f, 0.13f, 2.59f }}
+            {{ 5.34f, 2.87f, 2.37f, 2.37f, 2.08f, 1.84f, 1.62f, 1.16f, 0.85f, 0.51f }},
+            {{ 3.63f, 2.67f, 2.39f, 2.45f, 2.1f, 2.03f, 1.69f, 1.26f, 0.85f, 0.51f }},
+            {{ 0.06f, 0.11f, 0.18f, 0.18f, 0.18f, 0.18f, 0.22f, 0.36f, 0.51f, 0.81f }},
+            {{ -11.96f, -8.99f, -6.46f, -6.49f, -6.74f, -6.65f, -5.46f, -2.44f, 0.14f, 6.34f }},
+            {{ -6.9f, -3.9f, -2.38f, -2.35f, -2.71f, -2.63f, -1.82f, 1.27f, 3.84f, 11.02f }}
         }
     };
 
     // ─────────────────────────────────────────────────────────────────────────────
-    //  PLATE : Studio Nord Bremen EMT-Style
+    //  PLATE : Studio Nord Bremen EMT 140
     // ─────────────────────────────────────────────────────────────────────────────
     static constexpr AlgorithmPreset PRESET_PLATE = {
         "PLATE", "Vintage Plate (Studio Nord Bremen)", 0.0f,
         {
-            {{ 4.6257f, 2.4647f, 1.6639f, 1.6039f, 1.1431f, 0.8664f, 0.6561f, 0.4921f, 0.3153f, 0.1890f }},
-            {{ 4.0113f, 2.1374f, 1.4429f, 1.3909f, 1.1926f, 0.8981f, 0.6476f, 0.4921f, 0.3132f, 0.1890f }},
-            {{ 0.2421f, 0.3389f, 0.4357f, 0.4841f, 0.3966f, 0.5246f, 0.5914f, 0.7155f, 0.8915f, 0.9695f }},
-            {{ -0.795f, -0.4236f, -0.286f, -0.2757f, -1.8231f, 0.4282f, 1.6063f, 4.0053f, 9.1464f, 15.0212f }},
-            {{ 5.9205f, 3.1547f, 2.1296f, 2.0529f, 1.1228f, 3.8402f, 5.8356f, 8.7699f, 14.5235f, 23.4324f }}
+            {{ 2.5028f, 1.3341f, 0.9009f, 0.8684f, 1.1431f, 1.2384f, 1.1711f, 0.941f, 0.7058f, 0.4235f }},
+            {{ 1.5541f, 0.8284f, 0.5594f, 0.5392f, 0.9856f, 1.2612f, 1.1396f, 0.7725f, 0.5794f, 0.3476f }},
+            {{ 0.2882f, 0.4034f, 0.5187f, 0.5764f, 0.4299f, 0.3015f, 0.3396f, 0.5746f, 0.7308f, 0.8996f }},
+            {{ -3.9213f, -2.0899f, -1.4112f, -1.3604f, -1.2319f, -3.6441f, -2.8911f, 1.3094f, 4.3411f, 9.5375f }},
+            {{ 0.125f, 0.0666f, 0.045f, 0.0434f, 0.2796f, -0.6385f, 0.4795f, 3.8647f, 7.3995f, 13.918f }}
         }
     };
 
@@ -215,7 +226,22 @@ namespace FDNReverb {
     };
 
     // ─────────────────────────────────────────────────────────────────────────────
-    //  Master Preset Array
+    //  INCHINDOWN : Guinness World Record Underground Tank (112s Decay)
+    // ─────────────────────────────────────────────────────────────────────────────
+    static constexpr AlgorithmPreset PRESET_INCHINDOWN = {
+        "INCHINDOWN", "Inchindown Underground Fuel Tank (112s Decay)", 25000.0f,
+        {
+            // RT60 (s)   31     62     125    250    500     1k     2k     4k     8k    16k
+            {{ 112.0f, 98.0f, 85.0f, 55.0f, 35.0f, 24.0f, 15.0f,  8.0f,  4.5f,  2.5f }},
+            {{  85.0f, 75.0f, 65.0f, 42.0f, 28.0f, 20.0f, 12.0f,  6.5f,  3.5f,  2.0f }},
+            {{  0.02f, 0.03f, 0.05f, 0.08f, 0.10f, 0.12f, 0.15f, 0.25f, 0.45f, 0.75f }},
+            {{ -18.0f, -16.0f, -14.0f, -11.0f, -8.0f, -6.0f, -4.0f, -1.0f,  2.0f,  8.0f }},
+            {{ -12.0f, -10.0f,  -8.0f,  -6.0f, -4.0f, -2.0f,  0.0f,  3.0f,  6.0f, 12.0f }}
+        }
+    };
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  Master Preset Array (全8プリセット)
     // ─────────────────────────────────────────────────────────────────────────────
     static constexpr std::array<const AlgorithmPreset*, NUM_ALGORITHMS> ALL_PRESETS = { {
         &PRESET_ROOM1,
@@ -224,7 +250,8 @@ namespace FDNReverb {
         &PRESET_HALL2,
         &PRESET_PLATE,
         &PRESET_SPRING,
-        &PRESET_GOLDFOIL
+        &PRESET_GOLDFOIL,
+        &PRESET_INCHINDOWN
     } };
 
 } // namespace FDNReverb

@@ -296,7 +296,7 @@ AlgorithmSelector::AlgorithmSelector(juce::AudioProcessorValueTreeState& a)
     : apvts(a)
 {
     static const char* names[] = {
-        "ROOM1","ROOM2","HALL1","HALL2","PLATE","SPRING","GOLDFOIL"
+        "ROOM1","ROOM2","HALL1","HALL2","PLATE","SPRING","GOLDFOIL","INCHINDOWN"
     };
     for (int i = 0; i < FDNReverb::NUM_ALGORITHMS; ++i) {
         buttons[i].setButtonText(names[i]);
