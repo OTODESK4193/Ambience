@@ -13,17 +13,40 @@ FDNReverbAudioProcessor::FDNReverbAudioProcessor()
 {
 }
 
+bool FDNReverbAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    const auto& mainIn  = layouts.getMainInputChannelSet();
+    const auto& mainOut = layouts.getMainOutputChannelSet();
+
+    // 出力は Mono または Stereo のみ許可
+    if (mainOut != juce::AudioChannelSet::mono() && mainOut != juce::AudioChannelSet::stereo())
+        return false;
+
+    // 入力が無効（サイドチェーン等）でない場合、Mono または Stereo を許可
+    if (!mainIn.isDisabled())
+    {
+        if (mainIn != juce::AudioChannelSet::mono() && mainIn != juce::AudioChannelSet::stereo())
+            return false;
+    }
+
+    return true;
+}
+
 void FDNReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    // FL Studio や Reaper の巨大ブロック（レンダリング時等）に備え、十分な最大容量を確保
+    const int maxBlock = std::max(samplesPerBlock, 8192);
+
     int osIdx = 0;
     oversampler = std::make_unique<juce::dsp::Oversampling<float>>(
         2, osIdx,
         juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR, true);
-    oversampler->initProcessing(static_cast<size_t>(samplesPerBlock));
+    oversampler->initProcessing(static_cast<size_t>(maxBlock));
 
-    engine.prepare(sampleRate, samplesPerBlock);
+    engine.prepare(sampleRate, maxBlock);
 
-    wetBuffer.setSize(2, samplesPerBlock);
+    // 最大ブロックサイズで事前確保（オーディオスレッドでの再確保を根絶）
+    wetBuffer.setSize(2, maxBlock);
     smoothWetGain.reset(sampleRate, 0.05);
     smoothDryGain.reset(sampleRate, 0.05);
 
@@ -43,7 +66,8 @@ void FDNReverbAudioProcessor::updateEngineParams()
     DSPParams p;
     p.algorithmIndex = currentAlgo;
     p.preDelayMs = *apvts.getRawParameterValue(ParamID::PreDelay);
-    p.roomSizeScale = *apvts.getRawParameterValue(ParamID::RoomSize) - 0.5f;
+    // ★ RoomSize ノブ値 (0.3 ~ 2.0) をそのままスケール係数として伝達
+    p.roomSizeScale = *apvts.getRawParameterValue(ParamID::RoomSize);
 
     p.decayScale = *apvts.getRawParameterValue(ParamID::DecayTime)
         / ALL_PRESETS[p.algorithmIndex]->acoustics.rt60[4];
@@ -107,29 +131,57 @@ void FDNReverbAudioProcessor::processBlock(
 {
     juce::ScopedNoDenormals noDenormals;
 
-    if (buffer.getNumSamples() == 0 || oversampler == nullptr || !engine.isPrepared()) {
+    const int numSamples = buffer.getNumSamples();
+    const int numIn = getTotalNumInputChannels();
+    const int numOut = getTotalNumOutputChannels();
+
+    if (numSamples == 0 || numOut == 0 || oversampler == nullptr || !engine.isPrepared()) {
         buffer.clear();
         return;
     }
 
     updateEngineParams();
 
-    inputRMS_L.store(buffer.getRMSLevel(0, 0, buffer.getNumSamples()));
-    inputRMS_R.store(buffer.getRMSLevel(1, 0, buffer.getNumSamples()));
+    // 入力 RMS 計測 (Mono 入力時も安全に取得)
+    const float inRMSL = (numIn > 0) ? buffer.getRMSLevel(0, 0, numSamples) : 0.0f;
+    const float inRMSR = (numIn > 1) ? buffer.getRMSLevel(1, 0, numSamples) : inRMSL;
+    inputRMS_L.store(inRMSL);
+    inputRMS_R.store(inRMSR);
 
-    juce::dsp::AudioBlock<float> block(buffer);
+    // 内部ステレオ処理用バッファの確保（安全マージン）
+    if (wetBuffer.getNumSamples() < numSamples) {
+        wetBuffer.setSize(2, numSamples, false, false, true);
+    }
+
+    // 入力信号を内部ステレオバッファへ安全に展開 (Mono -> Dual Mono 展開)
+    juce::AudioBuffer<float> stereoBlockBuffer;
+    stereoBlockBuffer.setSize(2, numSamples, false, false, true);
+
+    if (numIn >= 2) {
+        stereoBlockBuffer.copyFrom(0, 0, buffer.getReadPointer(0), numSamples);
+        stereoBlockBuffer.copyFrom(1, 0, buffer.getReadPointer(1), numSamples);
+    } else if (numIn == 1) {
+        stereoBlockBuffer.copyFrom(0, 0, buffer.getReadPointer(0), numSamples);
+        stereoBlockBuffer.copyFrom(1, 0, buffer.getReadPointer(0), numSamples);
+    } else {
+        stereoBlockBuffer.clear();
+    }
+
+    juce::dsp::AudioBlock<float> block(stereoBlockBuffer);
     auto osBlock = oversampler->processSamplesUp(block);
-    int numSamples = static_cast<int>(osBlock.getNumSamples());
+    const int osNumSamples = static_cast<int>(osBlock.getNumSamples());
 
-    wetBuffer.setSize(2, numSamples, false, false, true);
+    if (wetBuffer.getNumSamples() < osNumSamples) {
+        wetBuffer.setSize(2, osNumSamples, false, false, true);
+    }
 
     engine.processBlock(osBlock.getChannelPointer(0), osBlock.getChannelPointer(1),
         wetBuffer.getWritePointer(0), wetBuffer.getWritePointer(1),
-        numSamples);
+        osNumSamples);
 
     const bool editorOpen = (getActiveEditor() != nullptr);
 
-    for (int i = 0; i < numSamples; ++i) {
+    for (int i = 0; i < osNumSamples; ++i) {
         float dryL = osBlock.getSample(0, i);
         float wetL = wetBuffer.getSample(0, i);
         if (editorOpen && (i % 2 == 0)) {
@@ -151,8 +203,29 @@ void FDNReverbAudioProcessor::processBlock(
 
     oversampler->processSamplesDown(block);
 
-    outputRMS_L.store(buffer.getRMSLevel(0, 0, buffer.getNumSamples()));
-    outputRMS_R.store(buffer.getRMSLevel(1, 0, buffer.getNumSamples()));
+    // 出力チャンネルへの書き戻しとルーティング
+    if (numOut >= 2) {
+        buffer.copyFrom(0, 0, stereoBlockBuffer.getReadPointer(0), numSamples);
+        buffer.copyFrom(1, 0, stereoBlockBuffer.getReadPointer(1), numSamples);
+        for (int ch = 2; ch < buffer.getNumChannels(); ++ch)
+            buffer.clear(ch, 0, numSamples);
+    } else if (numOut == 1) {
+        // Stereo -> Mono Downmix
+        auto* dest = buffer.getWritePointer(0);
+        const auto* srcL = stereoBlockBuffer.getReadPointer(0);
+        const auto* srcR = stereoBlockBuffer.getReadPointer(1);
+        for (int i = 0; i < numSamples; ++i) {
+            dest[i] = (srcL[i] + srcR[i]) * 0.5f;
+        }
+        for (int ch = 1; ch < buffer.getNumChannels(); ++ch)
+            buffer.clear(ch, 0, numSamples);
+    }
+
+    // 出力 RMS 計測 (Mono 出力時も安全に取得)
+    const float outRMSL = (numOut > 0) ? buffer.getRMSLevel(0, 0, numSamples) : 0.0f;
+    const float outRMSR = (numOut > 1) ? buffer.getRMSLevel(1, 0, numSamples) : outRMSL;
+    outputRMS_L.store(outRMSL);
+    outputRMS_R.store(outRMSR);
 }
 
 void FDNReverbAudioProcessor::getStateInformation(juce::MemoryBlock& d) {
@@ -164,21 +237,27 @@ void FDNReverbAudioProcessor::getStateInformation(juce::MemoryBlock& d) {
     state.setProperty("editorHeight", savedEditorHeight, nullptr);
 
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, d);
+    if (xml != nullptr) {
+        copyXmlToBinary(*xml, d);
+    }
 }
 
 void FDNReverbAudioProcessor::setStateInformation(const void* d, int s) {
+    if (d == nullptr || s <= 0) return;
+
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(d, s));
-    if (xml && xml->hasTagName(apvts.state.getType())) {
+    if (xml != nullptr && xml->hasTagName(apvts.state.getType())) {
         auto tree = juce::ValueTree::fromXml(*xml);
-        {
-            const juce::ScopedLock sl(stateLock);
-            lastSavedPresetName = tree.getProperty("currentPresetName", "").toString();
-            savedEditorWidth = tree.getProperty("editorWidth", 900);
-            savedEditorHeight = tree.getProperty("editorHeight", 540);
+        if (tree.isValid()) {
+            {
+                const juce::ScopedLock sl(stateLock);
+                lastSavedPresetName = tree.getProperty("currentPresetName", "").toString();
+                savedEditorWidth = tree.getProperty("editorWidth", 900);
+                savedEditorHeight = tree.getProperty("editorHeight", 540);
+            }
+            apvts.replaceState(tree);
+            paramsNeedUpdate = true;
         }
-        apvts.replaceState(tree);
-        paramsNeedUpdate = true;
     }
 }
 

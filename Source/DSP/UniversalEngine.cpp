@@ -58,6 +58,30 @@ namespace FDNReverb {
         inputTransientEnvSlow = 0.0f;
     }
 
+    struct DelayBounds {
+        float minDelayMs;
+        float maxDelayMs;
+    };
+
+    static constexpr std::array<DelayBounds, NUM_ALGORITHMS> ALGORITHM_DELAY_BOUNDS = { {
+        // ROOM1: 40 m3, V^(1/3) ~ 3.4m, mean path ~ 2.3m
+        { 7.5f, 34.0f },
+        // ROOM2: 100 m3, V^(1/3) ~ 4.6m, mean path ~ 3.1m
+        { 11.0f, 52.0f },
+        // HALL1: 2,000 m3, V^(1/3) ~ 12.6m, mean path ~ 8.4m
+        { 18.0f, 88.0f },
+        // HALL2: 12,000 m3, V^(1/3) ~ 22.9m, mean path ~ 15.5m
+        { 26.0f, 135.0f },
+        // PLATE: EMT 140 (2D Steel Plate, High Density)
+        { 5.5f, 38.0f },
+        // SPRING: Vintage Tank (Dispersive Dispersion)
+        { 8.0f, 55.0f },
+        // GOLDFOIL: EMT 240 (Ultra-thin Gold Foil)
+        { 4.8f, 30.0f },
+        // INCHINDOWN: 125,000 m3, Length 237m (Colossal Underground Tank)
+        { 55.0f, 330.0f }
+    } };
+
     void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
         fs = sampleRate;
         DualGoldenLFO::initTable();
@@ -70,11 +94,11 @@ namespace FDNReverb {
 
         size_t totalMemoryNeeded = 0;
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5)) * 2;
-        totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.1));
+        totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 1.0)); // ★ ER 遅延線を 1.0s 確保 (Inchindown 831ms対応)
         for (int i = 0; i < 4; ++i)
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05)) * 2; // Mid & Side
         for (int i = 0; i < FDN_ORDER; ++i) {
-            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5));
+            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 1.0)); // ★ 1.0s 確保 (Inchindown最大660ms対応)
             for (int s = 0; s < SERIAL_APF_STAGES; ++s)
                 totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05));
         }
@@ -87,7 +111,7 @@ namespace FDNReverb {
         ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.5), mask);
         preDelayLineR.init(ptr, mask);
 
-        ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.1), mask);
+        ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask); // ★ 1.0s 確保
         erDelay.init(ptr, mask);
 
         for (int i = 0; i < 4; ++i) {
@@ -98,7 +122,7 @@ namespace FDNReverb {
         }
 
         for (int i = 0; i < FDN_ORDER; ++i) {
-            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.5), mask);
+            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask); // ★ 1.0s 確保
             fdnDelays[i].init(ptr, mask);
             for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                 ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
@@ -147,8 +171,6 @@ namespace FDNReverb {
 
         dcBlockerCoeff = 1.0f - (6.28318530718f * 5.0f / static_cast<float>(fs));
         dcX1.fill(0.0f); dcY1.fill(0.0f);
-        fdnRmsEnv.fill(0.0f);
-        rmsCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.003f));
 
         fitter.precomputeInteractionMatrix(fs);
         isPreparedFlag = true;
@@ -213,9 +235,15 @@ namespace FDNReverb {
 
     void UniversalEngine::calculatePrimePowerDelays() {
         const float fsf = static_cast<float>(fs);
-        const float sizeCoeff = juce::jlimit(0.5f, 2.0f, activeParams.roomSizeScale + 1.0f);
-        const float minDelayMs = 15.0f + sizeCoeff * 7.5f;
-        const float maxDelayMs = 50.0f + sizeCoeff * 75.0f;
+        const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+        const auto& bounds = ALGORITHM_DELAY_BOUNDS[safeAlgo];
+
+        // RoomSize ノブ (0.3 ~ 2.0) による線形スケーリング
+        const float sizeScale = juce::jlimit(0.3f, 2.5f, activeParams.roomSizeScale);
+
+        const float minDelayMs = bounds.minDelayMs * sizeScale;
+        const float maxDelayMs = bounds.maxDelayMs * sizeScale;
+
         const int minDelaySamples = std::max(11, static_cast<int>(minDelayMs * 0.001f * fsf));
         const int maxDelaySamples = static_cast<int>(maxDelayMs * 0.001f * fsf);
 
@@ -306,8 +334,10 @@ namespace FDNReverb {
         microSatBlend = juce::jlimit(0.0f, 1.0f, 1.0f - (rt60Mid - 2.0f) / 4.0f);
         modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
 
-        constexpr float baseDB = 16.0f;
-        float decayCompDB = 7.0f * std::log10(rt60Mid);
+        constexpr float baseDB = 5.0f;
+        // 短いRT60(<1s)のみ軽微に補正。長いRT60(>2s)はエネルギーが自然蓄積するため追加ブースト不要
+        float decayCompDB = (rt60Mid < 1.0f) ? (2.5f * std::log10(rt60Mid)) : 0.0f;
+        decayCompDB = juce::jlimit(-4.0f, 0.0f, decayCompDB);
 
         static constexpr std::array<float, 8> algorithmOffsetDB = {
             +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +0.0f
@@ -352,9 +382,11 @@ namespace FDNReverb {
             -0.60f, +0.65f, -0.30f, +0.40f, -0.50f, +0.55f
         };
 
+        const float maxSafeERDelaySamples = static_cast<float>(fs * 0.95);
         for (int i = 0; i < erPattern.numTaps; ++i) {
-            currentERDelaySamples[i] = erPattern.taps[i].delayMs * 0.001f
+            const float delaySmp = erPattern.taps[i].delayMs * 0.001f
                 * static_cast<float>(fs) * erSizeScale;
+            currentERDelaySamples[i] = juce::jlimit(1.0f, maxSafeERDelaySamples, delaySmp);
             currentERGains[i] = erPattern.taps[i].gain;
 
             // 方位角パンニング (幾何学的反射)
@@ -396,7 +428,7 @@ namespace FDNReverb {
         saturatorL.setMode(activeParams.satTypeIdx);
         saturatorR.setMode(activeParams.satTypeIdx);
 
-        const float totalMakeupDB = baseDB + decayCompDB + algoOffset;
+        const float totalMakeupDB = juce::jlimit(-6.0f, 6.0f, baseDB + decayCompDB + algoOffset);
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
     }
 
@@ -460,9 +492,6 @@ namespace FDNReverb {
         const float sideBoost = stereoWidth * 1.5f;
         constexpr float apfModFrac[SERIAL_APF_STAGES] = { 0.25f, 0.20f, 0.15f };
 
-        constexpr float compThresh = 0.35f;
-        constexpr float compThreshSq = compThresh * compThresh;
-
         for (int n = 0; n < numSamples; ++n) {
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
             smoothedModRate   += (activeParams.modRate - smoothedModRate)     * 0.005f;
@@ -487,16 +516,12 @@ namespace FDNReverb {
             float midIn = (inLpfStateL + inLpfStateR) * 0.5f;
             float sideIn = (inLpfStateL - inLpfStateR) * 0.5f;
 
-            // ★ 【過渡応答ソフトスロー (Transient Softener)】
-            // 急峻なアタック（スネアやピックの打撃音）の過剰入力をソフトに抑え、FDN内でのコムフィルタリングを防止
+            // ★ 入力過大ピークのソフトリミッティング (ステップ段差のない C1 連続処理)
             const float inputLevel = std::max(std::abs(midIn), std::abs(sideIn));
-            inputTransientEnvFast += (inputLevel - inputTransientEnvFast) * 0.05f;
-            inputTransientEnvSlow += (inputLevel - inputTransientEnvSlow) * 0.002f;
-            if (inputTransientEnvFast > inputTransientEnvSlow * 1.5f && inputTransientEnvFast > 0.05f) {
-                const float tamingGain = (inputTransientEnvSlow * 1.5f) / inputTransientEnvFast;
-                const float blendGain = 0.60f + 0.40f * tamingGain;
-                midIn *= blendGain;
-                sideIn *= blendGain;
+            if (inputLevel > 1.2f) {
+                const float scale = 1.2f / inputLevel;
+                midIn *= scale;
+                sideIn *= scale;
             }
 
             float erOutL = 0.0f, erOutR = 0.0f;
@@ -578,13 +603,11 @@ namespace FDNReverb {
                     d = dcOut;
                 }
 
-                {
-                    fdnRmsEnv[i] += (d * d - fdnRmsEnv[i]) * rmsCoeff;
-                    if (fdnRmsEnv[i] > compThreshSq) {
-                        const float env = std::sqrt(fdnRmsEnv[i]);
-                        const float over = env - compThresh;
-                        d *= compThresh / (compThresh + over * 0.65f);
-                    }
+                // ★ FDN ループ内 滑らかなソフトリミッター (チャタリング・波形破綻完全防止)
+                if (std::abs(d) > 0.90f) {
+                    const float sgn = (d > 0.0f) ? 1.0f : -1.0f;
+                    const float over = std::abs(d) - 0.90f;
+                    d = sgn * (0.90f + 0.10f * std::tanh(over * 10.0f));
                 }
 
                 // ★ FDN ループ内非対称マイクロサチュレーション
@@ -625,7 +648,7 @@ namespace FDNReverb {
             const float fdnOutR = (oddSum + evenSum * crossLeak) * 0.125f;
             fbVec = nextFb;
 
-            const float erMakeupGain = 2.5f;
+            const float erMakeupGain = (currentERTapCount > 6) ? 1.5f : 2.5f;
             const float erMixL = bypassER ? 0.0f : erOutL * erGainCurved * erMakeupGain;
             const float erMixR = bypassER ? 0.0f : erOutR * erGainCurved * erMakeupGain;
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel;

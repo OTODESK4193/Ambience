@@ -27,52 +27,46 @@ namespace FDNReverb {
     public:
         OutputLimiter() = default;
 
-        // ─── サンプルレート依存の係数を計算 ───
         void prepare(double sampleRate) noexcept {
             fs = sampleRate;
-            // 1次ローパスフィルタ係数: y[n] = y[n-1] + coeff * (x[n] - y[n-1])
-            // coeff = 1 - exp(-T / τ) where T = 1/fs, τ = time constant
-            attackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.0005f)); // 0.5ms
-            releaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.050f));  // 50ms
+            // ピークエンベロープ: 即座に追従(0.1ms)し、自然に保持(50ms)
+            peakAttackCoeff  = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.0001f));
+            peakReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.050f));
+            // ゲインスムージング: 1ms で滑らかに適用し、ゼロクロス変調歪みを完全防止
+            gainSmoothCoeff  = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.001f));
             reset();
         }
 
         void reset() noexcept {
+            peakEnv = 0.0f;
             currentGain = 1.0f;
         }
 
-        // ─── サンプル単位の処理 (オーディオスレッドから呼ぶ) ───
         inline void process(float& l, float& r) noexcept {
-            // 真のピーク検出（L/R 絶対値の最大値）
-            const float absL = std::abs(l);
-            const float absR = std::abs(r);
-            const float peak = std::max(absL, absR);
+            const float inPeak = std::max(std::abs(l), std::abs(r));
 
-            // Threshold: -0.5 dBFS ≈ 0.944
-            // ここを超えた信号に対して目標ゲインを算出
-            constexpr float threshold = 0.944f;
+            // ★ ピークエンベロープ追従 (ゼロクロスでも急落しない)
+            if (inPeak > peakEnv)
+                peakEnv += (inPeak - peakEnv) * peakAttackCoeff;
+            else
+                peakEnv += (inPeak - peakEnv) * peakReleaseCoeff;
 
-            // 目標ゲイン:
-            //   peak <= threshold なら 1.0 (リミット不要)
-            //   peak >  threshold なら threshold/peak (信号を threshold に圧縮)
-            const float targetGain = (peak > threshold) ? (threshold / peak) : 1.0f;
+            constexpr float threshold = 0.944f; // -0.5 dBFS
+            const float targetGain = (peakEnv > threshold) ? (threshold / peakEnv) : 1.0f;
 
-            // Attack/Release エンベロープ追従
-            //   ゲイン減少時 (targetGain < currentGain): 高速 attack
-            //   ゲイン復帰時 (targetGain > currentGain): 緩慢 release
-            // これにより、突発ピークには即応するが、ポンピングは抑制される
-            const float coeff = (targetGain < currentGain) ? attackCoeff : releaseCoeff;
-            currentGain += (targetGain - currentGain) * coeff;
+            // ★ ゲイン自体のスムージング (オーディオレートのチャタリングを完全遮断)
+            currentGain += (targetGain - currentGain) * gainSmoothCoeff;
 
-            // ゲイン適用 (L/R 同じゲインを使用 → ステレオイメージ保持)
             l *= currentGain;
             r *= currentGain;
         }
 
     private:
-        double fs{ 44100.0 };
-        float  attackCoeff{ 0.0f };
-        float  releaseCoeff{ 0.0f };
+        double fs{ 48000.0 };
+        float  peakAttackCoeff{ 0.0f };
+        float  peakReleaseCoeff{ 0.0f };
+        float  gainSmoothCoeff{ 0.0f };
+        float  peakEnv{ 0.0f };
         float  currentGain{ 1.0f };
     };
 

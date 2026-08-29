@@ -70,8 +70,9 @@ namespace FDNReverb {
                 y = tube + h2;
                 break;
             }
-            case SaturationMode::Hard: { // トランスコア飽和
-                y = std::clamp(x, -1.1f, 1.1f) - 0.1f * x * x * x;
+            case SaturationMode::Hard: { // トランスコア飽和 (単調増加・完全安全)
+                const float x_clamped = std::clamp(x * 0.8f, -2.5f, 2.5f);
+                y = 1.5f * x_clamped / (1.0f + std::abs(x_clamped));
                 break;
             }
             }

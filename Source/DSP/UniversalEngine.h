@@ -201,9 +201,6 @@ namespace FDNReverb {
         std::array<float, FDN_ORDER> dcY1;
         float dcBlockerCoeff{ 0.999f };
 
-        std::array<float, FDN_ORDER> fdnRmsEnv;
-        float rmsCoeff{ 0.002f };
-
         std::array<float, NUM_BANDS> effectiveRT60;
         float theoreticalEDT{ 0.0f };
 

@@ -13,6 +13,7 @@ juce_add_plugin(Ambience
     FORMATS                 VST3 Standalone
     PRODUCT_NAME            "Ambience1.2.1"
     PLUGIN_DESCRIPTION      "16-channel FDN Algorithmic Reverb"
+    VST3_CATEGORIES         "Fx|Reverb"
     IS_SYNTH                FALSE
     NEEDS_MIDI_INPUT        FALSE
     NEEDS_MIDI_OUTPUT       FALSE
