@@ -61,6 +61,7 @@ private:
     juce::TextButton proModeButton;
     juce::TextButton erSoloButton;
     juce::TextButton lockButton;
+    juce::TextButton sendModeButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> proModeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> erSoloAttachment;
 

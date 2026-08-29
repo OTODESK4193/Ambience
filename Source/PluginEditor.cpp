@@ -44,7 +44,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setSize(kBaseW, kBaseH);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B015", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B016", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -83,6 +83,22 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         audioProcessor.setParamsLocked(lockButton.getToggleState());
     };
     content.addAndMakeVisible(lockButton);
+
+    // ── Send Mode Button (Dry -60dB / Wet 0dB) ──
+    sendModeButton.setButtonText("SEND");
+    sendModeButton.setClickingTogglesState(true);
+    sendModeButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    sendModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    sendModeButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    sendModeButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    sendModeButton.onClick = [this] {
+        const bool isSend = sendModeButton.getToggleState();
+        if (auto* wetParam = audioProcessor.apvts.getParameter("wetlevel"))
+            wetParam->setValueNotifyingHost(wetParam->convertTo0to1(isSend ? 0.0f : -12.0f));
+        if (auto* dryParam = audioProcessor.apvts.getParameter("drylevel"))
+            dryParam->setValueNotifyingHost(dryParam->convertTo0to1(isSend ? -60.0f : 0.0f));
+    };
+    content.addAndMakeVisible(sendModeButton);
 
     // ── Algorithm Selector (Lock状態連携) ──
     algoSelector.isLockedCallback = [this] {
@@ -375,9 +391,10 @@ void FDNReverbEditor::resized() {
 // ── V1.2.0 オリジナル完全一致レイアウト ──
 void FDNReverbEditor::layoutContent() {
     titleLabel.setBounds(PAD, Y_HEADER, 180, 32);
-    proModeButton.setBounds(196, Y_HEADER + 5, 52, 22);
-    erSoloButton.setBounds(254, Y_HEADER + 5, 68, 22);
-    lockButton.setBounds(328, Y_HEADER + 5, 52, 22);
+    proModeButton.setBounds(196, Y_HEADER + 5, 48, 22);
+    erSoloButton.setBounds(248, Y_HEADER + 5, 62, 22);
+    lockButton.setBounds(314, Y_HEADER + 5, 48, 22);
+    sendModeButton.setBounds(366, Y_HEADER + 5, 48, 22);
 
     vuIn.setBounds(W - 220, Y_HEADER + 2, 96, 28);
     vuOut.setBounds(W - 120, Y_HEADER + 2, 96, 28);
@@ -483,7 +500,7 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
     g.setFont(juce::Font(juce::FontOptions(8.f)));
     g.setColour(AmbienceColors::TextSecondary.withAlpha(0.6f));
     g.drawText("16ch FDN | SAPF | ISM-ER | 44.1-192kHz",
-        390, Y_HEADER + 8, 200, 14, juce::Justification::centredLeft);
+        424, Y_HEADER + 8, 200, 14, juce::Justification::centredLeft);
 
     auto sl = [&](int x, int y, const char* text) {
         g.setFont(juce::Font(juce::FontOptions(

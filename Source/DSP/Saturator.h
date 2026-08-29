@@ -38,9 +38,10 @@ namespace FDNReverb {
 
         void setAmount(float amount) noexcept {
             currentAmount = std::clamp(amount, 0.0f, 1.0f);
-            drive = 1.0f + currentAmount * 2.2f;
-            dryMix = 1.0f - currentAmount * 0.20f;
-            wetMix = currentAmount * 0.85f;
+            const float effAmount = (currentMode == SaturationMode::Tube) ? (currentAmount * 0.30f) : currentAmount;
+            drive = 1.0f + effAmount * 2.2f;
+            dryMix = 1.0f - effAmount * 0.20f;
+            wetMix = effAmount * 0.85f;
         }
 
         inline float processSample(float in) noexcept {
