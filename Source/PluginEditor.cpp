@@ -41,10 +41,14 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         static_cast<int>(kBaseW * 1.50), static_cast<int>(kBaseH * 1.50));
     setConstrainer(&constrainer);
     setResizable(true, true);
-    setSize(kBaseW, kBaseH);
+
+    const int savedW = audioProcessor.getSavedEditorWidth();
+    const int savedH = audioProcessor.getSavedEditorHeight();
+    setSize(juce::jlimit(static_cast<int>(kBaseW * 0.80), static_cast<int>(kBaseW * 1.50), savedW),
+            juce::jlimit(static_cast<int>(kBaseH * 0.80), static_cast<int>(kBaseH * 1.50), savedH));
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B021", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B022", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -577,6 +581,7 @@ void FDNReverbEditor::resized() {
     const float scale = juce::jmax(0.25f, (float)getWidth() / (float)kBaseW);
     content.setTransform(juce::AffineTransform::scale(scale));
     content.setBounds(0, 0, kBaseW, kBaseH);
+    audioProcessor.setSavedEditorSize(getWidth(), getHeight());
 }
 
 // ── V1.2.0 オリジナル完全一致レイアウト ──

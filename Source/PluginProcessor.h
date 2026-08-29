@@ -62,6 +62,10 @@ public:
     juce::String getLastSavedPresetName() const noexcept { return lastSavedPresetName; }
     void setLastSavedPresetName(const juce::String& name) noexcept { lastSavedPresetName = name; }
 
+    int getSavedEditorWidth() const noexcept { return savedEditorWidth; }
+    int getSavedEditorHeight() const noexcept { return savedEditorHeight; }
+    void setSavedEditorSize(int w, int h) noexcept { savedEditorWidth = w; savedEditorHeight = h; }
+
     std::array<float, 2048> specFifoDry;
     std::array<float, 2048> specFifoWet;
     std::atomic<int> specFifoIndex{ 0 };
@@ -86,6 +90,8 @@ private:
     double lastSampleRate{ 0.0 };
 
     juce::String lastSavedPresetName;
+    int savedEditorWidth{ 900 };
+    int savedEditorHeight{ 540 };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FDNReverbAudioProcessor)
 };

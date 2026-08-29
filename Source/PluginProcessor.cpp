@@ -155,6 +155,8 @@ void FDNReverbAudioProcessor::getStateInformation(juce::MemoryBlock& d) {
     auto state = apvts.copyState();
     if (lastSavedPresetName.isNotEmpty())
         state.setProperty("currentPresetName", lastSavedPresetName, nullptr);
+    state.setProperty("editorWidth", savedEditorWidth, nullptr);
+    state.setProperty("editorHeight", savedEditorHeight, nullptr);
 
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, d);
@@ -165,6 +167,8 @@ void FDNReverbAudioProcessor::setStateInformation(const void* d, int s) {
     if (xml && xml->hasTagName(apvts.state.getType())) {
         auto tree = juce::ValueTree::fromXml(*xml);
         lastSavedPresetName = tree.getProperty("currentPresetName", "").toString();
+        savedEditorWidth = tree.getProperty("editorWidth", 900);
+        savedEditorHeight = tree.getProperty("editorHeight", 540);
         apvts.replaceState(tree);
         paramsNeedUpdate = true;
     }
