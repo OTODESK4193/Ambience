@@ -60,9 +60,6 @@ void DecayCurveViz::paint(juce::Graphics& g)
     //   0〜splitSec   → 全幅の splitRatio 割合に拡大 (ER ゾーン)
     //   splitSec〜max → 残りの幅 (Late ゾーン)
     // ─────────────────────────────────────────────────────────────────────────
-    constexpr float splitSec = 0.20f;  // 200ms まで拡大
-    constexpr float splitRatio = 0.30f;  // 全幅の 30% を ER ゾーンに割り当て
-
     auto timeToX = [&](float timeSec) -> float {
         if (timeSec <= splitSec) {
             const float ratio = timeSec / splitSec;

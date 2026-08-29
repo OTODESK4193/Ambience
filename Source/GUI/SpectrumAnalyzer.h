@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <JuceHeader.h>
 #include <array>
 #include <atomic>
@@ -73,9 +73,6 @@ public:
             
             forwardFFT.performFrequencyOnlyForwardTransform(fftDataDry.data());
             forwardFFT.performFrequencyOnlyForwardTransform(fftDataWet.data());
-            
-            auto mindB = -100.0f;
-            auto maxdB = 0.0f;
             
             for (int i = 0; i < 1024; ++i) {
                 float dbDry = juce::Decibels::gainToDecibels(fftDataDry[i]) - juce::Decibels::gainToDecibels((float)fftSize);

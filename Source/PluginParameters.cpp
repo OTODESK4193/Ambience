@@ -31,7 +31,7 @@ namespace FDNReverb {
 
         addFloat(ParamID::Diffusion, "Diffusion", 0.0f, 1.0f, 0.7f);
         addFloat(ParamID::ModAmount, "Mod Amount", 0.0f, 1.0f, 0.25f);
-        addFloat(ParamID::ModRate, "Mod Rate", 0.05f, 2.0f, 0.5f, 1.0f, "Hz");
+        addFloat(ParamID::ModRate, "Mod Rate", 0.05f, 2.0f, 0.5f, 0.35f, "Hz");
 
         addFloat(ParamID::StereoWidth, "Stereo Width", 0.0f, 1.0f, 0.8f);
 

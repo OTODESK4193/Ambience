@@ -1,51 +1,42 @@
 #pragma once
+
+#include <JuceHeader.h>
+#include <array>
+#include <cmath>
+#include <memory>
+#include <algorithm>
+#include <vector>
+
+#include "DSPConstants.h"
 #include "DelayMemory.h"
+#include "DSPParams.h"
 #include "BiquadFilters.h"
 #include "MagnitudeResponseFitter.h"
 #include "AcousticMetrics.h"
 #include "Saturator.h"
 #include "OutputLimiter.h"
 #include "OutputEQ.h"
-#include <JuceHeader.h>
-#include "DSPParams.h"
-#include "DSPConstants.h"
-#include <array>
-#include <cmath>
 
 #define AMBIENCE_USE_STAGE2_ABSORPTION 1
 
 namespace FDNReverb {
 
-    enum class ReverbTopology { Room, Hall, Plate, Spring, Goldfoil };
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    //  BandlimitedNoiseLFO: 帯域制限ノイズ + 1次 IIR LPF
-    // ═══════════════════════════════════════════════════════════════════════════
-    struct BandlimitedNoiseLFO {
-        uint32_t state{ 12345u };
-        float    smoothed{ 0.0f };
-        float    rateMultiplier{ 1.0f };
-
-        inline float nextNoise() noexcept {
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            return static_cast<float>(state) * 2.3283064365386963e-10f * 2.0f - 1.0f;
-        }
-
-        inline float tick(float lpfCoeff) noexcept {
-            smoothed += (nextNoise() - smoothed) * lpfCoeff;
-            return smoothed;
-        }
+    enum class ReverbTopology {
+        Room,
+        Hall,
+        Plate,
+        Spring,
+        Goldfoil
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
-    //  ChorusLFO: ウェーブテーブル正弦波（コーラス的ピッチモジュレーション）
-    //  ★ パラボラ近似を廃止 → 1024点LUT+線形補間 (THD < -96dB)
+    //  非同期デュアル黄金比 LFO (Dual Incommensurate LFO)
     // ═══════════════════════════════════════════════════════════════════════════
-    struct ChorusLFO {
-        float phase{ 0.0f };
-        float phaseInc{ 0.0f };
+    struct DualGoldenLFO {
+        float phase1{ 0.0f };
+        float phase2{ 0.0f };
+        float phaseInc1{ 0.0f };
+        float phaseInc2{ 0.0f };
         float rateScale{ 1.0f };
 
         static constexpr int TABLE_SIZE = 1024;
@@ -62,40 +53,57 @@ namespace FDNReverb {
         }
 
         inline float tick() noexcept {
-            phase += phaseInc;
-            if (phase >= 1.0f) phase -= 1.0f;
-            const float idx = phase * static_cast<float>(TABLE_SIZE);
-            const int   i0  = static_cast<int>(idx);
-            const float frac = idx - static_cast<float>(i0);
-            return sineTable[i0] + frac * (sineTable[i0 + 1] - sineTable[i0]);
+            phase1 += phaseInc1;
+            if (phase1 >= 1.0f) phase1 -= 1.0f;
+            phase2 += phaseInc2;
+            if (phase2 >= 1.0f) phase2 -= 1.0f;
+
+            const float idx1 = phase1 * static_cast<float>(TABLE_SIZE);
+            const int   i0_1 = static_cast<int>(idx1);
+            const float frac1 = idx1 - static_cast<float>(i0_1);
+            const float s1 = sineTable[i0_1] + frac1 * (sineTable[i0_1 + 1] - sineTable[i0_1]);
+
+            const float idx2 = phase2 * static_cast<float>(TABLE_SIZE);
+            const int   i0_2 = static_cast<int>(idx2);
+            const float frac2 = idx2 - static_cast<float>(i0_2);
+            const float s2 = sineTable[i0_2] + frac2 * (sineTable[i0_2 + 1] - sineTable[i0_2]);
+
+            // 75% 主周期 + 25% 黄金比副周期 (周期的一致が物理的にゼロ)
+            return 0.75f * s1 + 0.25f * s2;
         }
     };
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  UniversalEngine (V1.2.1 B010)
+    // ═══════════════════════════════════════════════════════════════════════════
     class UniversalEngine {
     public:
         UniversalEngine();
+        ~UniversalEngine() = default;
+
         void prepare(double sampleRate, int maxBlockSize);
         void reset();
         void setParams(const DSPParams& p);
         void processBlock(const float* inL, const float* inR,
             float* outL, float* outR, int numSamples) noexcept;
 
-        std::array<float, NUM_BANDS> getEffectiveRT60() const noexcept { return effectiveRT60; }
+        std::array<float, NUM_BANDS> getEffectiveRT60() const noexcept {
+            return effectiveRT60;
+        }
         float getD50() const noexcept { return acousticMetrics.getD50(); }
         float getC50() const noexcept { return acousticMetrics.getC50(); }
         float getC80() const noexcept { return acousticMetrics.getC80(); }
         float getEDT() const noexcept { return theoreticalEDT; }
-        const AcousticMetrics& getAcousticMetrics() const noexcept { return acousticMetrics; }
 
-        int   getERTapCount() const noexcept { return currentERTapCount; }
-        float getERTapDelaySamples(int index) const noexcept {
-            return (index >= 0 && index < currentERTapCount) ? currentERDelaySamples[index] : 0.0f;
-        }
-        float getERTapGain(int index) const noexcept {
-            return (index >= 0 && index < currentERTapCount) ? currentERGains[index] : 0.0f;
-        }
         double getSampleRate() const noexcept { return fs; }
         bool   isERBypassed()  const noexcept { return bypassER; }
+        int    getERTapCount() const noexcept { return currentERTapCount; }
+        float  getERTapDelaySamples(int idx) const noexcept {
+            return (idx >= 0 && idx < currentERTapCount) ? currentERDelaySamples[idx] : 0.0f;
+        }
+        float  getERTapGain(int idx) const noexcept {
+            return (idx >= 0 && idx < currentERTapCount) ? currentERGains[idx] : 0.0f;
+        }
 
     private:
         void updateTopologyAndRouting();
@@ -103,7 +111,7 @@ namespace FDNReverb {
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
-        // ═══ FDN ループ内マイクロサチュレーション ═══
+        // ★ FDN ループ内非対称マイクロサチュレーション (温かみのある 2次倍音蓄積)
         inline static float processMicroSaturation(float x) noexcept {
             constexpr float kInScale = 0.15f;
             constexpr float kOutScale = 1.0f / kInScale;
@@ -111,7 +119,9 @@ namespace FDNReverb {
             if (xs > 3.0f) return  kOutScale;
             if (xs < -3.0f) return -kOutScale;
             const float xsq = xs * xs;
-            return (xs * (27.0f + xsq) / (27.0f + 9.0f * xsq)) * kOutScale;
+            const float sat3 = (xs * (27.0f + xsq) / (27.0f + 9.0f * xsq));
+            const float sat2 = 0.035f * xsq * (xs > 0.0f ? 1.0f : -1.0f); // 偶数倍音微小付加
+            return (sat3 + sat2) * kOutScale;
         }
 
         DelayMemoryPool memoryPool;
@@ -122,25 +132,26 @@ namespace FDNReverb {
         static constexpr int FDN_ORDER = 16;
         static constexpr int SERIAL_APF_STAGES = 3;
 
-        // ★ パラメータ平滑化: updateTopologyAndRouting() の呼出頻度を制限
         int topologyUpdateCounter{ 0 };
         static constexpr int TOPOLOGY_UPDATE_INTERVAL = 64;
         bool topologyUpdatePending{ false };
 
-        // ★ PreDelay ディレイライン (最大500ms) - L/R独立
         LinearDelayLine                              preDelayLineL;
         LinearDelayLine                              preDelayLineR;
         float                                        preDelaySamples{ 0.0f };
 
         LinearDelayLine                              erDelay;
-        std::array<float, 16>                        erTaps;
         std::array<LinearDelayLine, 4>               inputDiffusers;
-        std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;  // ★ Hermite 3次補間
+        std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;
         std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
         int                            currentERTapCount{ 0 };
         std::array<float, MAX_ER_TAPS> currentERDelaySamples;
         std::array<float, MAX_ER_TAPS> currentERGains;
+        std::array<float, MAX_ER_TAPS> currentERPanL;
+        std::array<float, MAX_ER_TAPS> currentERPanR;
+        std::array<float, MAX_ER_TAPS> currentERLpfCoeff;
+        std::array<float, MAX_ER_TAPS> erLpfState;
 
         OutputLimiter outputLimiter;
         OutputEQ      outputEQ;
@@ -149,16 +160,10 @@ namespace FDNReverb {
         float duckingAttackCoeff{ 0.0f };
         float duckingReleaseCoeff{ 0.0f };
 
-#if AMBIENCE_USE_STAGE2_ABSORPTION
         std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2;
         std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> currentAbsorptionCoeffsS2;
-#else
-        std::array<BiquadState, FDN_ORDER> absorptionFilters;
-        std::array<BiquadCoeffs, FDN_ORDER> currentAbsorptionCoeffs;
-#endif
 
-        std::array<BandlimitedNoiseLFO, FDN_ORDER> lfos;
-        std::array<ChorusLFO, FDN_ORDER>           chorusLFOs;
+        std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs;
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples;
         std::array<float, FDN_ORDER>               fbVec;
 
@@ -169,18 +174,15 @@ namespace FDNReverb {
         float lateMakeupGainLinear{ 1.0f };
 
         float diffusionSensitivity{ 1.0f };
-
         float microSatBlend{ 1.0f };
         float modDepthScale{ 1.0f };
         float smoothedModAmount{ 0.0f };
         float smoothedModRate{ 1.0f };
 
-        // ★ DCブロッカー: FDNループ内のDC蓄積を阻止
         std::array<float, FDN_ORDER> dcX1;
         std::array<float, FDN_ORDER> dcY1;
         float dcBlockerCoeff{ 0.999f };
 
-        // ★ Soft-kneeコンプレッション: FDNフィードバックループ内
         std::array<float, FDN_ORDER> fdnRmsEnv;
         float rmsCoeff{ 0.002f };
 

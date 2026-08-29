@@ -11,7 +11,6 @@ AmbienceLookAndFeel::AmbienceLookAndFeel()
     setColour(juce::ComboBox::backgroundColourId, AmbienceColors::Surface);
     setColour(juce::ComboBox::textColourId, AmbienceColors::TextPrimary);
     setColour(juce::ComboBox::outlineColourId, AmbienceColors::Border);
-    mainFont = juce::Font(juce::FontOptions("Helvetica Neue", 11.f, juce::Font::plain));
 }
 
 void AmbienceLookAndFeel::drawRotarySlider(juce::Graphics& g,

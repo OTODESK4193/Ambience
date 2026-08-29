@@ -40,23 +40,23 @@ namespace FDNReverb {
 
     UniversalEngine::UniversalEngine() {
         fbVec.fill(0.0f);
-        ChorusLFO::initTable();
+        DualGoldenLFO::initTable();
 
         constexpr float chorusRates[16] = {
             0.17f, 0.23f, 0.29f, 0.31f, 0.37f, 0.41f, 0.43f, 0.47f,
             0.53f, 0.59f, 0.61f, 0.67f, 0.71f, 0.73f, 0.79f, 0.83f
         };
         for (int i = 0; i < FDN_ORDER; ++i) {
-            chorusLFOs[i].rateScale = chorusRates[i];
-            chorusLFOs[i].phase = static_cast<float>(i) / 16.0f;
-            lfos[i].state = 12345u + static_cast<uint32_t>(i * 7919);
-            lfos[i].rateMultiplier = chorusRates[i];
+            dualLFOs[i].rateScale = chorusRates[i];
+            dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
+            dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
+        erLpfState.fill(0.0f);
     }
 
     void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
         fs = sampleRate;
-        ChorusLFO::initTable();
+        DualGoldenLFO::initTable();
 
         auto getPow2 = [](size_t n) -> size_t {
             size_t p = 1;
@@ -104,6 +104,8 @@ namespace FDNReverb {
         currentERTapCount = 0;
         currentERDelaySamples.fill(0.0f);
         currentERGains.fill(0.0f);
+        erLpfState.fill(0.0f);
+
         outputLimiter.prepare(sampleRate);
         outputEQ.prepare(sampleRate);
 
@@ -136,6 +138,7 @@ namespace FDNReverb {
         duckingEnvelope = 0.0f;
         for (auto& chDelays : nestedAllpassDelays)
             for (auto& dl : chDelays) dl.resetState();
+        erLpfState.fill(0.0f);
     }
 
     void UniversalEngine::setParams(const DSPParams& p) {
@@ -212,7 +215,7 @@ namespace FDNReverb {
         for (int b = 0; b < NUM_BANDS; ++b)
             scaledRT60[b] *= activeParams.rtBands[b];
 
-        // ★ 物理音響学に基づく実空間大気減衰制約 (Physical Air Absorption Monotonicity)
+        // 大気減衰
         scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * 0.90f);
         scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * 0.75f);
         scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * 0.60f);
@@ -292,14 +295,30 @@ namespace FDNReverb {
             break;
         }
 
+        // ★ 【ER 音響壁面減衰 & 立体パンニング設計】
         const auto& erPattern = PRESET_ER_PATTERNS[
             juce::jlimit(0, 6, activeParams.algorithmIndex)];
         currentERTapCount = erPattern.numTaps;
         float erSizeScale = 0.5f + activeParams.roomSizeScale;
+
+        static constexpr float kPans[12] = {
+            -0.75f, +0.70f, -0.45f, +0.85f, -0.80f, +0.35f,
+            -0.60f, +0.65f, -0.30f, +0.40f, -0.50f, +0.55f
+        };
+
         for (int i = 0; i < erPattern.numTaps; ++i) {
             currentERDelaySamples[i] = erPattern.taps[i].delayMs * 0.001f
                 * static_cast<float>(fs) * erSizeScale;
             currentERGains[i] = erPattern.taps[i].gain;
+
+            // 方位角パンニング (幾何学的反射)
+            const float pan = kPans[i % 12];
+            currentERPanL[i] = std::cos(0.785398f * (pan + 1.0f));
+            currentERPanR[i] = std::sin(0.785398f * (pan + 1.0f));
+
+            // 壁面吸収 1次 LPF 係数 (反射回数 i に応じて高域ダンピング)
+            const float cutoffHz = 8000.0f * std::pow(0.91f, static_cast<float>(i));
+            currentERLpfCoeff[i] = 1.0f - std::exp(-6.2831853f * cutoffHz / static_cast<float>(fs));
         }
         if (erPattern.numTaps == 0) bypassER = true;
 
@@ -367,14 +386,15 @@ namespace FDNReverb {
         const float fsf = static_cast<float>(fs);
 
         const float stereoWidth = activeParams.stereoWidth;
-        const float erLevel = activeParams.erLevel;
+        
+        // ★ ERLevel の二乗カーブ (0.0 で完全無音、0.5 で自然、1.0 で明瞭な部屋鳴り)
+        const float erGainCurved = activeParams.erLevel * activeParams.erLevel;
         const float lateLevel = activeParams.lateLevel;
         const bool  erSolo = activeParams.erSolo;
 
         const float duckThreshLin = juce::Decibels::decibelsToGain(activeParams.duckingThreshDB);
         const float duckAmountDB = activeParams.duckingAmount;
 
-        // ★ 【Diffusion 劇的コントロール】0.0(完全粒状・スパーズ) 〜 1.0(超濃密シルキー)
         const float diff = activeParams.diffusion * diffusionSensitivity;
         const float diffuserGain = diff * 0.70f;
         const float effectiveApfGain = apfGain * std::pow(diff, 0.75f);
@@ -382,7 +402,6 @@ namespace FDNReverb {
         const bool  skipInputDiffusers = (diff < 0.05f);
 
         const float sideBoost = stereoWidth * 1.5f;
-        const float erLeakage = (1.0f - stereoWidth) * 0.7f;
 
         std::array<float, FDN_ORDER> freqModScales;
         constexpr float invFdnM1 = 1.0f / static_cast<float>(FDN_ORDER - 1);
@@ -393,7 +412,6 @@ namespace FDNReverb {
         for (int i = 0; i < 4; ++i)
             diffuserDelaySmp[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
 
-        // ★ 1k〜2kHz モードスミアリング最適化 Allpass (1.7ms, 2.8ms, 4.4ms)
         constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.7f, 2.8f, 4.4f };
         constexpr float apfModFrac[SERIAL_APF_STAGES]  = { 0.25f, 0.20f, 0.15f };
         const float msToSmp = 0.001f * fsf;
@@ -406,22 +424,19 @@ namespace FDNReverb {
             }
         }
 
-        std::array<float, MAX_ER_TAPS> erTapGainsHalf;
-        for (int t = 0; t < currentERTapCount; ++t)
-            erTapGainsHalf[t] = currentERGains[t] * 0.5f;
-
         constexpr float compThresh = 0.35f;
         constexpr float compThreshSq = compThresh * compThresh;
 
         const float wetGain = juce::Decibels::decibelsToGain(activeParams.wetDB);
 
         for (int n = 0; n < numSamples; ++n) {
-            // ★ サンプル単位でのパラメータスムージング (ノブ回転時のクリック・ジッパー完全根絶)
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
             smoothedModRate   += (activeParams.modRate - smoothedModRate)     * 0.005f;
 
+            // ★ デュアル黄金比 LFO レート設定 (非同期で周期的一致ゼロ)
             for (int i = 0; i < FDN_ORDER; ++i) {
-                chorusLFOs[i].phaseInc = smoothedModRate * chorusLFOs[i].rateScale / fsf;
+                dualLFOs[i].phaseInc1 = smoothedModRate * dualLFOs[i].rateScale / fsf;
+                dualLFOs[i].phaseInc2 = (smoothedModRate * dualLFOs[i].rateScale * 0.6180339887f) / fsf;
             }
 
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
@@ -458,25 +473,18 @@ namespace FDNReverb {
                 }
             }
 
+            // ★ 【ER 音響壁面吸収 ＆ 立体パンニング処理】
             if (!bypassER) {
                 erDelay.write(midIn);
-                float erTotalL = 0.0f, erTotalR = 0.0f;
                 for (int t = 0; t < currentERTapCount; ++t) {
                     const float tapValue = erDelay.read(currentERDelaySamples[t]);
-                    const float tapGain = erTapGainsHalf[t];
-                    const float tg = tapValue * tapGain;
-                    const float tgLeak = tg * erLeakage;
-                    if (t % 2 == 0) {
-                        erTotalL += tg;
-                        erTotalR += tgLeak;
-                    }
-                    else {
-                        erTotalR += tg;
-                        erTotalL += tgLeak;
-                    }
+                    // 壁面吸収 1次 LPF
+                    erLpfState[t] += currentERLpfCoeff[t] * (tapValue - erLpfState[t]);
+                    const float filteredTap = erLpfState[t] * currentERGains[t];
+
+                    erOutL += filteredTap * currentERPanL[t];
+                    erOutR += filteredTap * currentERPanR[t];
                 }
-                erOutL = erTotalL;
-                erOutR = erTotalR;
             }
 
             if (!bypassER) {
@@ -491,9 +499,8 @@ namespace FDNReverb {
             std::array<float, 16> nextFb;
 
             for (int i = 0; i < FDN_ORDER; ++i) {
-                const float chorusVal = chorusLFOs[i].tick();
+                const float chorusVal = dualLFOs[i].tick();
                 
-                // メインディレイは完全固定 (変調ゼロ: ノイズ・ピッチ揺れ完全ゼロ)
                 const float delaySmp = fdnBaseDelaySamples[i];
                 float d = fdnDelays[i].read(delaySmp);
 
@@ -523,12 +530,13 @@ namespace FDNReverb {
                     }
                 }
 
+                // ★ FDN ループ内非対称マイクロサチュレーション
                 if (microSatBlend > 0.001f) {
                     const float sat = processMicroSaturation(d);
                     d = d + (sat - d) * microSatBlend;
                 }
 
-                // ★ 【完全ノイズフリー】Schroeder 標準型 Modulated Allpass
+                // Schroeder Modulated Allpass
                 float apfOut = d;
                 if (apfGainStage > 0.001f) {
                     for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
@@ -566,14 +574,15 @@ namespace FDNReverb {
             fdnOutR *= 0.125f;
             fbVec = nextFb;
 
-            const float erMakeupGain = 4.0f;
-            const float erMixL = bypassER ? 0.0f : erOutL * erLevel * erMakeupGain;
-            const float erMixR = bypassER ? 0.0f : erOutR * erLevel * erMakeupGain;
+            const float erMakeupGain = 2.5f;
+            const float erMixL = bypassER ? 0.0f : erOutL * erGainCurved * erMakeupGain;
+            const float erMixR = bypassER ? 0.0f : erOutR * erGainCurved * erMakeupGain;
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel;
             const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel;
 
             acousticMetrics.processSample((lateMixL + lateMixR) * 0.5f);
 
+            // ★ Vintage Warmth Saturator
             float satL = saturatorL.processSample(lateMixL);
             float satR = saturatorR.processSample(lateMixR);
 

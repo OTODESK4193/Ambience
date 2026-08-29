@@ -39,7 +39,7 @@ public:
         const juce::String&, const juce::Justification&,
         juce::GroupComponent&) override;
 private:
-    juce::Font mainFont;
+    juce::Font mainFont{ juce::FontOptions("Helvetica Neue", 11.f, juce::Font::plain) };
 };
 
 // ─── RT60 Visualizer ─────────────────────────────────────────────────
