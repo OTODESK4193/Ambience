@@ -15,7 +15,7 @@ namespace AmbienceColors {
     inline const ThemeInfo THEMES[10] = {
         { "Cyber Neon",   juce::Colour(0xFFFF6B00), juce::Colour(0xFF38BDF8) }, // デフォルト (オレンジ / シアン)
         { "Solar Flare",  juce::Colour(0xFFFFB703), juce::Colour(0xFFE63946) }, // ゴールド / クリムゾン
-        { "Matrix Glow",  juce::Colour(0xFF10B981), juce::Colour(0xFF06D6A0) }, // ライム / エメラルド
+        { "Matrix Glow",  juce::Colour(0xFF00FF66), juce::Colour(0xFF00E5FF) }, // ネオングリーン / エレクトリックシアン
         { "Vaporwave",    juce::Colour(0xFFFF007F), juce::Colour(0xFF00F0FF) }, // ネオンピンク / アクア
         { "Dark Amber",   juce::Colour(0xFFF59E0B), juce::Colour(0xFFFDE047) }, // ウォームアンバー / クリーム
         { "Nordic Frost", juce::Colour(0xFF7DD3FC), juce::Colour(0xFFE0F2FE) }, // アイスブルー / フロストホワイト

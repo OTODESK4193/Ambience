@@ -107,7 +107,7 @@ private:
 
     juce::String currentBasePresetName;
     bool isPresetModified{ false };
-    bool isInternalPresetLoading{ false };
+    int loadingPresetCounter{ 0 };
 
     // ── Layout Constants ──
     static constexpr int PAD = 8;
