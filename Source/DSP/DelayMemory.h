@@ -76,6 +76,13 @@ namespace FDNReverb {
             return ((c3 * frac + c2) * frac + c1) * frac + c0;
         }
 
+        inline float readInt(int delayInSamples) const noexcept {
+            const uint32_t uWrite = static_cast<uint32_t>(writeIndex);
+            const uint32_t uId    = static_cast<uint32_t>(delayInSamples);
+            const uint32_t uMask  = static_cast<uint32_t>(mask);
+            return buffer[(uWrite - uId) & uMask];
+        }
+
         inline void write(float input) noexcept {
             buffer[writeIndex] = input;
             writeIndex = (writeIndex + 1) & mask;

@@ -123,10 +123,12 @@ void FDNReverbAudioProcessor::processBlock(
         wetBuffer.getWritePointer(0), wetBuffer.getWritePointer(1),
         numSamples);
 
+    const bool editorOpen = (getActiveEditor() != nullptr);
+
     for (int i = 0; i < numSamples; ++i) {
         float dryL = osBlock.getSample(0, i);
         float wetL = wetBuffer.getSample(0, i);
-        if (i % 2 == 0) {
+        if (editorOpen && (i % 2 == 0)) {
             int idx = specFifoIndex.load(std::memory_order_relaxed);
             if (idx < 2048) {
                 specFifoDry[idx] = dryL;

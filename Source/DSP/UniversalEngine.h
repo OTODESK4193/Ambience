@@ -178,7 +178,14 @@ namespace FDNReverb {
         float microSatBlend{ 1.0f };
         float modDepthScale{ 1.0f };
         float smoothedModAmount{ 0.0f };
-        float smoothedModRate{ 1.0f };
+        float smoothedModRate{ 0.5f };
+
+        // ★ ループ不変量事前計算キャッシュ (Hot Loop CPU 最適化)
+        std::array<float, FDN_ORDER> cachedFreqModScales;
+        std::array<float, 4> cachedDiffuserDelaySmp;
+        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelaySmp;
+        std::array<float, FDN_ORDER> dualLfoIncScale1;
+        std::array<float, FDN_ORDER> dualLfoIncScale2;
 
         std::array<float, FDN_ORDER> dcX1;
         std::array<float, FDN_ORDER> dcY1;

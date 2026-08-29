@@ -109,6 +109,27 @@ namespace FDNReverb {
         outputLimiter.prepare(sampleRate);
         outputEQ.prepare(sampleRate);
 
+        const float fsf = static_cast<float>(fs);
+        constexpr float invFdnM1 = 1.0f / static_cast<float>(FDN_ORDER - 1);
+        for (int i = 0; i < FDN_ORDER; ++i) {
+            cachedFreqModScales[i] = 0.6f + (1.0f - static_cast<float>(i) * invFdnM1) * 0.9f;
+            dualLfoIncScale1[i] = dualLFOs[i].rateScale / fsf;
+            dualLfoIncScale2[i] = (dualLFOs[i].rateScale * 0.6180339887f) / fsf;
+        }
+
+        for (int i = 0; i < 4; ++i)
+            cachedDiffuserDelaySmp[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
+
+        constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.7f, 2.8f, 4.4f };
+        const float msToSmp = 0.001f * fsf;
+        for (int i = 0; i < FDN_ORDER; ++i) {
+            const float chFrac = static_cast<float>((i * 7) % 16) / 16.0f;
+            for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                const float spreadMs = (s + 1) * 0.40f * chFrac;
+                cachedApfBaseDelaySmp[i][s] = (apfBaseMs[s] + spreadMs) * msToSmp;
+            }
+        }
+
         duckingAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.010f));
         duckingReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.200f));
         duckingEnvelope = 0.0f;
@@ -401,6 +422,8 @@ namespace FDNReverb {
 
         const float duckThreshLin = juce::Decibels::decibelsToGain(activeParams.duckingThreshDB);
         const float duckAmountDB = activeParams.duckingAmount;
+        const float maxDuckReductionGain = (duckAmountDB > 0.001f)
+            ? juce::Decibels::decibelsToGain(-duckAmountDB) : 1.0f;
 
         const float diff = activeParams.diffusion * diffusionSensitivity;
         const float diffuserGain = diff * 0.70f;
@@ -409,27 +432,7 @@ namespace FDNReverb {
         const bool  skipInputDiffusers = (diff < 0.05f);
 
         const float sideBoost = stereoWidth * 1.5f;
-
-        std::array<float, FDN_ORDER> freqModScales;
-        constexpr float invFdnM1 = 1.0f / static_cast<float>(FDN_ORDER - 1);
-        for (int i = 0; i < FDN_ORDER; ++i)
-            freqModScales[i] = 0.6f + (1.0f - static_cast<float>(i) * invFdnM1) * 0.9f;
-
-        std::array<float, 4> diffuserDelaySmp;
-        for (int i = 0; i < 4; ++i)
-            diffuserDelaySmp[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
-
-        constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.7f, 2.8f, 4.4f };
-        constexpr float apfModFrac[SERIAL_APF_STAGES]  = { 0.25f, 0.20f, 0.15f };
-        const float msToSmp = 0.001f * fsf;
-        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> apfBaseDelaySmp;
-        for (int i = 0; i < FDN_ORDER; ++i) {
-            const float chFrac = static_cast<float>((i * 7) % 16) / 16.0f;
-            for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
-                const float spreadMs = (s + 1) * 0.40f * chFrac;
-                apfBaseDelaySmp[i][s] = (apfBaseMs[s] + spreadMs) * msToSmp;
-            }
-        }
+        constexpr float apfModFrac[SERIAL_APF_STAGES] = { 0.25f, 0.20f, 0.15f };
 
         constexpr float compThresh = 0.35f;
         constexpr float compThreshSq = compThresh * compThresh;
@@ -438,10 +441,10 @@ namespace FDNReverb {
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
             smoothedModRate   += (activeParams.modRate - smoothedModRate)     * 0.005f;
 
-            // ★ デュアル黄金比 LFO レート設定 (非同期で周期的一致ゼロ)
+            // ★ デュアル黄金比 LFO レート設定 (除算完全排除・事前計算スケール乗算)
             for (int i = 0; i < FDN_ORDER; ++i) {
-                dualLFOs[i].phaseInc1 = smoothedModRate * dualLFOs[i].rateScale / fsf;
-                dualLFOs[i].phaseInc2 = (smoothedModRate * dualLFOs[i].rateScale * 0.6180339887f) / fsf;
+                dualLFOs[i].phaseInc1 = smoothedModRate * dualLfoIncScale1[i];
+                dualLFOs[i].phaseInc2 = smoothedModRate * dualLfoIncScale2[i];
             }
 
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
@@ -460,18 +463,17 @@ namespace FDNReverb {
             const float envCoeff = (inputPeak > duckingEnvelope) ? duckingAttackCoeff : duckingReleaseCoeff;
             duckingEnvelope += (inputPeak - duckingEnvelope) * envCoeff;
 
+            // ★ ダッキング超越関数 (std::log10 & pow) 完全排除・代数的高速化
             float duckGainLinear = 1.0f;
             if (duckAmountDB > 0.001f && duckingEnvelope > duckThreshLin) {
-                const float envDB = 20.0f * std::log10(juce::jmax(duckingEnvelope, 1e-6f));
-                const float overDB = envDB - activeParams.duckingThreshDB;
-                const float gainRedDB = -juce::jmin(overDB, duckAmountDB);
-                duckGainLinear = juce::Decibels::decibelsToGain(gainRedDB);
+                const float ratioGain = duckThreshLin / duckingEnvelope;
+                duckGainLinear = std::max(ratioGain, maxDuckReductionGain);
             }
 
             float fdnInputMid = midIn;
             if (!skipInputDiffusers && !bypassInputDiffusers) {
                 for (int i = 0; i < 4; ++i) {
-                    float d = inputDiffusers[i].read(diffuserDelaySmp[i]);
+                    float d = inputDiffusers[i].read(cachedDiffuserDelaySmp[i]);
                     float w = fdnInputMid + diffuserGain * d;
                     inputDiffusers[i].write(w);
                     fdnInputMid = d - diffuserGain * w;
@@ -500,14 +502,15 @@ namespace FDNReverb {
             fastWalshHadamardTransform(currentFb);
             applySignFlipping(currentFb);
 
-            float fdnOutL = 0.0f, fdnOutR = 0.0f;
+            float evenSum = 0.0f, oddSum = 0.0f;
             std::array<float, 16> nextFb;
 
             for (int i = 0; i < FDN_ORDER; ++i) {
                 const float chorusVal = dualLFOs[i].tick();
                 
-                const float delaySmp = fdnBaseDelaySamples[i];
-                float d = fdnDelays[i].read(delaySmp);
+                // ★ FDNベースディレイの高速整数リード (Hermite多項式補間バイパス)
+                const int delaySmpInt = static_cast<int>(fdnBaseDelaySamples[i]);
+                float d = fdnDelays[i].readInt(delaySmpInt);
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
                 for (int s = 0; s < ABSO_STAGES_S2; ++s)
@@ -545,9 +548,9 @@ namespace FDNReverb {
                 float apfOut = d;
                 if (apfGainStage > 0.001f) {
                     for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
-                        const float baseDelay = apfBaseDelaySmp[i][s];
+                        const float baseDelay = cachedApfBaseDelaySmp[i][s];
                         const float maxSafeMod = baseDelay * 0.40f;
-                        const float targetMod = depthSamples * apfModFrac[s] * freqModScales[i];
+                        const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
                         const float safeMod = std::min(targetMod, maxSafeMod);
                         const float apfDelaySmp = baseDelay + chorusVal * safeMod;
 
@@ -564,19 +567,13 @@ namespace FDNReverb {
                 const float fdnInputForThisCh = (fdnInputMid + sideForCh) * 0.25f;
                 fdnDelays[i].write(fdnInputForThisCh + currentFb[i]);
 
-                const float crossLeak = 1.0f - stereoWidth;
-                if (i % 2 == 0) {
-                    fdnOutL += apfOut;
-                    fdnOutR += apfOut * crossLeak;
-                }
-                else {
-                    fdnOutR += apfOut;
-                    fdnOutL += apfOut * crossLeak;
-                }
+                if ((i & 1) == 0) evenSum += apfOut;
+                else              oddSum  += apfOut;
             }
 
-            fdnOutL *= 0.125f;
-            fdnOutR *= 0.125f;
+            const float crossLeak = 1.0f - stereoWidth;
+            const float fdnOutL = (evenSum + oddSum * crossLeak) * 0.125f;
+            const float fdnOutR = (oddSum + evenSum * crossLeak) * 0.125f;
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f;
@@ -584,8 +581,6 @@ namespace FDNReverb {
             const float erMixR = bypassER ? 0.0f : erOutR * erGainCurved * erMakeupGain;
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel;
             const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel;
-
-            acousticMetrics.processSample((lateMixL + lateMixR) * 0.5f);
 
             // ★ Vintage Warmth Saturator
             float satL = saturatorL.processSample(lateMixL);

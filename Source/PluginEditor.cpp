@@ -44,7 +44,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setSize(kBaseW, kBaseH);
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 1.2.1 B020", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 1.2.1 B021", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -693,10 +693,10 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
     g.setGradientFill(grad);
     g.fillAll();
 
-    auto sl = [&](int x, int y, const char* text) {
+    auto sl = [&](int x, int y, const char* text, int w = 120) {
         g.setFont(juce::Font(juce::FontOptions(
             "Helvetica Neue", 8.5f, juce::Font::bold)));
-        g.drawText(text, x, y, 120, KNOB_LBL_H, juce::Justification::centredLeft);
+        g.drawText(text, x, y, w, KNOB_LBL_H, juce::Justification::centredLeft);
     };
 
     if (!isProMode) {
@@ -732,7 +732,7 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         sl(duck_x, Y_SLABEL2, "DUCKING");
     } else {
         g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
-        sl(PAD, Y_SLABEL1, "BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)");
+        sl(PAD, Y_SLABEL1, "BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)", 500);
 
         g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
         g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(W - PAD));
