@@ -113,18 +113,7 @@ namespace FDNReverb {
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
-        // ★ FDN ループ内非対称マイクロサチュレーション (温かみのある 2次倍音蓄積)
-        inline static float processMicroSaturation(float x) noexcept {
-            constexpr float kInScale = 0.15f;
-            constexpr float kOutScale = 1.0f / kInScale;
-            const float xs = x * kInScale;
-            if (xs > 3.0f) return  kOutScale;
-            if (xs < -3.0f) return -kOutScale;
-            const float xsq = xs * xs;
-            const float sat3 = (xs * (27.0f + xsq) / (27.0f + 9.0f * xsq));
-            const float sat2 = 0.035f * xsq * (xs > 0.0f ? 1.0f : -1.0f); // 偶数倍音微小付加
-            return (sat3 + sat2) * kOutScale;
-        }
+
 
         DelayMemoryPool memoryPool;
         double          fs{ 48000.0 };
@@ -184,10 +173,14 @@ namespace FDNReverb {
         float lateMakeupGainLinear{ 1.0f };
 
         float diffusionSensitivity{ 1.0f };
-        float microSatBlend{ 1.0f };
         float modDepthScale{ 1.0f };
         float smoothedModAmount{ 0.0f };
         float smoothedModRate{ 0.5f };
+
+        // ★ FDN ループ内 ユニタリ・エネルギー正規化 AGC パラメータ
+        float loopEnergyEnv{ 0.0f };
+        float loopAttackCoeff{ 0.0f };
+        float loopReleaseCoeff{ 0.0f };
 
         // ★ ループ不変量事前計算キャッシュ (Hot Loop CPU 最適化)
         std::array<float, FDN_ORDER> cachedFreqModScales;

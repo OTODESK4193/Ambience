@@ -326,18 +326,18 @@ namespace FDNReverb {
         targetDb[8] += -hfDamping * 5.0f;
         targetDb[9] += -hfDamping * 6.0f;
 
-        // ── Step 3: 目標 dB を 0 以下にクランプ ──
-        // ループゲイン ≤ 1 を数学的に保証する安全機構
+        // ── Step 3: 目標 dB を安全上限 (-0.02 dB) にクランプ ──
+        // WLS リップルやバンド間干渉による 1.0 超過を未然に防止
         for (int i = 0; i < N; ++i) {
-            targetDb[i] = std::min(targetDb[i], 0.0f);
+            targetDb[i] = std::min(targetDb[i], -0.02f);
             // 過剰な減衰は数値精度に悪影響なので下限も設ける (-60dB/loop)
             targetDb[i] = std::max(targetDb[i], -60.0f);
             result.targetDb[i] = targetDb[i];
         }
 
-        // ── Step 4: 中域基準ゲイン midGain を抽出 (band 4 = 500Hz) ──
+        // ── Step 4: 中域基準ゲイン midGain を抽出 (安全係数 0.998f を乗算) ──
         float midDb = targetDb[4];
-        float midGainLinear = std::pow(10.0f, midDb / 20.0f);
+        float midGainLinear = std::pow(10.0f, midDb / 20.0f) * 0.998f;
         result.midGainAbsorbed = midGainLinear;
 
         // 残差 dB: 中域からの偏差 (GEQ がフィットすべき周波数特性)

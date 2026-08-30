@@ -79,7 +79,7 @@ namespace FDNReverb {
         // GOLDFOIL: EMT 240 (Ultra-thin Gold Foil)
         { 4.8f, 30.0f },
         // INCHINDOWN: 125,000 m3, Length 237m (Colossal Underground Tank)
-        { 55.0f, 330.0f }
+        { 28.0f, 330.0f }
     } };
 
     void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
@@ -172,6 +172,11 @@ namespace FDNReverb {
         dcBlockerCoeff = 1.0f - (6.28318530718f * 5.0f / static_cast<float>(fs));
         dcX1.fill(0.0f); dcY1.fill(0.0f);
 
+        // ★ ループ内 ユニタリ・エネルギー正規化 AGC 時定数 (Attack: 1ms, Release: 100ms)
+        loopAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.001f));
+        loopReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.100f));
+        loopEnergyEnv = 0.0f;
+
         fitter.precomputeInteractionMatrix(fs);
         isPreparedFlag = true;
 
@@ -193,6 +198,7 @@ namespace FDNReverb {
         saturatorL.reset(); saturatorR.reset();
         outputLimiter.reset(); outputEQ.reset();
         duckingEnvelope = 0.0f;
+        loopEnergyEnv = 0.0f;
         for (auto& chDelays : nestedAllpassDelays)
             for (auto& dl : chDelays) dl.resetState();
         erLpfState.fill(0.0f);
@@ -331,7 +337,6 @@ namespace FDNReverb {
             rt60Mid += effectiveRT60[b];
         rt60Mid = std::max(0.1f, rt60Mid / 6.0f);
 
-        microSatBlend = juce::jlimit(0.0f, 1.0f, 1.0f - (rt60Mid - 2.0f) / 4.0f);
         modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
 
         constexpr float baseDB = 5.0f;
@@ -340,7 +345,7 @@ namespace FDNReverb {
         decayCompDB = juce::jlimit(-4.0f, 0.0f, decayCompDB);
 
         static constexpr std::array<float, 8> algorithmOffsetDB = {
-            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +0.0f
+            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +5.5f
         };
         float algoOffset = algorithmOffsetDB[juce::jlimit(0, 7, activeParams.algorithmIndex)];
 
@@ -367,7 +372,7 @@ namespace FDNReverb {
             break;
         case ReverbTopology::Inchindown:
             bypassER = false; bypassInputDiffusers = false;
-            apfGain = 0.70f;  diffusionSensitivity = 1.0f;
+            apfGain = 0.58f;  diffusionSensitivity = 1.0f;
             break;
         }
 
@@ -428,7 +433,7 @@ namespace FDNReverb {
         saturatorL.setMode(activeParams.satTypeIdx);
         saturatorR.setMode(activeParams.satTypeIdx);
 
-        const float totalMakeupDB = juce::jlimit(-6.0f, 6.0f, baseDB + decayCompDB + algoOffset);
+        const float totalMakeupDB = juce::jlimit(-6.0f, 12.0f, baseDB + decayCompDB + algoOffset);
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
     }
 
@@ -578,6 +583,8 @@ namespace FDNReverb {
 
             float evenSum = 0.0f, oddSum = 0.0f;
             std::array<float, 16> nextFb;
+            std::array<float, 16> apfOutVec;
+            float maxChPeak = 0.0f;
 
             for (int i = 0; i < FDN_ORDER; ++i) {
                 const float chorusVal = dualLFOs[i].tick();
@@ -603,19 +610,6 @@ namespace FDNReverb {
                     d = dcOut;
                 }
 
-                // ★ FDN ループ内 滑らかなソフトリミッター (チャタリング・波形破綻完全防止)
-                if (std::abs(d) > 0.90f) {
-                    const float sgn = (d > 0.0f) ? 1.0f : -1.0f;
-                    const float over = std::abs(d) - 0.90f;
-                    d = sgn * (0.90f + 0.10f * std::tanh(over * 10.0f));
-                }
-
-                // ★ FDN ループ内非対称マイクロサチュレーション
-                if (microSatBlend > 0.001f) {
-                    const float sat = processMicroSaturation(d);
-                    d = d + (sat - d) * microSatBlend;
-                }
-
                 // Schroeder Modulated Allpass (B023 標準安全変調)
                 float apfOut = d;
                 if (apfGainStage > 0.001f) {
@@ -633,14 +627,31 @@ namespace FDNReverb {
                     }
                 }
 
-                nextFb[i] = apfOut;
+                apfOutVec[i] = apfOut;
+                maxChPeak = std::max(maxChPeak, std::abs(apfOut));
+            }
+
+            // ★【ユニタリ・エネルギー正規化 AGC】
+            // 16ch 全体のピークをエンベロープ追従し、全チャンネルに共通スカラー gLoop を適用
+            // （直交性・空間広がりを100%保持したまま、非線形歪みゼロでエネルギーのみを平滑制御）
+            const float agcEnvCoeff = (maxChPeak > loopEnergyEnv) ? loopAttackCoeff : loopReleaseCoeff;
+            loopEnergyEnv += (maxChPeak - loopEnergyEnv) * agcEnvCoeff;
+
+            float gLoop = 1.0f;
+            if (loopEnergyEnv > 0.85f) {
+                gLoop = 0.85f / loopEnergyEnv;
+            }
+
+            for (int i = 0; i < FDN_ORDER; ++i) {
+                const float limitedApfOut = apfOutVec[i] * gLoop;
+                nextFb[i] = limitedApfOut;
 
                 const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
                 const float fdnInputForThisCh = (fdnInputMid + sideForCh) * 0.25f;
                 fdnDelays[i].write(fdnInputForThisCh + currentFb[i]);
 
-                if ((i & 1) == 0) evenSum += apfOut;
-                else              oddSum  += apfOut;
+                if ((i & 1) == 0) evenSum += limitedApfOut;
+                else              oddSum  += limitedApfOut;
             }
 
             const float crossLeak = 1.0f - stereoWidth;
