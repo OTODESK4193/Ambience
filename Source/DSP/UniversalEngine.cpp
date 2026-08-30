@@ -82,6 +82,26 @@ namespace FDNReverb {
         { 28.0f, 330.0f }
     } };
 
+    struct ApfConfig {
+        float baseMs[3];
+        float spreadCoeff;
+    };
+
+    static constexpr std::array<ApfConfig, 6> TOPOLOGY_APF_CONFIGS = { {
+        // Room: 小型〜中型部屋 (227Hz, 357Hz, 588Hz)
+        { { 1.7f, 2.8f, 4.4f }, 0.40f },
+        // Hall: ホール (106Hz, 172Hz, 312Hz)
+        { { 3.2f, 5.8f, 9.4f }, 0.60f },
+        // Plate: 金属板 (270Hz, 435Hz, 769Hz)
+        { { 1.3f, 2.3f, 3.7f }, 0.35f },
+        // Spring: スプリング (204Hz, 322Hz, 555Hz)
+        { { 1.8f, 3.1f, 4.9f }, 0.45f },
+        // Goldfoil: 金箔 (312Hz, 500Hz, 909Hz)
+        { { 1.1f, 2.0f, 3.2f }, 0.30f },
+        // Inchindown: 巨大地下トンネル (超低域分散 42Hz, 73Hz, 138Hz: 中央音域での共鳴ゼロ)
+        { { 7.2f, 13.7f, 23.9f }, 0.80f }
+    } };
+
     void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
         fs = sampleRate;
         DualGoldenLFO::initTable();
@@ -150,16 +170,6 @@ namespace FDNReverb {
         for (int i = 0; i < 4; ++i) {
             cachedDiffuserDelaySmpM[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
             cachedDiffuserDelaySmpS[i] = (3.5f + i * 2.3f) * 0.001f * fsf;
-        }
-
-        constexpr float apfBaseMs[SERIAL_APF_STAGES]   = { 1.7f, 2.8f, 4.4f };
-        const float msToSmp = 0.001f * fsf;
-        for (int i = 0; i < FDN_ORDER; ++i) {
-            const float chFrac = static_cast<float>((i * 7) % 16) / 16.0f;
-            for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
-                const float spreadMs = (s + 1) * 0.40f * chFrac;
-                cachedApfBaseDelaySmp[i][s] = (apfBaseMs[s] + spreadMs) * msToSmp;
-            }
         }
 
         // ★ 入力段 Bandwidth LPF (12kHz 1次ローパス)
@@ -272,6 +282,19 @@ namespace FDNReverb {
     void UniversalEngine::updateTopologyAndRouting() {
         calculatePrimePowerDelays();
 
+        // ★ トポロジー別 Allpass 遅延長の動的キャッシュ計算
+        const int topoIdx = juce::jlimit(0, 5, static_cast<int>(currentTopology));
+        const auto& apfCfg = TOPOLOGY_APF_CONFIGS[topoIdx];
+        const float msToSmp = 0.001f * static_cast<float>(fs);
+
+        for (int i = 0; i < FDN_ORDER; ++i) {
+            const float chFrac = static_cast<float>((i * 7) % 16) / 16.0f;
+            for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                const float spreadMs = (s + 1) * apfCfg.spreadCoeff * chFrac;
+                cachedApfBaseDelaySmp[i][s] = (apfCfg.baseMs[s] + spreadMs) * msToSmp;
+            }
+        }
+
         const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
         auto& preset = *ALL_PRESETS[safeAlgo];
 
@@ -345,7 +368,7 @@ namespace FDNReverb {
         decayCompDB = juce::jlimit(-4.0f, 0.0f, decayCompDB);
 
         static constexpr std::array<float, 8> algorithmOffsetDB = {
-            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +5.5f
+            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +4.5f
         };
         float algoOffset = algorithmOffsetDB[juce::jlimit(0, 7, activeParams.algorithmIndex)];
 
@@ -372,7 +395,7 @@ namespace FDNReverb {
             break;
         case ReverbTopology::Inchindown:
             bypassER = false; bypassInputDiffusers = false;
-            apfGain = 0.58f;  diffusionSensitivity = 1.0f;
+            apfGain = 0.50f;  diffusionSensitivity = 1.0f;
             break;
         }
 
