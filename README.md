@@ -1,6 +1,6 @@
 # Ambience
 
-![Release](https://img.shields.io/badge/release-v1.2.1-blue)
+![Release](https://img.shields.io/badge/release-v1.3.0-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -20,6 +20,10 @@
 </p>
 
 ## Changelog
+
+### 1.3.0 Update!!
+- Further sound quality improvements (noise reduction, silkier reverb tail)
+- Enhanced stability and crash prevention
 
 ### v1.2.1 Update!!
 
