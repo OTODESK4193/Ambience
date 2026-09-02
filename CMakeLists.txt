@@ -85,7 +85,7 @@ target_compile_definitions(Ambience PRIVATE
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
-    AMBIENCE_VERSION="2.0.0B001"
+    AMBIENCE_VERSION="2.0.0B002"
 )
 
 if(MSVC)
@@ -99,3 +99,18 @@ if(MSVC)
 endif()
 
 juce_generate_juce_header(Ambience)
+
+juce_add_console_app(ValidationRunner PRODUCT_NAME "ValidationRunner")
+juce_generate_juce_header(ValidationRunner)
+target_sources(ValidationRunner PRIVATE
+    ValidationTools/ValidationRunner.cpp
+    Source/DSP/UniversalEngine.cpp
+    Source/DSP/BiquadFilters.cpp
+    Source/DSP/MagnitudeResponseFitter.cpp
+    Source/DSP/AcousticMetrics.cpp
+)
+target_include_directories(ValidationRunner PRIVATE Source Source/DSP Source/GUI)
+target_link_libraries(ValidationRunner PRIVATE juce::juce_core juce::juce_audio_basics juce::juce_audio_processors juce::juce_dsp)
+if(MSVC)
+    target_compile_options(ValidationRunner PRIVATE /arch:AVX2 /utf-8 /W3 /wd4819 $<$<CONFIG:Release>:/O2 /fp:fast>)
+endif()

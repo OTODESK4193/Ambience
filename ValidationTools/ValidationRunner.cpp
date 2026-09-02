@@ -4,8 +4,8 @@
 #include <cmath>
 #include <string>
 
-// Include the ACTUAL SDN Engine header
-#include "../Source/DSP/SDNEngine.h"
+// Include the ACTUAL UniversalEngine header
+#include "../Source/DSP/UniversalEngine.h"
 
 using namespace FDNReverb;
 
@@ -53,51 +53,31 @@ void generate_signal(const std::string& wave, float freq, std::vector<float>& si
     }
 }
 
-// Dummy DelayMemoryPool for standalone compilation
-namespace FDNReverb {
-    class DelayMemoryPool {
-    public:
-        std::vector<float> buffer;
-        size_t offset = 0;
-        void allocate(size_t size) { buffer.resize(size, 0.0f); offset = 0; }
-        float* requestMemory(size_t size, int& outMask) {
-            size_t p2 = 1; while (p2 < size) p2 *= 2;
-            float* ptr = buffer.data() + offset;
-            outMask = p2 - 1;
-            offset += p2;
-            return ptr;
-        }
-        void clear() { std::fill(buffer.begin(), buffer.end(), 0.0f); }
-    };
-}
+// Removed mock DelayMemoryPool since we include UniversalEngine.h
 
 int main() {
-    std::cout << "SDNEngine C++ Runner started...\n";
+    std::cout << "UniversalEngine (SDN+FDN) C++ Runner started...\n";
     
-    // Allocate memory
-    FDNReverb::DelayMemoryPool pool;
-    pool.allocate(48000 * 20); // 20 seconds total buffer
+    FDNReverb::UniversalEngine engine;
+    engine.prepare(SAMPLE_RATE, 256);
     
-    SDNShoebox3D sdn;
-    sdn.prepare(SAMPLE_RATE, 256);
-    
-    // Init delays
-    int mask;
-    for(int i=0; i<SDNShoebox3D::NUM_NODES; ++i) {
-        float* ptr = pool.requestMemory(48000 * 2, mask);
-        sdn.delayLines[i].init(ptr, mask);
-    }
-
     std::ofstream outfile("ValidationTools/processed_audio.bin", std::ios::binary);
     
     int count = 0;
-    for (const auto& room : ROOMS) {
-        sdn.updateGeometry(room.w, room.d, room.h, room.sx, room.sy, room.sz, room.lx, room.ly, room.lz);
+    for (int r_idx = 0; r_idx < 6; ++r_idx) {
+        FDNReverb::DSPParams params;
+        params.algorithmIndex = r_idx;
+        params.roomSizeScale = 1.0f;
+        params.decayScale = 1.0f;
+        params.erLevel = 1.0f;
+        params.lateLevel = 1.0f;
+        params.diffusion = 1.0f;
+        
+        engine.setParams(params);
         
         for (float freq : FREQS) {
             for (const auto& wave : WAVES) {
-                sdn.reset();
-                pool.clear();
+                engine.reset();
                 
                 std::vector<float> sig;
                 generate_signal(wave, freq, sig);
@@ -105,21 +85,24 @@ int main() {
                 int total_len = sig.size() + IR_SAMPLES;
                 std::vector<float> outL(total_len, 0.0f);
                 std::vector<float> outR(total_len, 0.0f);
+                std::vector<float> inL(total_len, 0.0f);
+                std::vector<float> inR(total_len, 0.0f);
                 
                 for (int i = 0; i < total_len; ++i) {
                     float inVal = (i < sig.size()) ? sig[i] : 0.0f;
-                    // Impulse to trigger full broadband tail for density measurement
                     if (i == 0) inVal += 0.5f; 
-                    
-                    float oL = 0, oR = 0;
-                    sdn.processOneSample(inVal, inVal, oL, oR);
-                    outL[i] = oL;
-                    outR[i] = oR;
+                    inL[i] = inVal;
+                    inR[i] = inVal;
                 }
                 
-                // Write to binary file
-                outfile.write(reinterpret_cast<const char*>(outL.data()), total_len * sizeof(float));
-                outfile.write(reinterpret_cast<const char*>(outR.data()), total_len * sizeof(float));
+                int block_size = 256;
+                for (int i = 0; i < total_len; i += block_size) {
+                    int chunk = std::min(block_size, total_len - i);
+                    engine.processBlock(inL.data() + i, inR.data() + i, outL.data() + i, outR.data() + i, chunk);
+                }
+                
+                outfile.write(reinterpret_cast<const char*>(outL.data()), outL.size() * sizeof(float));
+                outfile.write(reinterpret_cast<const char*>(outR.data()), outR.size() * sizeof(float));
                 
                 count++;
                 if (count % 50 == 0) std::cout << "Processed " << count << "/1200\n";
@@ -127,7 +110,6 @@ int main() {
         }
     }
     
-    outfile.close();
     std::cout << "Done writing 1200 test cases to processed_audio.bin\n";
     return 0;
 }

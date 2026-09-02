@@ -73,13 +73,13 @@ namespace FDNReverb {
         // HALL2: 12,000 m3, V^(1/3) ~ 22.9m, mean path ~ 15.5m
         { 26.0f, 135.0f },
         // PLATE: EMT 140 (2D Steel Plate, High Density)
-        { 5.5f, 38.0f },
+        { 2.0f, 25.0f },
         // SPRING: Vintage Tank (Dispersive Dispersion)
-        { 8.0f, 55.0f },
+        { 15.0f, 50.0f },
         // GOLDFOIL: EMT 240 (Ultra-thin Gold Foil)
-        { 4.8f, 30.0f },
+        { 1.0f, 18.0f },
         // INCHINDOWN: 125,000 m3, Length 237m (Colossal Underground Tank)
-        { 28.0f, 330.0f }
+        { 40.0f, 1500.0f }
     } };
 
     struct ApfConfig {
@@ -92,10 +92,10 @@ namespace FDNReverb {
         { { 1.7f, 2.8f, 4.4f }, 0.40f },
         // Hall: ホール (106Hz, 172Hz, 312Hz)
         { { 3.2f, 5.8f, 9.4f }, 0.60f },
-        // Plate: 金属板 (270Hz, 435Hz, 769Hz)
-        { { 1.3f, 2.3f, 3.7f }, 0.35f },
-        // Spring: スプリング (204Hz, 322Hz, 555Hz)
-        { { 1.8f, 3.1f, 4.9f }, 0.45f },
+        // Plate: 金属板 - 超短ディレイのモジュレーションで高密度エコーを生成
+        { { 0.5f, 1.2f, 2.0f }, 0.20f },
+        // Spring: スプリング - 意図的なチャープ（Boing）を生むストレッチド・オールパス
+        { { 5.2f, 9.8f, 14.5f }, 0.85f },
         // Goldfoil: 金箔 (312Hz, 500Hz, 909Hz)
         { { 1.1f, 2.0f, 3.2f }, 0.30f },
         // Inchindown: 巨大地下トンネル (超低域分散 42Hz, 73Hz, 138Hz: 中央音域での共鳴ゼロ)
@@ -114,13 +114,16 @@ namespace FDNReverb {
 
         size_t totalMemoryNeeded = 0;
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5)) * 2;
-        totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 1.0)); // ★ ER 遅延線を 1.0s 確保 (Inchindown 831ms対応)
+        totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 1.0)); // ER Dummy
         for (int i = 0; i < 4; ++i)
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05)) * 2; // Mid & Side
         for (int i = 0; i < FDN_ORDER; ++i) {
-            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 1.0)); // ★ 1.0s 確保 (Inchindown最大660ms対応)
+            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 2.0)); // ★ 2.0s 確保 (Inchindown対応)
             for (int s = 0; s < SERIAL_APF_STAGES; ++s)
                 totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05));
+        }
+        for (int i = 0; i < SDNShoebox3D::NUM_NODES; ++i) {
+            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 2.0)); // SDN Nodes
         }
 
         memoryPool.allocate(totalMemoryNeeded);
@@ -131,7 +134,7 @@ namespace FDNReverb {
         ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.5), mask);
         preDelayLineR.init(ptr, mask);
 
-        ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask); // ★ 1.0s 確保
+        ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask);
         
         // Initialize SDN Engine
         sdnEngine.prepare(sampleRate, maxBlockSize);
@@ -147,7 +150,7 @@ namespace FDNReverb {
         }
 
         for (int i = 0; i < FDN_ORDER; ++i) {
-            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask); // ★ 1.0s 確保
+            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask); // ★ 2.0s 確保
             fdnDelays[i].init(ptr, mask);
             for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                 ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
@@ -610,6 +613,10 @@ namespace FDNReverb {
                 fdnInputSide += (erOutL - erOutR) * 0.5f * 0.15f;
             }
 
+            // ★ 空間相関の対称性破壊 (Asymmetric Injection / Extraction)
+            static constexpr float injectSign[16]  = { 1.0f,  1.0f, -1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f, -1.0f, -1.0f };
+            static constexpr float extractSign[16] = { 1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f, -1.0f,  1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f,  1.0f, -1.0f };
+
             std::array<float, 16> currentFb = fbVec;
             fastWalshHadamardTransform(currentFb);
             applySignFlipping(currentFb);
@@ -680,11 +687,12 @@ namespace FDNReverb {
                 nextFb[i] = limitedApfOut;
 
                 const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
-                const float fdnInputForThisCh = (fdnInputMid + sideForCh) * 0.25f;
+                const float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
                 fdnDelays[i].write(fdnInputForThisCh + currentFb[i]);
 
-                if ((i & 1) == 0) evenSum += limitedApfOut;
-                else              oddSum  += limitedApfOut;
+                const float extractedOut = limitedApfOut * extractSign[i];
+                if ((i & 1) == 0) evenSum += extractedOut;
+                else              oddSum  += extractedOut;
             }
 
             const float crossLeak = 1.0f - stereoWidth;
