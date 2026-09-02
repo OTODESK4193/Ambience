@@ -427,6 +427,18 @@ namespace FDNReverb {
             sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f);
             break;
         }
+        // ★ SDN 吸音・減衰の適用 (Decayパラメータ連動)
+        const float fsf = static_cast<float>(fs);
+        // 平均遅延時間を約20msと仮定し、対象のRT60(mid)から減衰係数を逆算
+        const float sdnAvgDelaySmp = 0.02f * fsf * erSizeScale;
+        const float sdnRt60 = std::max(0.1f, rt60Mid * 0.7f); // ERはLateより少し早く減衰
+        const float sdnDbPerSample = -60.0f / (sdnRt60 * fsf);
+        sdnEngine.damping = juce::jlimit(0.1f, 0.999f, juce::Decibels::decibelsToGain(sdnDbPerSample * sdnAvgDelaySmp));
+        
+        // 高域の壁面吸収 (10kHzを基準に、Dampingパラメータで調整)
+        const float hfCutoff = 10000.0f * (1.1f - activeParams.hfDamping);
+        sdnEngine.lpfCoeff = 1.0f - std::exp(-6.2831853f * hfCutoff / fsf);
+        
         bypassER = (activeParams.erLevel < 0.01f);
 
         float edtCoeff = 0.7f;

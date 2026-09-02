@@ -108,6 +108,7 @@ public:
         for (int i = 0; i < NUM_NODES; ++i) {
             modulators[i].reset();
             nodeStates[i] = 0.0;
+            lpfState[i] = 0.0f;
         }
     }
 
@@ -161,7 +162,13 @@ public:
         const float inputScale = 1.0f / std::sqrt(static_cast<float>(NUM_NODES));
         for (int i = 0; i < NUM_NODES; ++i) {
             float injection = (i % 2 == 0) ? mid : side;
-            delayLines[i].write(injection * inputScale + scattered[i]);
+            float rawOut = injection * inputScale + scattered[i];
+            
+            // 1-pole LPF for wall absorption
+            lpfState[i] += lpfCoeff * (rawOut - lpfState[i]);
+            
+            // Apply global damping
+            delayLines[i].write(lpfState[i] * damping);
         }
 
         float sumMid = scattered[0] + scattered[2] + scattered[4];
@@ -173,12 +180,15 @@ public:
 
     float modDepth{ 0.5f };
     float modRate{ 0.3f };
+    float damping{ 0.95f };
+    float lpfCoeff{ 1.0f }; // 1.0 = bypass
     FarrowFractionalDelayLine delayLines[6];
 
 private:
     double fs{ 48000.0 };
     std::array<float, 6> baseDelaySamples{};
     std::array<double, 6> nodeStates{};
+    std::array<float, 6> lpfState{};
     std::array<BrownianModulator, 6> modulators;
 };
 
