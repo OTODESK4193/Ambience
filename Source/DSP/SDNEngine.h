@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <array>
+#include <immintrin.h>
 
 namespace FDNReverb {
 
@@ -109,6 +110,7 @@ public:
             modulators[i].reset();
             nodeStates[i] = 0.0;
             lpfState[i] = 0.0f;
+            smoothedDelaySamples[i] = baseDelaySamples[i];
         }
     }
 
@@ -140,24 +142,45 @@ public:
         const float mid = (inputL + inputR) * 0.5f;
         const float side = (inputL - inputR) * 0.5f;
 
-        float delayOutputs[6] = {};
+        // 1. スカラー演算で遅延線から読み出し (6ノード)
+        alignas(32) float delayOutputs[8] = { 0.0f };
         for (int i = 0; i < NUM_NODES; ++i) {
+            // スムージング (tau = 50ms = coeff 0.0004 for 48kHz)
+            smoothedDelaySamples[i] += 0.0004f * (baseDelaySamples[i] - smoothedDelaySamples[i]);
             float modOffset = modulators[i].tick(modDepth, modRate);
-            delayOutputs[i] = delayLines[i].read(std::max(baseDelaySamples[i] + modOffset, 3.0f));
+            delayOutputs[i] = delayLines[i].read(std::max(smoothedDelaySamples[i] + modOffset, 3.0f));
         }
 
-        double sum = 0.0;
-        for (int i = 0; i < NUM_NODES; ++i) sum += static_cast<double>(delayOutputs[i]);
-        const double scatterCoeff = 2.0 / static_cast<double>(NUM_NODES);
-
-        float scattered[6] = {};
-        for (int i = 0; i < NUM_NODES; ++i) {
-            double yi = scatterCoeff * sum - static_cast<double>(delayOutputs[i]);
-            if (std::isnan(yi) || std::isinf(yi)) yi = 0.0;
-            if (yi > 10.0) yi = 10.0; else if (yi < -10.0) yi = -10.0;
-            scattered[i] = static_cast<float>(yi);
-            nodeStates[i] = yi;
-        }
+        // 2. AVX2 SIMD による完全結合 Householder 散乱 (O(N)アルゴリズム)
+        alignas(32) float scattered[8] = { 0.0f };
+        
+        // --- AVX2 Scattering ---
+        __m256 x = _mm256_load_ps(delayOutputs);
+        
+        // Sum calculation
+        __m256 sum1 = _mm256_hadd_ps(x, x);
+        __m256 sum2 = _mm256_hadd_ps(sum1, sum1);
+        __m128 lo   = _mm256_castps256_ps128(sum2);
+        __m128 hi   = _mm256_extractf128_ps(sum2, 1);
+        __m128 totalSum128 = _mm_add_ps(lo, hi); // Sum of 8 nodes
+        
+        // For 6 active nodes, we must subtract the 2 dummy nodes (which are 0) from the sum?
+        // Actually, since dummy nodes are 0, the sum is just the sum of 6 nodes.
+        // Householder coeff for N=6 is 2/6 = 1/3.
+        __m256 factor = _mm256_set1_ps(0.3333333f);
+        __m128 scaledSum128 = _mm_mul_ps(totalSum128, _mm256_castps256_ps128(factor));
+        __m256 scaledSum = _mm256_broadcastss_ps(scaledSum128);
+        
+        // y = scaledSum - x
+        __m256 y = _mm256_sub_ps(scaledSum, x);
+        
+        // NaN/Inf & Denormal protection clamp (-10.0f to 10.0f)
+        __m256 minVal = _mm256_set1_ps(-10.0f);
+        __m256 maxVal = _mm256_set1_ps(10.0f);
+        y = _mm256_max_ps(minVal, _mm256_min_ps(maxVal, y));
+        
+        _mm256_store_ps(scattered, y);
+        // -----------------------
 
         const float inputScale = 1.0f / std::sqrt(static_cast<float>(NUM_NODES));
         for (int i = 0; i < NUM_NODES; ++i) {
@@ -187,6 +210,7 @@ public:
 private:
     double fs{ 48000.0 };
     std::array<float, 6> baseDelaySamples{};
+    std::array<float, 6> smoothedDelaySamples{};
     std::array<double, 6> nodeStates{};
     std::array<float, 6> lpfState{};
     std::array<BrownianModulator, 6> modulators;

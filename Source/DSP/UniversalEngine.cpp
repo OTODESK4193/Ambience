@@ -371,9 +371,9 @@ namespace FDNReverb {
         modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
 
         constexpr float baseDB = 5.0f;
-        // 短いRT60(<1s)のみ軽微に補正。長いRT60(>2s)はエネルギーが自然蓄積するため追加ブースト不要
-        float decayCompDB = (rt60Mid < 1.0f) ? (2.5f * std::log10(rt60Mid)) : 0.0f;
-        decayCompDB = juce::jlimit(-4.0f, 0.0f, decayCompDB);
+        // ★ FDNエネルギー保存：RT60が長くなるほど内部エネルギーが蓄積するため、sqrt(RT60) に反比例させて音量を均一化
+        float decayCompDB = -10.0f * std::log10(std::max(0.1f, rt60Mid));
+        decayCompDB = juce::jlimit(-12.0f, 12.0f, decayCompDB);
 
         static constexpr std::array<float, 8> algorithmOffsetDB = {
             +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +4.5f
@@ -434,7 +434,7 @@ namespace FDNReverb {
         const float fsf = static_cast<float>(fs);
         // 平均遅延時間を約20msと仮定し、対象のRT60(mid)から減衰係数を逆算
         const float sdnAvgDelaySmp = 0.02f * fsf * erSizeScale;
-        const float sdnRt60 = std::max(0.1f, rt60Mid * 0.7f); // ERはLateより少し早く減衰
+        const float sdnRt60 = 0.05f + erSizeScale * 0.15f; // ERは独立して極めて早く減衰させる (50ms〜200ms)
         const float sdnDbPerSample = -60.0f / (sdnRt60 * fsf);
         sdnEngine.damping = juce::jlimit(0.1f, 0.999f, juce::Decibels::decibelsToGain(sdnDbPerSample * sdnAvgDelaySmp));
         
@@ -500,6 +500,8 @@ namespace FDNReverb {
 
     void UniversalEngine::processBlock(const float* inL, const float* inR,
         float* outL, float* outR, int numSamples) noexcept {
+        juce::ScopedNoDenormals noDenormals;
+        
         if (!isPreparedFlag || inL == nullptr || inR == nullptr || outL == nullptr || outR == nullptr) {
             if (outL && numSamples > 0) std::fill(outL, outL + numSamples, 0.0f);
             if (outR && numSamples > 0) std::fill(outR, outR + numSamples, 0.0f);
@@ -608,9 +610,9 @@ namespace FDNReverb {
             }
 
             if (!bypassER) {
-                // SDN散乱出力をFDNへ注入 (ハイブリッド結合)
-                fdnInputMid += (erOutL + erOutR) * 0.5f * 0.15f;
-                fdnInputSide += (erOutL - erOutR) * 0.5f * 0.15f;
+                // SDN散乱出力をFDNへ注入 (ハイブリッド結合、エネルギー保存: 1/sqrt(2) = 0.7071f)
+                fdnInputMid += (erOutL + erOutR) * 0.7071f;
+                fdnInputSide += (erOutL - erOutR) * 0.7071f;
             }
 
             // ★ 空間相関の対称性破壊 (Asymmetric Injection / Extraction)
@@ -696,8 +698,9 @@ namespace FDNReverb {
             }
 
             const float crossLeak = 1.0f - stereoWidth;
-            const float fdnOutL = (evenSum + oddSum * crossLeak) * 0.125f;
-            const float fdnOutR = (oddSum + evenSum * crossLeak) * 0.125f;
+            // 16ch FDNのL/R出力 (各8chの非相関サミング: 1/sqrt(8) = 0.3535f)
+            const float fdnOutL = (evenSum + oddSum * crossLeak) * 0.353553f;
+            const float fdnOutR = (oddSum + evenSum * crossLeak) * 0.353553f;
             fbVec = nextFb;
 
             const float erMakeupGain = (currentERTapCount > 6) ? 1.5f : 2.5f;
