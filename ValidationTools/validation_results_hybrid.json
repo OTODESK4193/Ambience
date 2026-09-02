@@ -1,0 +1,10802 @@
+[
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 137.1411,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0313,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 82.489,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0132,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 86.4488,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0246,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 135.705,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0155,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 94.7085,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0116,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 132.8667,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0071,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 83.4715,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0067,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 82.8719,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0079,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 131.427,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0166,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 97.2141,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0064,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 121.9631,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0182,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 72.0829,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0181,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 75.1228,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0204,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 128.1735,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0534,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 86.2754,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0216,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 122.4114,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0413,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 75.4614,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0426,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 78.0279,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0407,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 120.0125,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.1627,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 100.268,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0255,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 112.8149,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0765,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 67.9023,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0798,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 73.7819,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1002,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 110.6656,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.4982,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 2018.8147,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 97.988,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0776,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 106.0894,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.1971,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1644.3859,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 65.5262,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.2314,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 1151.4457,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 71.5939,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1898,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1578.0319,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 100.7089,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.6015,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 2011.0323,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 82.9894,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.1625,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 813.6469,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 97.1912,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.8275,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1439.7621,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 63.0853,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.5546,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 1343.2628,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 69.5648,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.7103,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1391.3956,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 78.6582,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.7886,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1489.3763,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 70.5119,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.4779,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 1180.5731,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 75.8294,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.8653,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1123.7782,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 50.1023,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.4161,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 1114.4296,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 56.8231,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.5805,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1279.5826,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 60.2868,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9166,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1177.9382,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 65.072,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.7007,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 1980.6886,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 65.3813,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.8964,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 793.0265,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 48.4618,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.3015,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 1260.6631,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 53.0988,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.4044,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1279.5826,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 50.4299,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9889,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 907.2454,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 63.0541,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.2623,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 1198.0709,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 56.8328,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9595,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 570.0352,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 51.9502,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0575,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 51.4161,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.3443,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 803.7267,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 52.951,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9593,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1596.1507,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 30.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 73.8882,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.1771,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Room",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 921.6699,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 131.2795,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0097,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 73.3234,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0185,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 80.3846,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0114,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 135.3767,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0198,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 96.5105,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0336,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 123.2394,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0635,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 73.487,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0478,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 79.1431,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0579,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 136.9939,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0195,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 102.142,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0322,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 109.2591,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0233,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 66.4306,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0277,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 63.7049,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0251,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 123.0069,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0175,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 87.7695,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0324,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 103.6076,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0345,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 58.8322,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0326,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 59.6043,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0371,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 119.5864,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0692,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 92.0434,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0455,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 104.6458,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0188,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 59.7275,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0218,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 650.6055,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 65.2173,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0199,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 106.4051,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.1172,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 2636.412,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 86.7157,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0832,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 95.7146,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.023,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 2051.3241,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 56.9035,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0684,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 2552.5671,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 62.3005,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0335,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 2367.4158,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 96.4201,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.1533,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 323.8758,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 75.7286,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.1022,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 2543.7733,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 79.4943,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2801,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1546.1508,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 48.1107,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.2782,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 2663.2275,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 52.0787,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.2782,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 2724.5358,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 74.3638,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.3327,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1838.9485,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 62.564,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.2312,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 2793.919,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 78.8419,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.1294,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1912.7949,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 52.5768,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.2619,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 2755.2251,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 57.7065,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.2037,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 2941.3958,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 58.8115,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.7634,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1724.5233,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 59.5489,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.2998,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 1448.4381,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 65.9501,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.5105,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1291.6042,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 49.0957,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.4165,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 2435.2979,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 52.7821,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.5424,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 2716.9739,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 63.3872,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.8491,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1686.5656,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 64.3888,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.332,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 2666.2778,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 67.3575,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.7018,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1270.395,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 44.0507,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.2968,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 1270.739,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 48.2512,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.3391,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1849.958,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 67.4584,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.8,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 2156.4461,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 80.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 67.136,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.139,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Hall",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 2333.0257,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 146.8481,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.057,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 102.6756,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0428,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 100.9986,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1935,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 142.6947,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0186,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 112.4446,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0064,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 145.3287,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0288,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 107.1328,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0284,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 108.5376,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0291,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 132.6753,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.2604,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 112.9356,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0352,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 134.9292,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0203,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 85.8362,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0222,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 90.0469,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0321,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 125.5883,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.3907,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 98.2408,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0141,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 123.6204,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2191,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 80.1933,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0983,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 83.2947,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1336,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 123.5779,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.542,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 103.7343,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.1033,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 120.283,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.7482,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 79.0927,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.1439,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 84.8654,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.2838,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 106.9856,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.4481,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 99.3059,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.082,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 98.6061,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.7146,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 76.1449,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0445,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 75.3541,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1187,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 91.7546,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.8558,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1437.4862,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 99.7615,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.4561,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 87.1802,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.7813,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 962.3313,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 75.1403,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0323,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 74.961,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0959,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 404.1294,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 69.6047,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9841,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 876.7756,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 75.144,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.6487,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 73.5282,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9278,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 690.3934,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 74.2871,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0426,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 269.9969,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 73.7342,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0814,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 269.9969,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 115.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 59.1603,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9866,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 931.1527,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 61.439,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.9695,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 1066.9254,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 10.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 58.6436,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9878,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 591.4175,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 73.9406,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0401,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 124.4269,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 73.2005,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1228,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 369.5193,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 10.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 52.2664,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9316,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 641.0886,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 63.2379,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.6571,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 306.0193,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 10.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 58.2523,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9961,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 555.2959,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 78.317,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0113,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 56.4368,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.6498,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 72.785,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 61.1258,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9803,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1450.7627,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 68.6474,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.8016,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Plate",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 153.6082,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2552,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 103.0648,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.2673,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 104.9799,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.2972,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 140.0613,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.01,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 117.6948,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0196,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 141.2144,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.3828,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 97.8823,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.1487,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 94.7101,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.2219,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 127.6257,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0303,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 115.0889,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0111,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 129.6343,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2171,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 88.8004,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0591,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 88.7239,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1155,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 119.3628,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.045,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 104.1314,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0228,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 121.7407,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2512,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 85.2371,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.035,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 82.8923,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0844,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 118.3215,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.2151,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 107.6493,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0222,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 109.7775,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0341,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 82.3476,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0118,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 83.3437,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0144,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 96.9487,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.3725,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 950.4484,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 104.2478,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0109,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 105.2894,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2145,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1710.2874,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 82.1678,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0136,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 81.2146,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0274,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 97.9406,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.7494,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1677.0976,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 91.1557,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.3382,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 88.1208,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.7585,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1264.5576,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 80.0456,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0112,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 80.0379,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0231,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 404.1294,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 64.7084,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.8813,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1019.4511,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 59.4709,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.7893,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 957.3585,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 66.8968,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9656,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 935.2968,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 79.1495,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0095,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 79.8507,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0189,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 50.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 46.5342,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9512,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 813.2942,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 57.6109,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.8412,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 1508.4919,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 59.602,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9877,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 697.9223,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 78.7172,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0137,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 78.8871,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0381,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 174.9966,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 110.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 51.7269,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.8942,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 620.239,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 66.4609,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.1251,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 5.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 54.3521,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9901,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 565.5767,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 84.1688,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0091,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 53.0265,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.3516,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 102.3665,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 58.3713,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9689,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1512.3528,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 62.4131,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.7341,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Spring",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 161.2136,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2626,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 112.035,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.2983,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 113.8503,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.3039,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 148.9849,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0092,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 126.4931,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0224,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 149.2874,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.3837,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 105.932,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.199,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 103.2036,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.3674,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 135.1544,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0518,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 122.5723,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0129,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 137.5437,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.2461,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 97.73,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0565,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 96.2554,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1077,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 126.8369,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.104,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 111.882,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0196,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 124.6511,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.1604,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 92.947,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0234,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 90.4563,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0469,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 117.7351,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.3377,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 117.1876,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0205,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 112.8514,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.5852,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 90.7165,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0186,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 91.2386,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0359,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 105.7841,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.3684,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 113.7701,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0136,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 101.7088,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.5907,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1032.4885,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 89.6539,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0122,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 88.8854,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0179,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 101.5035,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.7181,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1330.3442,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 86.1907,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.3523,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 91.2088,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.854,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1213.1281,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 88.898,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0109,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 88.5953,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0171,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 70.8512,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.6439,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 876.7756,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 68.2012,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.7472,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 689.2201,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 75.8264,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.5565,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 810.4852,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 87.2324,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0086,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 87.6521,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0088,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 58.5801,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9125,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 921.9115,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 63.8713,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.6797,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 1178.5897,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 58.0749,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9949,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 656.4387,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 86.6563,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.011,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 86.7664,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0214,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 124.4269,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 5.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 58.607,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.7502,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 624.8862,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 75.3962,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0827,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 288.9102,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 5.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 59.8256,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.9864,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 558.0403,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 92.7735,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0103,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 61.1213,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.2703,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 102.3665,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 40.0,
+    "thresh": 50.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 50.3533,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.9934,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1536.1513,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 70.5784,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.5964,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Goldfoil",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 114.2006,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0275,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 61.5595,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0265,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 65.1429,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0256,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 142.0635,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.019,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 98.471,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0208,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 40,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 110.3196,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0292,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 63.7048,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0218,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 69.1437,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0255,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 133.4027,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0075,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 89.7848,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0154,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 80,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 99.7832,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0132,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 58.644,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.015,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 64.7123,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0162,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 122.8553,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0147,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 84.308,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.016,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 160,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 99.3504,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0038,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 63.3329,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0106,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 64.3697,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0078,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 108.0462,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0281,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 668.0211,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 78.8226,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0187,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 320,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 93.0795,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0233,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 58.1375,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.022,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 2550.2719,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 60.5152,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.024,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1962.3928,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 98.7226,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0228,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 2559.4952,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 68.7471,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0247,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 640,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 86.004,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0022,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 2172.2724,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 56.632,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0162,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 1081.6329,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 61.3155,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0059,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1553.7648,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 78.7409,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0724,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 779.6985,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 62.1093,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0343,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 1280,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 3688.2339,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 75.0882,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0661,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 0.0,
+    "thresh": 1.0,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 49.0138,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.074,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 769.9953,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 53.5357,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0707,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 425.0302,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 64.7292,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0946,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1472.9156,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 49.6964,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.086,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 2560,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 2958.6556,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 69.7988,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.1366,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 647.9907,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 50.5355,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.1164,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 2246.7,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 56.3818,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1232,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 1423.7399,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 265.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 56.6484,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.1164,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 960.3139,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 44.978,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.1131,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 5120,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 786.9795,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 58.7541,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.0634,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1181.3006,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 47.5775,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.0939,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 3032.96,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 50.651,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.0489,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 2301.3684,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 57.9863,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.0644,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 1401.374,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 49.7303,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.1264,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 10240,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 2759.1835,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "ESPRIT",
+    "value": 57.5544,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "IACC",
+    "value": 0.124,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sine",
+    "metric": "MOD",
+    "value": 1619.5085,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "ESPRIT",
+    "value": 37.6785,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "IACC",
+    "value": 0.1064,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Saw",
+    "metric": "MOD",
+    "value": 2898.4181,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "ESPRIT",
+    "value": 40.454,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "IACC",
+    "value": 0.1273,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Square",
+    "metric": "MOD",
+    "value": 3025.5901,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "NED",
+    "value": 160.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "ESPRIT",
+    "value": 55.3559,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "IACC",
+    "value": 0.1275,
+    "thresh": 0.1,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "Sync",
+    "metric": "MOD",
+    "value": 724.9052,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "NED",
+    "value": 2000.0,
+    "thresh": 50.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "ESPRIT",
+    "value": 50.5017,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "IACC",
+    "value": 0.0827,
+    "thresh": 0.1,
+    "eval": "PASS"
+  },
+  {
+    "room": "Inchindown",
+    "freq": 15000,
+    "wave": "FM",
+    "metric": "MOD",
+    "value": 3170.2728,
+    "thresh": 1.0,
+    "eval": "FAIL"
+  }
+]

@@ -102,7 +102,7 @@ namespace FDNReverb {
         { { 7.2f, 13.7f, 23.9f }, 0.80f }
     } };
 
-    void UniversalEngine::prepare(double sampleRate, int maxBlockSize) {
+    void UniversalEngine::prepare(double sampleRate, int /*maxBlockSize*/) {
         fs = sampleRate;
         DualGoldenLFO::initTable();
 
@@ -132,13 +132,8 @@ namespace FDNReverb {
         preDelayLineR.init(ptr, mask);
 
         ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask); // ★ 1.0s 確保
-        
-        // Initialize SDN Engine
-        sdnEngine.prepare(sampleRate, maxBlockSize);
-        for (int i = 0; i < SDNShoebox3D::NUM_NODES; ++i) {
-            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask);
-            sdnEngine.delayLines[i].init(ptr, mask);
-        }
+        erDelay.init(ptr, mask);
+
         for (int i = 0; i < 4; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
             inputDiffusersM[i].init(ptr, mask);
@@ -216,7 +211,7 @@ namespace FDNReverb {
         loopEnergyEnv = 0.0f;
         for (auto& chDelays : nestedAllpassDelays)
             for (auto& dl : chDelays) dl.resetState();
-        sdnEngine.reset();
+        erLpfState.fill(0.0f);
 
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
@@ -404,30 +399,34 @@ namespace FDNReverb {
             break;
         }
 
-        // ★ 【SDN コア ジオメトリ更新】
+        // ★ 【ER 音響壁面減衰 & 立体パンニング設計】
+        const auto& erPattern = PRESET_ER_PATTERNS[
+            juce::jlimit(0, 7, activeParams.algorithmIndex)];
+        currentERTapCount = erPattern.numTaps;
         float erSizeScale = 0.5f + activeParams.roomSizeScale;
-        
-        switch (currentTopology) {
-        case ReverbTopology::Room:
-            sdnEngine.updateGeometry(4.6f * erSizeScale, 7.4f * erSizeScale, 2.89f * erSizeScale, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f);
-            break;
-        case ReverbTopology::Hall:
-            sdnEngine.updateGeometry(13.5f * erSizeScale, 27.0f * erSizeScale, 10.8f * erSizeScale, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f);
-            break;
-        case ReverbTopology::Plate:
-            sdnEngine.updateGeometry(2.0f * erSizeScale, 1.0f * erSizeScale, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f);
-            break;
-        case ReverbTopology::Spring:
-            sdnEngine.updateGeometry(0.3f * erSizeScale, 0.3f * erSizeScale, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f);
-            break;
-        case ReverbTopology::Goldfoil:
-            sdnEngine.updateGeometry(0.27f * erSizeScale, 0.29f * erSizeScale, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f);
-            break;
-        case ReverbTopology::Inchindown:
-            sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f);
-            break;
+
+        static constexpr float kPans[12] = {
+            -0.75f, +0.70f, -0.45f, +0.85f, -0.80f, +0.35f,
+            -0.60f, +0.65f, -0.30f, +0.40f, -0.50f, +0.55f
+        };
+
+        const float maxSafeERDelaySamples = static_cast<float>(fs * 0.95);
+        for (int i = 0; i < erPattern.numTaps; ++i) {
+            const float delaySmp = erPattern.taps[i].delayMs * 0.001f
+                * static_cast<float>(fs) * erSizeScale;
+            currentERDelaySamples[i] = juce::jlimit(1.0f, maxSafeERDelaySamples, delaySmp);
+            currentERGains[i] = erPattern.taps[i].gain;
+
+            // 方位角パンニング (幾何学的反射)
+            const float pan = kPans[i % 12];
+            currentERPanL[i] = std::cos(0.785398f * (pan + 1.0f));
+            currentERPanR[i] = std::sin(0.785398f * (pan + 1.0f));
+
+            // 壁面吸収 1次 LPF 係数 (反射回数 i に応じて高域ダンピング)
+            const float cutoffHz = 8000.0f * std::pow(0.91f, static_cast<float>(i));
+            currentERLpfCoeff[i] = 1.0f - std::exp(-6.2831853f * cutoffHz / static_cast<float>(fs));
         }
-        bypassER = (activeParams.erLevel < 0.01f);
+        if (erPattern.numTaps == 0) bypassER = true;
 
         float edtCoeff = 0.7f;
         switch (currentTopology) {
@@ -583,19 +582,22 @@ namespace FDNReverb {
                 }
             }
 
-            // ★ 【SDN コアによる初期・中期散乱処理】
+            // ★ 【ER 音響壁面吸収 ＆ 立体パンニング処理】
             if (!bypassER) {
-                sdnEngine.modDepth = depthSamples * 0.2f;
-                sdnEngine.modRate = smoothedModRate;
-                sdnEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR);
-                erOutL *= erGainCurved;
-                erOutR *= erGainCurved;
+                erDelay.write(midIn);
+                for (int t = 0; t < currentERTapCount; ++t) {
+                    const float tapValue = erDelay.read(currentERDelaySamples[t]);
+                    // 壁面吸収 1次 LPF
+                    erLpfState[t] += currentERLpfCoeff[t] * (tapValue - erLpfState[t]);
+                    const float filteredTap = erLpfState[t] * currentERGains[t];
+
+                    erOutL += filteredTap * currentERPanL[t];
+                    erOutR += filteredTap * currentERPanR[t];
+                }
             }
 
             if (!bypassER) {
-                // SDN散乱出力をFDNへ注入 (ハイブリッド結合)
                 fdnInputMid += (erOutL + erOutR) * 0.5f * 0.15f;
-                fdnInputSide += (erOutL - erOutR) * 0.5f * 0.15f;
             }
 
             std::array<float, 16> currentFb = fbVec;

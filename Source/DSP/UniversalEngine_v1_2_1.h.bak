@@ -16,7 +16,6 @@
 #include "Saturator.h"
 #include "OutputLimiter.h"
 #include "OutputEQ.h"
-#include "SDNEngine.h"
 
 #define AMBIENCE_USE_STAGE2_ABSORPTION 1
 
@@ -140,9 +139,6 @@ namespace FDNReverb {
         float inputTransientEnvSlow{ 0.0f };
 
         LinearDelayLine                              erDelay;
-        // Legacy ER taps replaced by SDN Core
-        SDNShoebox3D                                 sdnEngine;
-
         std::array<LinearDelayLine, 4>               inputDiffusersM;
         std::array<LinearDelayLine, 4>               inputDiffusersS;
         std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;

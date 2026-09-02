@@ -375,4 +375,5 @@ TB/
 *.bin
 *.csv
 JUCE/
-JuLibraryCode/
+JuLibraryCode/*.wav
+ValidationTools/*.wav
