@@ -20,6 +20,7 @@
 #include "SDNTopology2DMesh.h"
 #include "SDNTopologySpring1D.h"
 #include "SDNTopologyInchindown.h"
+#include "DynamicEQDucker.h"
 
 #define AMBIENCE_USE_STAGE2_ABSORPTION 1
 
@@ -210,6 +211,7 @@ namespace FDNReverb {
         AcousticMetrics acousticMetrics;
         Saturator saturatorL;
         Saturator saturatorR;
+        DynamicEQDucker dynamicDucker;
 
         MagnitudeResponseFitter fitter;
         bool isPreparedFlag{ false };

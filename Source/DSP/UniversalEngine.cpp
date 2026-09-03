@@ -171,6 +171,7 @@ namespace FDNReverb {
         outputEQ.prepare(sampleRate);
         saturatorL.prepare(sampleRate);
         saturatorR.prepare(sampleRate);
+        dynamicDucker.prepare(sampleRate, maxBlockSize);
 
         const float fsf = static_cast<float>(fs);
         constexpr float invFdnM1 = 1.0f / static_cast<float>(FDN_ORDER - 1);
@@ -220,6 +221,7 @@ namespace FDNReverb {
         acousticMetrics.reset();
         saturatorL.reset(); saturatorR.reset();
         outputLimiter.reset(); outputEQ.reset();
+        dynamicDucker.reset();
         duckingEnvelope = 0.0f;
         loopEnergyEnv = 0.0f;
         for (auto& chDelays : nestedAllpassDelays)
@@ -489,6 +491,7 @@ namespace FDNReverb {
         saturatorR.setAmount(effectiveSatAmount);
         saturatorL.setMode(activeParams.satTypeIdx);
         saturatorR.setMode(activeParams.satTypeIdx);
+        dynamicDucker.setParameters(activeParams.duckingAmount, activeParams.duckingAttackMs, activeParams.duckingRelMs, activeParams.duckingThreshDB);
 
         const float totalMakeupDB = juce::jlimit(-6.0f, 12.0f, baseDB + decayCompDB + algoOffset);
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
@@ -542,10 +545,7 @@ namespace FDNReverb {
         const float lateLevel = activeParams.lateLevel;
         const bool  erSolo = activeParams.erSolo;
 
-        const float duckThreshLin = juce::Decibels::decibelsToGain(activeParams.duckingThreshDB);
-        const float duckAmountDB = activeParams.duckingAmount;
-        const float maxDuckReductionGain = (duckAmountDB > 0.001f)
-            ? juce::Decibels::decibelsToGain(-duckAmountDB) : 1.0f;
+        // (ダッキング変数は dynamicDucker に集約)
 
         const float diff = activeParams.diffusion * diffusionSensitivity;
         const float diffuserGain = diff * 0.70f;
@@ -590,16 +590,7 @@ namespace FDNReverb {
 
             float erOutL = 0.0f, erOutR = 0.0f;
 
-            const float inputPeak = juce::jmax(std::abs(inL[n]), std::abs(inR[n]));
-            const float envCoeff = (inputPeak > duckingEnvelope) ? duckingAttackCoeff : duckingReleaseCoeff;
-            duckingEnvelope += (inputPeak - duckingEnvelope) * envCoeff;
-
-            // ★ ダッキング超越関数 (std::log10 & pow) 完全排除・代数的高速化
-            float duckGainLinear = 1.0f;
-            if (duckAmountDB > 0.001f && duckingEnvelope > duckThreshLin) {
-                const float ratioGain = duckThreshLin / duckingEnvelope;
-                duckGainLinear = std::max(ratioGain, maxDuckReductionGain);
-            }
+            // (旧来のブロードバンドダッキングは dynamicDucker に刷新)
 
             // ★ Mid / Side 双方を 4段ディフューザーで完全拡散 (左右のアタックの角を溶かす)
             float fdnInputMid = midIn;
@@ -760,9 +751,11 @@ namespace FDNReverb {
 
             outputEQ.process(wetL, wetR);
 
-            const float finalWetGain = duckGainLinear;
-            outL[n] = wetL * finalWetGain;
-            outR[n] = wetR * finalWetGain;
+            // ★ 4バンド・ダイナミックEQダッキング (周波数追従型マスキング解消)
+            dynamicDucker.processStereo(inL[n], inR[n], wetL, wetR);
+
+            outL[n] = wetL;
+            outR[n] = wetR;
 
             outputLimiter.process(outL[n], outR[n]);
         }
