@@ -138,6 +138,7 @@ namespace FDNReverb {
         
         // Initialize SDN Engine
         sdnEngine.prepare(sampleRate, maxBlockSize);
+        plateMesh.prepare(sampleRate, maxBlockSize);
         for (int i = 0; i < SDNShoebox3D::NUM_NODES; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask);
             sdnEngine.delayLines[i].init(ptr, mask);
@@ -220,6 +221,7 @@ namespace FDNReverb {
         for (auto& chDelays : nestedAllpassDelays)
             for (auto& dl : chDelays) dl.resetState();
         sdnEngine.reset();
+        plateMesh.reset();
 
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
@@ -441,6 +443,12 @@ namespace FDNReverb {
         // 高域の壁面吸収 (10kHzを基準に、Dampingパラメータで調整)
         const float hfCutoff = 10000.0f * (1.1f - activeParams.hfDamping);
         sdnEngine.lpfCoeff = 1.0f - std::exp(-6.2831853f * hfCutoff / fsf);
+
+        if (currentTopology == ReverbTopology::Plate) {
+            plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, true);
+        } else if (currentTopology == ReverbTopology::Goldfoil) {
+            plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+        }
         
         bypassER = (activeParams.erLevel < 0.01f);
 
@@ -601,16 +609,26 @@ namespace FDNReverb {
             }
 
             // ★ 【SDN コアによる初期・中期散乱処理】
+            alignas(32) float fdnMeshInject[16] = { 0.0f };
+            const bool isPlateOrGoldfoil = (currentTopology == ReverbTopology::Plate || currentTopology == ReverbTopology::Goldfoil);
+
             if (!bypassER) {
-                sdnEngine.modDepth = depthSamples * 0.2f;
-                sdnEngine.modRate = smoothedModRate;
-                sdnEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR);
+                if (isPlateOrGoldfoil) {
+                    plateMesh.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR, fdnMeshInject);
+                    sdnEngine.modDepth = depthSamples * 0.2f;
+                    sdnEngine.modRate = smoothedModRate;
+                    sdnEngine.tickModulatorsOnly();
+                } else {
+                    sdnEngine.modDepth = depthSamples * 0.2f;
+                    sdnEngine.modRate = smoothedModRate;
+                    sdnEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR);
+                }
                 erOutL *= erGainCurved;
                 erOutR *= erGainCurved;
             }
 
             if (!bypassER) {
-                // SDN散乱出力をFDNへ注入 (ハイブリッド結合、エネルギー保存: 1/sqrt(2) = 0.7071f)
+                // SDN / 2D Mesh 散乱出力をFDNへ注入 (ハイブリッド結合、エネルギー保存: 1/sqrt(2) = 0.7071f)
                 fdnInputMid += (erOutL + erOutR) * 0.7071f;
                 fdnInputSide += (erOutL - erOutR) * 0.7071f;
             }
@@ -689,7 +707,7 @@ namespace FDNReverb {
                 nextFb[i] = limitedApfOut;
 
                 const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
-                const float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
+                float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
                 fdnDelays[i].write(fdnInputForThisCh + currentFb[i]);
 
                 const float extractedOut = limitedApfOut * extractSign[i];

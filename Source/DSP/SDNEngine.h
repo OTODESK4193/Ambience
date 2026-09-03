@@ -201,6 +201,12 @@ public:
         outR = (sumMid - sumSide) * outScale;
     }
 
+    inline void tickModulatorsOnly() noexcept {
+        for (int i = 0; i < NUM_NODES; ++i) {
+            modulators[i].tick(modDepth, modRate);
+        }
+    }
+
     float modDepth{ 0.5f };
     float modRate{ 0.3f };
     float damping{ 0.95f };
