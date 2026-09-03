@@ -1,38 +1,43 @@
 #pragma once
 #include <cmath>
 #include <algorithm>
-#include <immintrin.h>
 
 namespace FDNReverb {
 
     enum class SaturationMode {
-        Warm = 0,   // SoftClip: tanh(x)
-        Tape = 1,   // Tape: (2/π)arctan(kx)
-        Tube = 2,   // Tube: x/(1+|x|) (非対称)
-        Hard = 3    // HardClip: clamp(x,-1,1)
+        Warm = 0,   // SoftClip: tanh(x) + 2次偶数倍音
+        Tape = 1,   // Tape: (2/π)arctan(kx) シルキー高域飽和
+        Tube = 2,   // Tube: 非対称三極管 (豊かな偶数倍音・太さと艶)
+        Hard = 3    // Hard: アナログトランスコア飽和 (クリッピング抑制)
     };
 
     // ─────────────────────────────────────────────────────────────────────────────
     //  ADAASaturator (1st-Order Anti-Derivative Anti-Aliasing Saturator)
     // ─────────────────────────────────────────────────────────────────────────────
-    //  - オーバーサンプリング不要で 4x OS を凌駕するエイリアシング抑制 (-35dB以上)
-    //  - FDN フィードバックループ内配置対応（受動性 Passivity 保証）
-    //  - AVX2 8ch 並列版 processSample8() による超高速パイプライン
-    //  - saturation = 0 時の完全バイパス（ビット一致）保証
+    //  - 1次 ADAA (Anti-Derivative Anti-Aliasing) による超低エイリアシング
+    //  - V1.3 の図太く明確な 4 モードキャラクター（倍音構造）を完全再現
+    //  - amount < 0.001f 時の完全ゼロコスト・バイパス (IEEE 754 ビット一致保証)
+    //  - 特異点 (ゼロ交差) 安全フォールバック & Float32 漸近近似完備
     // ─────────────────────────────────────────────────────────────────────────────
     class Saturator {
     public:
         Saturator() = default;
 
+        void prepare(double sampleRate) noexcept {
+            const double sr = (sampleRate > 1000.0) ? sampleRate : 48000.0;
+            // 1次 DC ブロッカー係数 (10Hz カットオフ)
+            dcCoeff = static_cast<float>(1.0 - std::exp(-2.0 * 3.141592653589793 * 10.0 / sr));
+            reset();
+        }
+
         void reset() noexcept {
             x1_scalar = 0.0f;
             dcState = 0.0f;
-            x1_simd = _mm256_setzero_ps();
-            dcState_simd = _mm256_setzero_ps();
         }
 
         void setMode(SaturationMode mode) noexcept {
             currentMode = mode;
+            reset();
         }
 
         void setMode(int modeIndex) noexcept {
@@ -42,16 +47,17 @@ namespace FDNReverb {
         void setAmount(float amount) noexcept {
             currentAmount = std::clamp(amount, 0.0f, 1.0f);
             const float effAmount = (currentMode == SaturationMode::Tube)
-                                        ? (currentAmount * 0.30f)
+                                        ? (currentAmount * 0.35f)
                                         : currentAmount;
-            drive    = 1.0f + effAmount * 2.2f;
-            invDrive = 1.0f / drive;
-            dryMix   = 1.0f - effAmount * 0.20f;
-            wetMix   = effAmount * 0.85f;
+            // V1.3 の音楽的ダイナミクスカーブ (しっかり歪みが乗る設計)
+            drive   = 1.0f + effAmount * 2.5f; // 1.0 〜 3.5倍 (+11dB)
+            dryMix  = 1.0f - effAmount * 0.25f; // 1.0 〜 0.75
+            wetMix  = effAmount * 0.90f;        // 0.0 〜 0.90
         }
 
-        // ─── スカラー版: 1次 ADAA 処理 ───
+        // ─── 1次 ADAA サチュレーション処理 ───
         inline float processSample(float in) noexcept {
+            // ゼロコスト完全バイパス (IEEE 754 1ビットも改変しない)
             if (currentAmount < 0.001f) return in;
 
             const float x = in * drive;
@@ -68,272 +74,107 @@ namespace FDNReverb {
             }
             x1_scalar = x;
 
-            // DC ブロッカー (Tube 非対称モードでのみ有効)
+            // DC ブロッカー (Tube 非対称モードでのみ直流を除去)
             if (currentMode == SaturationMode::Tube) {
-                dcState += 0.002f * (y - dcState);
+                dcState += dcCoeff * (y - dcState);
                 y -= dcState;
             }
 
-            return in * dryMix + y * invDrive * wetMix;
-        }
-
-        // ─── AVX2 8ch 並列版: 1次 ADAA 処理 ───
-        inline __m256 processSample8(const __m256 in) noexcept {
-            const __m256 vDrive    = _mm256_set1_ps(drive);
-            const __m256 vInvDrv   = _mm256_set1_ps(invDrive);
-            const __m256 vWetMix   = _mm256_set1_ps(wetMix);
-            const __m256 vDryMix   = _mm256_set1_ps(dryMix);
-            const __m256 vEps      = _mm256_set1_ps(1e-5f);
-            const __m256 vAbsMask  = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-
-            const __m256 x = _mm256_mul_ps(in, vDrive);
-            const __m256 diff = _mm256_sub_ps(x, x1_simd);
-            const __m256 absDiff = _mm256_and_ps(diff, vAbsMask);
-
-            // 特異点マスク: |diff| < epsilon
-            const __m256 singularMask = _mm256_cmp_ps(absDiff, vEps, _CMP_LT_OS);
-
-            // ADAA 計算: y = (F(x) - F(x1)) / diff
-            const __m256 Fx  = applyAD_AVX2(x);
-            const __m256 Fx1 = applyAD_AVX2(x1_simd);
-            // 安全な除算: diff が微小な場合は 1.0 で除算（後でブレンドで上書き）
-            const __m256 safeDiff = _mm256_blendv_ps(diff, _mm256_set1_ps(1.0f), singularMask);
-            const __m256 yAdaa = _mm256_div_ps(_mm256_sub_ps(Fx, Fx1), safeDiff);
-
-            // フォールバック: f(x_mid)
-            const __m256 xMid = _mm256_mul_ps(_mm256_add_ps(x, x1_simd), _mm256_set1_ps(0.5f));
-            const __m256 yFallback = applyNL_AVX2(xMid);
-
-            // ブレンド
-            __m256 y = _mm256_blendv_ps(yAdaa, yFallback, singularMask);
-
-            x1_simd = x;
-
-            // DC ブロッカー (Tube 非対称モードでのみ)
-            if (currentMode == SaturationMode::Tube) {
-                const __m256 vDcCoeff = _mm256_set1_ps(0.002f);
-                dcState_simd = _mm256_fmadd_ps(vDcCoeff, _mm256_sub_ps(y, dcState_simd), dcState_simd);
-                y = _mm256_sub_ps(y, dcState_simd);
-            }
-
-            // 出力: in * dryMix + y * invDrive * wetMix
-            const __m256 wet = _mm256_mul_ps(_mm256_mul_ps(y, vInvDrv), vWetMix);
-            return _mm256_fmadd_ps(in, vDryMix, wet);
+            // V1.3 準拠のパラレルブレンド
+            return in * dryMix + y * wetMix;
         }
 
     private:
         SaturationMode currentMode{ SaturationMode::Warm };
         float currentAmount{ 0.0f };
         float drive{ 1.0f };
-        float invDrive{ 1.0f };
         float dryMix{ 1.0f };
         float wetMix{ 0.0f };
         float x1_scalar{ 0.0f };
         float dcState{ 0.0f };
-        __m256 x1_simd{ _mm256_setzero_ps() };
-        __m256 dcState_simd{ _mm256_setzero_ps() };
+        float dcCoeff{ 0.002f };
 
         // ════════════════════════════════════════════════════════════════════════
-        //  スカラー版 非線形関数 f(x) と原始関数 F(x)
+        //  非線形伝達関数 f(x) (特異点フォールバック用)
         // ════════════════════════════════════════════════════════════════════════
-
         inline float applyNL(float x) const noexcept {
             switch (currentMode) {
-            case SaturationMode::Warm:
-                return std::tanh(x);
+            case SaturationMode::Warm: {
+                // 2次偶数倍音 + 3次ソフトクリップ
+                const float t = std::tanh(x);
+                const float h2 = 0.20f * x * x / (1.0f + std::abs(x));
+                return t + h2 * (1.0f - t * t);
+            }
             case SaturationMode::Tape: {
+                // 磁気テープ飽和 (2/π)·arctan(1.5x)
                 constexpr float k = 1.5f;
                 constexpr float twoOverPi = 0.6366197723f;
-                return twoOverPi * std::atan(k * x);
+                return twoOverPi * std::atan(k * x) * 1.25f;
             }
             case SaturationMode::Tube: {
-                const float xp = (x > 0.0f) ? x * 1.15f : x * 0.85f;
-                return xp / (1.0f + std::abs(xp));
+                // 真空管 3極管 Triode 非対称性 (正相ブースト・偶数倍音)
+                const float xp = (x > 0.0f) ? x * 1.25f : x * 0.75f;
+                const float tube = xp / (1.0f + std::abs(xp));
+                const float h2 = 0.25f * x * x / (1.0f + 1.5f * std::abs(x));
+                return tube + h2;
             }
-            case SaturationMode::Hard:
-                return std::clamp(x, -1.0f, 1.0f);
+            case SaturationMode::Hard: {
+                // アナログトランスコア飽和 (ハードクランプ)
+                return std::clamp(x * 1.2f, -1.0f, 1.0f);
+            }
             }
             return x;
         }
 
+        // ════════════════════════════════════════════════════════════════════════
+        //  ADAA 原始関数 F(x) = ∫ f(x) dx
+        // ════════════════════════════════════════════════════════════════════════
         inline float applyAD(float x) const noexcept {
             switch (currentMode) {
             case SaturationMode::Warm: {
-                // F(x) = ln(cosh(x)), 漸近近似: |x|>10 → |x| - ln(2)
+                // F_tanh(x) = ln(cosh(x)) + 偶数倍音成分の積分
                 const float ax = std::abs(x);
-                if (ax > 10.0f) return ax - 0.6931472f; // ln(2)
-                return std::log(std::cosh(x));
+                // Float32 漸近近似: |x| > 10.0 で ln(cosh(x)) ≈ |x| - ln(2)
+                const float f_tanh = (ax > 10.0f) ? (ax - 0.6931472f) : std::log(std::cosh(x));
+                // 偶数倍音成分の近似積分: ∫ 0.20 x²/(1+|x|) dx ≈ 0.10 sgn(x) x² / (1+0.5|x|)
+                const float sgn = (x >= 0.0f) ? 1.0f : -1.0f;
+                const float f_even = 0.10f * sgn * (x * x) / (1.0f + 0.5f * ax);
+                return f_tanh + f_even;
             }
             case SaturationMode::Tape: {
-                // F(x) = (2/π) [x·arctan(kx) - (1/2k)·ln(1+k²x²)]
+                // F(x) = 1.25 * (2/π) [x·arctan(kx) - (1/2k)·ln(1+k²x²)]
                 constexpr float k = 1.5f;
                 constexpr float twoOverPi = 0.6366197723f;
                 const float kx = k * x;
-                return twoOverPi * (x * std::atan(kx) - (0.5f / k) * std::log(1.0f + kx * kx));
+                return 1.25f * twoOverPi * (x * std::atan(kx) - (0.5f / k) * std::log(1.0f + kx * kx));
             }
             case SaturationMode::Tube: {
-                // F(x) = |x| - ln(1+|x|), 正負で非対称ゲインを適用
-                const float xp = (x > 0.0f) ? x * 1.15f : x * 0.85f;
-                const float ax = std::abs(xp);
-                return ax - std::log(1.0f + ax);
-            }
-            case SaturationMode::Hard: {
-                // F(x) = x²/2 (|x|<1), |x|-0.5 (|x|>=1)
+                // 非対称三極管の積分: 正相・逆相で異なるスケール
+                const float s = (x > 0.0f) ? 1.25f : 0.75f;
+                const float sx = s * x;
+                const float asx = std::abs(sx);
+                // ∫ (sx / (1+|sx|)) dx = (1/s) * [|sx| - ln(1+|sx|)] * sgn
+                const float sgn = (x >= 0.0f) ? 1.0f : -1.0f;
+                const float f_main = (1.0f / s) * sgn * (asx - std::log(1.0f + asx));
+                // 偶数倍音項の積分
                 const float ax = std::abs(x);
-                if (ax < 1.0f) return 0.5f * x * x;
-                return ax - 0.5f;
-            }
-            }
-            return 0.5f * x * x; // フォールバック (f=x の原始関数)
-        }
-
-        // ════════════════════════════════════════════════════════════════════════
-        //  AVX2 SIMD 版 非線形関数 f(x) と原始関数 F(x)
-        // ════════════════════════════════════════════════════════════════════════
-
-        // tanh(x) Padé 近似: tanh(x) ≈ x(27+x²)/(27+9x²)
-        static inline __m256 tanh_pade_avx2(__m256 x) noexcept {
-            const __m256 x2   = _mm256_mul_ps(x, x);
-            const __m256 v27  = _mm256_set1_ps(27.0f);
-            const __m256 v9   = _mm256_set1_ps(9.0f);
-            const __m256 num  = _mm256_mul_ps(x, _mm256_add_ps(v27, x2));       // x*(27+x²)
-            const __m256 den  = _mm256_fmadd_ps(v9, x2, v27);                   // 9x²+27
-            __m256 result     = _mm256_div_ps(num, den);
-            // クランプ to [-1, 1]
-            result = _mm256_min_ps(_mm256_set1_ps(1.0f), _mm256_max_ps(_mm256_set1_ps(-1.0f), result));
-            return result;
-        }
-
-        // ln(cosh(x)) 近似: Padé tanh の解析的積分に基づく
-        // F(x) ≈ x²/18 + (4/3)·ln(x²+3) + C  (正規化定数で調整)
-        // 漸近近似: |x|>10 → |x| - ln(2)
-        static inline __m256 lncosh_approx_avx2(__m256 x) noexcept {
-            const __m256 vAbsMask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-            const __m256 ax = _mm256_and_ps(x, vAbsMask);
-
-            // 小信号域: 直接 ln(cosh(x)) ≈ x²/2 - x⁴/12 + ... の簡易多項式
-            // 中信号域: x²/18 + (4/3)·ln(x²+3) に基づく近似
-            const __m256 x2 = _mm256_mul_ps(x, x);
-
-            // 実用的な近似: ln(cosh(x)) ≈ 0.5*(sqrt(x²+1)-1) + 0.038*x² for |x|<4
-            // 中信号用: 修正 softplus 近似
-            // ln(cosh(x)) = |x| - ln(2) + ln(1 + exp(-2|x|))
-            // exp(-2|x|) を高速近似
-            const __m256 v2    = _mm256_set1_ps(2.0f);
-            const __m256 vLn2  = _mm256_set1_ps(0.6931472f);
-            const __m256 negTwoAx = _mm256_mul_ps(_mm256_set1_ps(-2.0f), ax);
-
-            // 高速 exp 近似 (|x|<10 の範囲で十分な精度)
-            // exp(x) ≈ (1+x/256)^256 の 2^n シフト近似
-            // 簡易版: exp(x) ≈ max(0, 1+x+x²/2+x³/6) (|x|<3)
-            const __m256 e1 = _mm256_add_ps(_mm256_set1_ps(1.0f), negTwoAx);
-            const __m256 negTwoAx2 = _mm256_mul_ps(negTwoAx, negTwoAx);
-            const __m256 e2 = _mm256_fmadd_ps(_mm256_set1_ps(0.5f), negTwoAx2, e1);
-            const __m256 negTwoAx3 = _mm256_mul_ps(negTwoAx2, negTwoAx);
-            __m256 expApprox = _mm256_fmadd_ps(_mm256_set1_ps(0.166667f), negTwoAx3, e2);
-            expApprox = _mm256_max_ps(expApprox, _mm256_setzero_ps());
-
-            // ln(1+exp(-2|x|)) ≈ exp(-2|x|) for large |x| (softplus tail)
-            // 正確な softplus: log1p(exp) → 小信号で使用
-            // 大信号域 (|x|>4): ln(1+exp(-2|x|)) ≈ exp(-2|x|) ≈ 0
-            const __m256 softplusTerm = expApprox; // ln(1+z) ≈ z for small z
-
-            // F(x) = |x| - ln(2) + softplusTerm
-            __m256 result = _mm256_add_ps(_mm256_sub_ps(ax, vLn2), softplusTerm);
-
-            // 小信号域 (|x|<0.5): F(x) ≈ x²/2 の方が精度が良い
-            const __m256 smallResult = _mm256_mul_ps(_mm256_set1_ps(0.5f), x2);
-            const __m256 smallMask = _mm256_cmp_ps(ax, _mm256_set1_ps(0.5f), _CMP_LT_OS);
-            result = _mm256_blendv_ps(result, smallResult, smallMask);
-
-            return result;
-        }
-
-        inline __m256 applyNL_AVX2(__m256 x) const noexcept {
-            switch (currentMode) {
-            case SaturationMode::Warm:
-                return tanh_pade_avx2(x);
-            case SaturationMode::Tape: {
-                // (2/π)·arctan(kx) の Padé 近似
-                // arctan(x) ≈ x·(15+4x²)/(15+9x²) (Padé [2/2])
-                const __m256 vK = _mm256_set1_ps(1.5f);
-                const __m256 vScale = _mm256_set1_ps(0.6366197723f);
-                const __m256 kx = _mm256_mul_ps(vK, x);
-                const __m256 kx2 = _mm256_mul_ps(kx, kx);
-                const __m256 v15 = _mm256_set1_ps(15.0f);
-                const __m256 v4  = _mm256_set1_ps(4.0f);
-                const __m256 v9  = _mm256_set1_ps(9.0f);
-                const __m256 num = _mm256_mul_ps(kx, _mm256_fmadd_ps(v4, kx2, v15));
-                const __m256 den = _mm256_fmadd_ps(v9, kx2, v15);
-                __m256 result = _mm256_mul_ps(vScale, _mm256_div_ps(num, den));
-                result = _mm256_min_ps(_mm256_set1_ps(1.0f), _mm256_max_ps(_mm256_set1_ps(-1.0f), result));
-                return result;
-            }
-            case SaturationMode::Tube: {
-                // x/(1+|x|) 非対称版
-                const __m256 vAbsMask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-                const __m256 posMask = _mm256_cmp_ps(x, _mm256_setzero_ps(), _CMP_GT_OS);
-                const __m256 scale = _mm256_blendv_ps(_mm256_set1_ps(0.85f), _mm256_set1_ps(1.15f), posMask);
-                const __m256 xp = _mm256_mul_ps(x, scale);
-                const __m256 axp = _mm256_and_ps(xp, vAbsMask);
-                return _mm256_div_ps(xp, _mm256_add_ps(_mm256_set1_ps(1.0f), axp));
+                const float f_even = 0.12f * sgn * (x * x) / (1.0f + 0.75f * ax);
+                return f_main + f_even;
             }
             case SaturationMode::Hard: {
-                return _mm256_min_ps(_mm256_set1_ps(1.0f), _mm256_max_ps(_mm256_set1_ps(-1.0f), x));
+                // F(x) = ∫ clamp(1.2x, -1, 1) dx
+                const float u = 1.2f * x;
+                const float au = std::abs(u);
+                float f_val;
+                if (au < 1.0f) {
+                    f_val = 0.5f * u * u;
+                } else {
+                    f_val = au - 0.5f;
+                }
+                return (1.0f / 1.2f) * f_val;
             }
             }
-            return x;
-        }
-
-        inline __m256 applyAD_AVX2(__m256 x) const noexcept {
-            switch (currentMode) {
-            case SaturationMode::Warm:
-                return lncosh_approx_avx2(x);
-            case SaturationMode::Tape: {
-                // F(x) = (2/π)[x·arctan(kx) - (1/2k)·ln(1+k²x²)]
-                // arctan → Padé 近似, ln → softplus 近似
-                const __m256 vK = _mm256_set1_ps(1.5f);
-                const __m256 vScale = _mm256_set1_ps(0.6366197723f);
-                const __m256 vHalfInvK = _mm256_set1_ps(1.0f / 3.0f); // 1/(2k) = 1/3
-                const __m256 kx = _mm256_mul_ps(vK, x);
-                const __m256 kx2 = _mm256_mul_ps(kx, kx);
-                // arctan Padé 近似
-                const __m256 v15 = _mm256_set1_ps(15.0f);
-                const __m256 v4  = _mm256_set1_ps(4.0f);
-                const __m256 v9  = _mm256_set1_ps(9.0f);
-                const __m256 atanNum = _mm256_mul_ps(kx, _mm256_fmadd_ps(v4, kx2, v15));
-                const __m256 atanDen = _mm256_fmadd_ps(v9, kx2, v15);
-                const __m256 atanApprox = _mm256_div_ps(atanNum, atanDen);
-                // x * arctan(kx)
-                const __m256 term1 = _mm256_mul_ps(x, atanApprox);
-                // ln(1+k²x²) ≈ log1p 近似: k²x² / (1 + k²x²/2) (Padé)
-                const __m256 lnArg = _mm256_fmadd_ps(kx, kx, _mm256_set1_ps(0.0f)); // k²x²
-                const __m256 lnApprox = _mm256_div_ps(lnArg, _mm256_fmadd_ps(_mm256_set1_ps(0.5f), lnArg, _mm256_set1_ps(1.0f)));
-                const __m256 term2 = _mm256_mul_ps(vHalfInvK, lnApprox);
-                return _mm256_mul_ps(vScale, _mm256_sub_ps(term1, term2));
-            }
-            case SaturationMode::Tube: {
-                // F(x) = |xp| - ln(1+|xp|) 非対称ゲイン適用
-                const __m256 vAbsMask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-                const __m256 posMask = _mm256_cmp_ps(x, _mm256_setzero_ps(), _CMP_GT_OS);
-                const __m256 scale = _mm256_blendv_ps(_mm256_set1_ps(0.85f), _mm256_set1_ps(1.15f), posMask);
-                const __m256 xp = _mm256_mul_ps(x, scale);
-                const __m256 axp = _mm256_and_ps(xp, vAbsMask);
-                // ln(1+|xp|) ≈ |xp|/(1+|xp|/2) (Padé [1/1])
-                const __m256 lnApprox = _mm256_div_ps(axp, _mm256_fmadd_ps(_mm256_set1_ps(0.5f), axp, _mm256_set1_ps(1.0f)));
-                return _mm256_sub_ps(axp, lnApprox);
-            }
-            case SaturationMode::Hard: {
-                // F(x) = x²/2 (|x|<1), |x|-0.5 (|x|>=1)
-                const __m256 vAbsMask = _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF));
-                const __m256 ax = _mm256_and_ps(x, vAbsMask);
-                const __m256 x2half = _mm256_mul_ps(_mm256_set1_ps(0.5f), _mm256_mul_ps(x, x));
-                const __m256 clipResult = _mm256_sub_ps(ax, _mm256_set1_ps(0.5f));
-                const __m256 clipMask = _mm256_cmp_ps(ax, _mm256_set1_ps(1.0f), _CMP_GE_OS);
-                return _mm256_blendv_ps(x2half, clipResult, clipMask);
-            }
-            }
-            return _mm256_mul_ps(_mm256_set1_ps(0.5f), _mm256_mul_ps(x, x));
+            return 0.5f * x * x;
         }
     };
 

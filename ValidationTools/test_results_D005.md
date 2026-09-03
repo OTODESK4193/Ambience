@@ -1,4 +1,4 @@
-# Validation Results D005 (ADAA Saturator Loop-Internal Placement)
+# Validation Results D005 (ADAA Saturator Output-Stage Architecture B009)
 
 | Room | Freq | Wave | Metric | Value | Threshold | Result |
 |---|---|---|---|---|---|---|
@@ -23,7 +23,7 @@
 | Room | 40 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 40 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 80 | Sine | NED | 5.0 | 50.0 | PASS |
-| Room | 80 | Sine | ESPRIT | 51.9359 | 1.0 | FAIL |
+| Room | 80 | Sine | ESPRIT | 51.9454 | 1.0 | FAIL |
 | Room | 80 | Sine | IACC | 0.3342 | 0.1 | FAIL |
 | Room | 80 | Sine | MOD | 9874.5824 | 1.0 | FAIL |
 | Room | 80 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -43,7 +43,7 @@
 | Room | 80 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 80 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 160 | Sine | NED | 5.0 | 50.0 | PASS |
-| Room | 160 | Sine | ESPRIT | 40.3383 | 1.0 | FAIL |
+| Room | 160 | Sine | ESPRIT | 40.3393 | 1.0 | FAIL |
 | Room | 160 | Sine | IACC | 0.3485 | 0.1 | FAIL |
 | Room | 160 | Sine | MOD | 8674.5824 | 1.0 | FAIL |
 | Room | 160 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -63,7 +63,7 @@
 | Room | 160 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 160 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 320 | Sine | NED | 5.0 | 50.0 | PASS |
-| Room | 320 | Sine | ESPRIT | 51.3847 | 1.0 | FAIL |
+| Room | 320 | Sine | ESPRIT | 51.3823 | 1.0 | FAIL |
 | Room | 320 | Sine | IACC | 0.3418 | 0.1 | FAIL |
 | Room | 320 | Sine | MOD | 7474.5824 | 1.0 | FAIL |
 | Room | 320 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -83,7 +83,7 @@
 | Room | 320 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 320 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 640 | Sine | NED | 5.0 | 50.0 | PASS |
-| Room | 640 | Sine | ESPRIT | 53.2199 | 1.0 | FAIL |
+| Room | 640 | Sine | ESPRIT | 53.2159 | 1.0 | FAIL |
 | Room | 640 | Sine | IACC | 0.3372 | 0.1 | FAIL |
 | Room | 640 | Sine | MOD | 6274.5824 | 1.0 | FAIL |
 | Room | 640 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -103,7 +103,7 @@
 | Room | 640 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 640 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 1280 | Sine | NED | 5.0 | 50.0 | PASS |
-| Room | 1280 | Sine | ESPRIT | 45.3136 | 1.0 | FAIL |
+| Room | 1280 | Sine | ESPRIT | 45.3024 | 1.0 | FAIL |
 | Room | 1280 | Sine | IACC | 0.593 | 0.1 | FAIL |
 | Room | 1280 | Sine | MOD | 0.3078 | 1.0 | PASS |
 | Room | 1280 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -123,7 +123,7 @@
 | Room | 1280 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 1280 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 2560 | Sine | NED | 5.0 | 50.0 | PASS |
-| Room | 2560 | Sine | ESPRIT | 45.1402 | 1.0 | FAIL |
+| Room | 2560 | Sine | ESPRIT | 45.1509 | 1.0 | FAIL |
 | Room | 2560 | Sine | IACC | 0.1918 | 0.1 | FAIL |
 | Room | 2560 | Sine | MOD | 22.9306 | 1.0 | FAIL |
 | Room | 2560 | Saw | NED | 15.0 | 50.0 | PASS |
@@ -143,7 +143,7 @@
 | Room | 2560 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 2560 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 5120 | Sine | NED | 15.0 | 50.0 | PASS |
-| Room | 5120 | Sine | ESPRIT | 50.9902 | 1.0 | FAIL |
+| Room | 5120 | Sine | ESPRIT | 51.0464 | 1.0 | FAIL |
 | Room | 5120 | Sine | IACC | 0.6902 | 0.1 | FAIL |
 | Room | 5120 | Sine | MOD | 1222.9306 | 1.0 | FAIL |
 | Room | 5120 | Saw | NED | 15.0 | 50.0 | PASS |
@@ -163,7 +163,7 @@
 | Room | 5120 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 5120 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 10240 | Sine | NED | 15.0 | 50.0 | PASS |
-| Room | 10240 | Sine | ESPRIT | 46.8782 | 1.0 | FAIL |
+| Room | 10240 | Sine | ESPRIT | 46.9792 | 1.0 | FAIL |
 | Room | 10240 | Sine | IACC | 0.544 | 0.1 | FAIL |
 | Room | 10240 | Sine | MOD | 1474.5824 | 1.0 | FAIL |
 | Room | 10240 | Saw | NED | 15.0 | 50.0 | PASS |
@@ -183,7 +183,7 @@
 | Room | 10240 | FM | IACC | 0.05 | 0.1 | PASS |
 | Room | 10240 | FM | MOD | 0.0 | 1.0 | PASS |
 | Room | 15000 | Sine | NED | 5.0 | 50.0 | PASS |
-| Room | 15000 | Sine | ESPRIT | 41.2214 | 1.0 | FAIL |
+| Room | 15000 | Sine | ESPRIT | 40.6798 | 1.0 | FAIL |
 | Room | 15000 | Sine | IACC | 0.5572 | 0.1 | FAIL |
 | Room | 15000 | Sine | MOD | 813.6863 | 1.0 | FAIL |
 | Room | 15000 | Saw | NED | 15.0 | 50.0 | PASS |
@@ -223,7 +223,7 @@
 | Hall | 40 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 40 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 80 | Sine | NED | 5.0 | 50.0 | PASS |
-| Hall | 80 | Sine | ESPRIT | 41.0313 | 1.0 | FAIL |
+| Hall | 80 | Sine | ESPRIT | 41.0249 | 1.0 | FAIL |
 | Hall | 80 | Sine | IACC | 0.2866 | 0.1 | FAIL |
 | Hall | 80 | Sine | MOD | 9874.5824 | 1.0 | FAIL |
 | Hall | 80 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -243,7 +243,7 @@
 | Hall | 80 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 80 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 160 | Sine | NED | 5.0 | 50.0 | PASS |
-| Hall | 160 | Sine | ESPRIT | 39.6699 | 1.0 | FAIL |
+| Hall | 160 | Sine | ESPRIT | 39.6689 | 1.0 | FAIL |
 | Hall | 160 | Sine | IACC | 0.369 | 0.1 | FAIL |
 | Hall | 160 | Sine | MOD | 8674.5824 | 1.0 | FAIL |
 | Hall | 160 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -263,7 +263,7 @@
 | Hall | 160 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 160 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 320 | Sine | NED | 5.0 | 50.0 | PASS |
-| Hall | 320 | Sine | ESPRIT | 48.0841 | 1.0 | FAIL |
+| Hall | 320 | Sine | ESPRIT | 48.0882 | 1.0 | FAIL |
 | Hall | 320 | Sine | IACC | 0.3768 | 0.1 | FAIL |
 | Hall | 320 | Sine | MOD | 7474.5824 | 1.0 | FAIL |
 | Hall | 320 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -283,7 +283,7 @@
 | Hall | 320 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 320 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 640 | Sine | NED | 5.0 | 50.0 | PASS |
-| Hall | 640 | Sine | ESPRIT | 38.193 | 1.0 | FAIL |
+| Hall | 640 | Sine | ESPRIT | 38.1923 | 1.0 | FAIL |
 | Hall | 640 | Sine | IACC | 0.3458 | 0.1 | FAIL |
 | Hall | 640 | Sine | MOD | 6274.5824 | 1.0 | FAIL |
 | Hall | 640 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -303,7 +303,7 @@
 | Hall | 640 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 640 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 1280 | Sine | NED | 5.0 | 50.0 | PASS |
-| Hall | 1280 | Sine | ESPRIT | 49.1754 | 1.0 | FAIL |
+| Hall | 1280 | Sine | ESPRIT | 49.1706 | 1.0 | FAIL |
 | Hall | 1280 | Sine | IACC | 0.3568 | 0.1 | FAIL |
 | Hall | 1280 | Sine | MOD | 23.2384 | 1.0 | FAIL |
 | Hall | 1280 | Saw | NED | 5.0 | 50.0 | PASS |
@@ -323,7 +323,7 @@
 | Hall | 1280 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 1280 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 2560 | Sine | NED | 5.0 | 50.0 | PASS |
-| Hall | 2560 | Sine | ESPRIT | 49.212 | 1.0 | FAIL |
+| Hall | 2560 | Sine | ESPRIT | 49.2421 | 1.0 | FAIL |
 | Hall | 2560 | Sine | IACC | 0.5708 | 0.1 | FAIL |
 | Hall | 2560 | Sine | MOD | 22.9306 | 1.0 | FAIL |
 | Hall | 2560 | Saw | NED | 20.0 | 50.0 | PASS |
@@ -343,7 +343,7 @@
 | Hall | 2560 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 2560 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 5120 | Sine | NED | 20.0 | 50.0 | PASS |
-| Hall | 5120 | Sine | ESPRIT | 39.6412 | 1.0 | FAIL |
+| Hall | 5120 | Sine | ESPRIT | 39.6414 | 1.0 | FAIL |
 | Hall | 5120 | Sine | IACC | 0.4777 | 0.1 | FAIL |
 | Hall | 5120 | Sine | MOD | 1222.9306 | 1.0 | FAIL |
 | Hall | 5120 | Saw | NED | 20.0 | 50.0 | PASS |
@@ -363,7 +363,7 @@
 | Hall | 5120 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 5120 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 10240 | Sine | NED | 20.0 | 50.0 | PASS |
-| Hall | 10240 | Sine | ESPRIT | 48.6075 | 1.0 | FAIL |
+| Hall | 10240 | Sine | ESPRIT | 48.5669 | 1.0 | FAIL |
 | Hall | 10240 | Sine | IACC | 0.2211 | 0.1 | FAIL |
 | Hall | 10240 | Sine | MOD | 1474.5824 | 1.0 | FAIL |
 | Hall | 10240 | Saw | NED | 20.0 | 50.0 | PASS |
@@ -383,7 +383,7 @@
 | Hall | 10240 | FM | IACC | 0.05 | 0.1 | PASS |
 | Hall | 10240 | FM | MOD | 0.0 | 1.0 | PASS |
 | Hall | 15000 | Sine | NED | 5.0 | 50.0 | PASS |
-| Hall | 15000 | Sine | ESPRIT | 42.2117 | 1.0 | FAIL |
+| Hall | 15000 | Sine | ESPRIT | 42.202 | 1.0 | FAIL |
 | Hall | 15000 | Sine | IACC | 0.2413 | 0.1 | FAIL |
 | Hall | 15000 | Sine | MOD | 813.6863 | 1.0 | FAIL |
 | Hall | 15000 | Saw | NED | 20.0 | 50.0 | PASS |
