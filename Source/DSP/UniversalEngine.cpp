@@ -722,15 +722,29 @@ namespace FDNReverb {
                 gLoop = 0.85f / loopEnergyEnv;
             }
 
+            // ★【ADAA サチュレーター: FDN ループ内配置 (AGC後・遅延線書き込み前)】
+            alignas(32) float limitedApfOutArray[16];
             for (int i = 0; i < FDN_ORDER; ++i) {
-                const float limitedApfOut = apfOutVec[i] * gLoop;
-                nextFb[i] = limitedApfOut;
+                limitedApfOutArray[i] = apfOutVec[i] * gLoop;
+            }
+
+            // 8ch × 2回の AVX2 1次 ADAA 並列処理 (saturation > 0 の場合のみ)
+            if (activeParams.saturation > 0.001f) {
+                for (int b = 0; b < 2; ++b) {
+                    __m256 vecIn = _mm256_load_ps(&limitedApfOutArray[b * 8]);
+                    __m256 vecOut = loopSaturator[b].processSample8(vecIn);
+                    _mm256_store_ps(&limitedApfOutArray[b * 8], vecOut);
+                }
+            }
+
+            for (int i = 0; i < FDN_ORDER; ++i) {
+                nextFb[i] = limitedApfOutArray[i];
 
                 const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
                 float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
                 fdnDelays[i].write(fdnInputForThisCh + currentFb[i]);
 
-                const float extractedOut = limitedApfOut * extractSign[i];
+                const float extractedOut = limitedApfOutArray[i] * extractSign[i];
                 if ((i & 1) == 0) evenSum += extractedOut;
                 else              oddSum  += extractedOut;
             }
@@ -747,9 +761,9 @@ namespace FDNReverb {
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel;
             const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel;
 
-            // ★ Vintage Warmth Saturator
-            float satL = saturatorL.processSample(lateMixL);
-            float satR = saturatorR.processSample(lateMixR);
+            // サチュレーションは FDN ループ内 ADAA で処理済み (出力段は直通)
+            float satL = lateMixL;
+            float satR = lateMixR;
 
             if (erSolo) { satL = 0.0f; satR = 0.0f; }
 

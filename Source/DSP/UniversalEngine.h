@@ -210,6 +210,7 @@ namespace FDNReverb {
         AcousticMetrics acousticMetrics;
         Saturator saturatorL;
         Saturator saturatorR;
+        Saturator loopSaturator[2]; // 8ch × 2 = 16ch FDN ループ内 ADAA
 
         MagnitudeResponseFitter fitter;
         bool isPreparedFlag{ false };

@@ -1,4 +1,4 @@
-# Validation Results D004 (Inchindown Short-Axis Boost Anisotropic SDN)
+# Validation Results D005 (ADAA Saturator Loop-Internal Placement)
 
 | Room | Freq | Wave | Metric | Value | Threshold | Result |
 |---|---|---|---|---|---|---|
