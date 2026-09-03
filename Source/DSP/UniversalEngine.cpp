@@ -140,6 +140,7 @@ namespace FDNReverb {
         sdnEngine.prepare(sampleRate, maxBlockSize);
         plateMesh.prepare(sampleRate, maxBlockSize);
         springChain.prepare(sampleRate, maxBlockSize);
+        inchindownEngine.prepare(sampleRate, maxBlockSize);
         for (int i = 0; i < SDNShoebox3D::NUM_NODES; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask);
             sdnEngine.delayLines[i].init(ptr, mask);
@@ -224,6 +225,7 @@ namespace FDNReverb {
         sdnEngine.reset();
         plateMesh.reset();
         springChain.reset();
+        inchindownEngine.reset();
 
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
@@ -452,6 +454,8 @@ namespace FDNReverb {
             plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
         } else if (currentTopology == ReverbTopology::Spring) {
             springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
+        } else if (currentTopology == ReverbTopology::Inchindown) {
+            inchindownEngine.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.0f);
         }
         
         bypassER = (activeParams.erLevel < 0.01f);
@@ -616,6 +620,7 @@ namespace FDNReverb {
             alignas(32) float fdnMeshInject[16] = { 0.0f };
             const bool isPlateOrGoldfoil = (currentTopology == ReverbTopology::Plate || currentTopology == ReverbTopology::Goldfoil);
             const bool isSpring = (currentTopology == ReverbTopology::Spring);
+            const bool isInchindown = (currentTopology == ReverbTopology::Inchindown);
 
             if (!bypassER) {
                 if (isPlateOrGoldfoil) {
@@ -625,6 +630,11 @@ namespace FDNReverb {
                     sdnEngine.tickModulatorsOnly();
                 } else if (isSpring) {
                     springChain.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR, fdnMeshInject);
+                    sdnEngine.modDepth = depthSamples * 0.2f;
+                    sdnEngine.modRate = smoothedModRate;
+                    sdnEngine.tickModulatorsOnly();
+                } else if (isInchindown) {
+                    inchindownEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR, fdnMeshInject);
                     sdnEngine.modDepth = depthSamples * 0.2f;
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.tickModulatorsOnly();

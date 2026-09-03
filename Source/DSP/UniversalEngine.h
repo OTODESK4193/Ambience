@@ -19,6 +19,7 @@
 #include "SDNEngine.h"
 #include "SDNTopology2DMesh.h"
 #include "SDNTopologySpring1D.h"
+#include "SDNTopologyInchindown.h"
 
 #define AMBIENCE_USE_STAGE2_ABSORPTION 1
 
@@ -146,6 +147,7 @@ namespace FDNReverb {
         SDNShoebox3D                                 sdnEngine;
         SDNTopology2DMesh                            plateMesh;
         SDNTopologySpring1D                          springChain;
+        SDNTopologyInchindown                        inchindownEngine;
 
         std::array<LinearDelayLine, 4>               inputDiffusersM;
         std::array<LinearDelayLine, 4>               inputDiffusersS;
