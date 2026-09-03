@@ -18,6 +18,7 @@
 #include "OutputEQ.h"
 #include "SDNEngine.h"
 #include "SDNTopology2DMesh.h"
+#include "SDNTopologySpring1D.h"
 
 #define AMBIENCE_USE_STAGE2_ABSORPTION 1
 
@@ -144,6 +145,7 @@ namespace FDNReverb {
         // Legacy ER taps replaced by SDN Core
         SDNShoebox3D                                 sdnEngine;
         SDNTopology2DMesh                            plateMesh;
+        SDNTopologySpring1D                          springChain;
 
         std::array<LinearDelayLine, 4>               inputDiffusersM;
         std::array<LinearDelayLine, 4>               inputDiffusersS;
