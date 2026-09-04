@@ -211,6 +211,9 @@ namespace FDNReverb {
         loopEnergyEnv = 0.0f;
 
         fitter.precomputeInteractionMatrix(fs);
+        absoCrossfadeInc = 1.0f / (fsf * 0.040f); // 40ms crossfade
+        absoCrossfadePos = 1.0f;
+        useAbsoStateA = true;
         isPreparedFlag = true;
 
         reset();
@@ -221,8 +224,11 @@ namespace FDNReverb {
         fbVec.fill(0.0f);
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-        for (auto& lineFilters : absorptionFiltersS2)
+        for (auto& lineFilters : absorptionFiltersS2_A)
             for (auto& f : lineFilters) f.reset();
+        for (auto& lineFilters : absorptionFiltersS2_B)
+            for (auto& f : lineFilters) f.reset();
+        absoCrossfadePos = 1.0f;
 #else
         for (auto& f : absorptionFilters) f.reset();
 #endif
@@ -383,16 +389,33 @@ namespace FDNReverb {
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         std::array<float, NUM_BANDS> targetDbAccum;
         targetDbAccum.fill(0.0f);
+        
+        const bool nextIsA = !useAbsoStateA;
 
         for (int i = 0; i < FDN_ORDER; ++i) {
             auto s2 = fitter.designStage2(
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
-                currentAbsorptionCoeffsS2[i][b] = s2.geqStages[b];
+                if (nextIsA) {
+                    absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
+                } else {
+                    absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
+                }
                 targetDbAccum[b] += s2.targetDb[b];
             }
+            // 状態変数の同期: 次にアクティブになる側に、現在の状態変数をコピーして連続性を保つ
+            for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                if (nextIsA) {
+                    absorptionFiltersS2_A[i][s] = absorptionFiltersS2_B[i][s];
+                } else {
+                    absorptionFiltersS2_B[i][s] = absorptionFiltersS2_A[i][s];
+                }
+            }
         }
+        
+        useAbsoStateA = nextIsA;
+        absoCrossfadePos = 0.0f; // Start crossfade
 
         // ★ 実効 RT60（ユーザー設定に 100% 忠実な物理値）
         effectiveRT60 = scaledRT60;
@@ -630,6 +653,17 @@ namespace FDNReverb {
         for (int n = 0; n < numSamples; ++n) {
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
             smoothedModRate   += (activeParams.modRate - smoothedModRate)     * 0.005f;
+            
+            if (absoCrossfadePos < 1.0f) {
+                absoCrossfadePos += absoCrossfadeInc;
+                if (absoCrossfadePos > 1.0f) absoCrossfadePos = 1.0f;
+            }
+            const bool isAbsoCrossfading = (absoCrossfadePos < 1.0f);
+            float absoFadeNew = 1.0f, absoFadeOld = 0.0f;
+            if (isAbsoCrossfading) {
+                absoFadeNew = std::sin(absoCrossfadePos * 1.5707963268f);
+                absoFadeOld = std::cos(absoCrossfadePos * 1.5707963268f);
+            }
 
             // ★ デュアル黄金比 LFO レート設定 (除算完全排除・事前計算スケール乗算)
             for (int i = 0; i < FDN_ORDER; ++i) {
@@ -765,8 +799,32 @@ namespace FDNReverb {
                 }
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-                for (int s = 0; s < ABSO_STAGES_S2; ++s)
-                    d = absorptionFiltersS2[i][s].tick(d, currentAbsorptionCoeffsS2[i][s]);
+                if (isAbsoCrossfading) {
+                    float dOld = d;
+                    float dNew = d;
+                    if (useAbsoStateA) {
+                        // Fading to A (New=A, Old=B)
+                        for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                            dOld = absorptionFiltersS2_B[i][s].tick(dOld, absorptionCoeffsS2_B[i][s]);
+                            dNew = absorptionFiltersS2_A[i][s].tick(dNew, absorptionCoeffsS2_A[i][s]);
+                        }
+                    } else {
+                        // Fading to B (New=B, Old=A)
+                        for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                            dOld = absorptionFiltersS2_A[i][s].tick(dOld, absorptionCoeffsS2_A[i][s]);
+                            dNew = absorptionFiltersS2_B[i][s].tick(dNew, absorptionCoeffsS2_B[i][s]);
+                        }
+                    }
+                    d = dOld * absoFadeOld + dNew * absoFadeNew;
+                } else {
+                    if (useAbsoStateA) {
+                        for (int s = 0; s < ABSO_STAGES_S2; ++s)
+                            d = absorptionFiltersS2_A[i][s].tick(d, absorptionCoeffsS2_A[i][s]);
+                    } else {
+                        for (int s = 0; s < ABSO_STAGES_S2; ++s)
+                            d = absorptionFiltersS2_B[i][s].tick(d, absorptionCoeffsS2_B[i][s]);
+                    }
+                }
 #else
                 d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
 #endif

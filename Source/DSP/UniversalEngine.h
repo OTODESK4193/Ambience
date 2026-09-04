@@ -197,8 +197,14 @@ namespace FDNReverb {
         float duckingAttackCoeff{ 0.0f };
         float duckingReleaseCoeff{ 0.0f };
 
-        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2;
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> currentAbsorptionCoeffsS2;
+        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_A;
+        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_B;
+        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_A;
+        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_B;
+        
+        float absoCrossfadePos{ 1.0f };
+        float absoCrossfadeInc{ 0.0f };
+        bool useAbsoStateA{ true };
 
         std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs;
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples;
