@@ -355,11 +355,22 @@ namespace FDNReverb {
         for (int b = 0; b < NUM_BANDS; ++b)
             scaledRT60[b] *= activeParams.rtBands[b];
 
-        // 大気減衰
-        const float airScale = activeParams.airAbsorbScale;
-        scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * (1.0f - (1.0f - 0.90f) * airScale));
-        scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * (1.0f - (1.0f - 0.75f) * airScale));
-        scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * (1.0f - (1.0f - 0.60f) * airScale));
+        // 大気減衰 (ISO 9613-1 指数べき乗モデル: 音波伝播距離と大気分子吸音率比例則)
+        // 線形減衰 1.0 - (1.0 - R)*s のゼロ割れ・負値突入バグを完全解消し、R(s) = R^s に移行。
+        const float safeAirScale = std::clamp(activeParams.airAbsorbScale, 0.0f, 5.0f);
+        float ratio7 = 0.90f;
+        float ratio8 = 0.75f;
+        float ratio9 = 0.60f;
+
+        if (std::abs(safeAirScale - 1.0f) > 1e-5f) {
+            ratio7 = std::pow(0.90f, safeAirScale);
+            ratio8 = std::pow(0.75f, safeAirScale);
+            ratio9 = std::pow(0.60f, safeAirScale);
+        }
+
+        scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
+        scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
+        scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
 
         // ★ 目標 RT60 カーブ（UI 灰色線用）を保存
         targetRT60 = scaledRT60;
@@ -575,12 +586,18 @@ namespace FDNReverb {
 
         // (ダッキング変数は dynamicDucker に集約)
 
-        const float diff = activeParams.diffusion * diffusionSensitivity;
-        const float scatteringScale = activeParams.scattering / 0.5f;
-        const float diffuserGain = diff * 0.70f * scatteringScale;
+        // ★ 入力 diffusion の安全クランプ [0.0, 1.0]
+        const float diff = std::clamp(activeParams.diffusion * diffusionSensitivity, 0.0f, 1.0f);
+        const float scatteringScale = std::clamp(activeParams.scattering / 0.5f, 0.0f, 2.0f);
+        const float rawDiffuserGain = diff * 0.70f * scatteringScale;
+        // ★ Schroeder オールパス受動性（極が単位円内 |g| < 1.0）および過渡ピーク爆発防止の安全上限 (0.7071f)
+        const float diffuserGain = std::clamp(rawDiffuserGain, 0.0f, 0.7071f);
+
         const float effectiveApfGain = apfGain * std::pow(diff, 0.75f);
-        const float lateDensityScale = activeParams.lateDensity / 0.7f;
-        const float apfGainStage = effectiveApfGain * 0.76f * lateDensityScale;
+        const float lateDensityScale = std::clamp(activeParams.lateDensity / 0.7f, 0.0f, 1.4286f);
+        const float rawApfGainStage = effectiveApfGain * 0.76f * lateDensityScale;
+        // ★ FDN ループ内 3段 Modulated Allpass のパラメトリック過渡サージを防ぐ安全上限 (0.7071f)
+        const float apfGainStage = std::clamp(rawApfGainStage, 0.0f, 0.7071f);
         const bool  skipInputDiffusers = (diff < 0.05f);
 
         const float sideBoost = stereoWidth * 1.5f;
@@ -620,12 +637,16 @@ namespace FDNReverb {
 
             preDelayLineL.write(inL[n]);
             preDelayLineR.write(inR[n]);
-            const float delayedL = (preDelaySamples > 0.5f) ? preDelayLineL.read(preDelaySamples) : inL[n];
-            const float delayedR = (preDelaySamples > 0.5f) ? preDelayLineR.read(preDelaySamples) : inR[n];
+            float delayedL = (preDelaySamples > 0.5f) ? preDelayLineL.read(preDelaySamples) : inL[n];
+            float delayedR = (preDelaySamples > 0.5f) ? preDelayLineR.read(preDelaySamples) : inR[n];
+            if (!std::isfinite(delayedL)) [[unlikely]] delayedL = 0.0f;
+            if (!std::isfinite(delayedR)) [[unlikely]] delayedR = 0.0f;
 
             // ★ 入力段 Bandwidth 1次 LPF (12kHz)
             inLpfStateL += inBandwidthCoeff * (delayedL - inLpfStateL);
             inLpfStateR += inBandwidthCoeff * (delayedR - inLpfStateR);
+            if (!std::isfinite(inLpfStateL)) [[unlikely]] inLpfStateL = 0.0f;
+            if (!std::isfinite(inLpfStateR)) [[unlikely]] inLpfStateR = 0.0f;
             float midIn = (inLpfStateL + inLpfStateR) * 0.5f;
             float sideIn = (inLpfStateL - inLpfStateR) * 0.5f;
 
@@ -648,11 +669,13 @@ namespace FDNReverb {
                 for (int i = 0; i < 4; ++i) {
                     float dm = inputDiffusersM[i].read(cachedDiffuserDelaySmpM[i]);
                     float wm = fdnInputMid + diffuserGain * dm;
+                    if (!std::isfinite(wm)) [[unlikely]] wm = 0.0f;
                     inputDiffusersM[i].write(wm);
                     fdnInputMid = dm - diffuserGain * wm;
 
                     float ds = inputDiffusersS[i].read(cachedDiffuserDelaySmpS[i]);
                     float ws = fdnInputSide + diffuserGain * ds;
+                    if (!std::isfinite(ws)) [[unlikely]] ws = 0.0f;
                     inputDiffusersS[i].write(ws);
                     fdnInputSide = ds - diffuserGain * ws;
                 }
@@ -759,6 +782,20 @@ namespace FDNReverb {
                 maxChPeak = std::max(maxChPeak, std::abs(apfOut));
             }
 
+            // ★【自己修復メカニズム (Auto-Recovery)】
+            // ループ内ピークが NaN / Inf または異常な過大エネルギーに達した場合、直ちにバッファを自己修復
+            if (!std::isfinite(maxChPeak) || maxChPeak > 1.0e4f || !std::isfinite(loopEnergyEnv)) [[unlikely]] {
+                memoryPool.clear();
+                fbVec.fill(0.0f);
+                loopEnergyEnv = 0.0f;
+                maxChPeak = 0.0f;
+                for (int ch = 0; ch < FDN_ORDER; ++ch) {
+                    apfOutVec[ch] = 0.0f;
+                    dcX1[ch] = 0.0f;
+                    dcY1[ch] = 0.0f;
+                }
+            }
+
             // ★【ユニタリ・エネルギー正規化 AGC】
             // 16ch 全体のピークをエンベロープ追従し、全チャンネルに共通スカラー gLoop を適用
             // （直交性・空間広がりを100%保持したまま、非線形歪みゼロでエネルギーのみを平滑制御）
@@ -776,7 +813,9 @@ namespace FDNReverb {
 
                 const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
                 float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
-                fdnDelays[i].write(fdnInputForThisCh + currentFb[i]);
+                float fdnWriteVal = fdnInputForThisCh + currentFb[i];
+                if (!std::isfinite(fdnWriteVal)) [[unlikely]] fdnWriteVal = 0.0f;
+                fdnDelays[i].write(fdnWriteVal);
 
                 const float extractedOut = limitedApfOut * extractSign[i];
                 if ((i & 1) == 0) evenSum += extractedOut;
