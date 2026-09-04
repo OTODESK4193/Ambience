@@ -81,6 +81,7 @@ private:
     void timerCallback() override;
     FDNReverbAudioProcessor* processor{ nullptr };
     std::array<float, FDNReverb::NUM_BANDS> displayRT60;
+    std::array<float, FDNReverb::NUM_BANDS> displayTargetRT60;
 
     static constexpr float MIN_RT60_DISPLAY = 0.05f;
     static constexpr float MAX_RT60_DISPLAY_FLOOR = 4.0f;  // Y軸の最低上限値

@@ -96,6 +96,9 @@ namespace FDNReverb {
         std::array<float, NUM_BANDS> getEffectiveRT60() const noexcept {
             return effectiveRT60;
         }
+        std::array<float, NUM_BANDS> getTargetRT60() const noexcept {
+            return targetRT60;
+        }
         float getD50() const noexcept { return acousticMetrics.getD50(); }
         float getC50() const noexcept { return acousticMetrics.getC50(); }
         float getC80() const noexcept { return acousticMetrics.getC80(); }
@@ -206,6 +209,7 @@ namespace FDNReverb {
         float dcBlockerCoeff{ 0.999f };
 
         std::array<float, NUM_BANDS> effectiveRT60;
+        std::array<float, NUM_BANDS> targetRT60;
         float theoreticalEDT{ 0.0f };
 
         AcousticMetrics acousticMetrics;

@@ -113,6 +113,7 @@ void AmbienceLookAndFeel::drawGroupComponentOutline(juce::Graphics& g,
 // ─── RT60Visualizer ──────────────────────────────────────────────────
 RT60Visualizer::RT60Visualizer() {
     displayRT60.fill(1.0f);
+    displayTargetRT60.fill(1.0f);
     startTimerHz(30);
 }
 RT60Visualizer::~RT60Visualizer() { stopTimer(); }
@@ -121,11 +122,15 @@ void RT60Visualizer::timerCallback() {
     if (!processor) return;
 
     auto live = processor->getRT60ForDisplay();
-    for (int i = 0; i < FDNReverb::NUM_BANDS; ++i)
+    auto liveTarget = processor->getTargetRT60ForDisplay();
+    for (int i = 0; i < FDNReverb::NUM_BANDS; ++i) {
         displayRT60[i] += 0.25f * (live[i] - displayRT60[i]);
+        displayTargetRT60[i] += 0.25f * (liveTarget[i] - displayTargetRT60[i]);
+    }
 
-    // ★ 動的 Y 軸上限: 現在の最大 RT60 値 × 1.3 に滑らかに追従
-    float maxVal = *std::max_element(displayRT60.begin(), displayRT60.end());
+    // ★ 動的 Y 軸上限: Target と Effective の最大値 × 1.3 に滑らかに追従
+    float maxVal = std::max(*std::max_element(displayRT60.begin(), displayRT60.end()),
+                            *std::max_element(displayTargetRT60.begin(), displayTargetRT60.end()));
     float targetMax = std::max(MAX_RT60_DISPLAY_FLOOR, maxVal * 1.3f);
     // 指数平滑化（上昇は素早く、下降は緩やか→スケールが頻繁に変わらない）
     float smoothFactor = (targetMax > dynamicMaxRT60) ? 0.15f : 0.03f;
@@ -214,14 +219,9 @@ void RT60Visualizer::paint(juce::Graphics& g)
             }
         };
 
-    // プリセット元カーブ (半透明グレー)
-    if (processor) {
-        int algo = (int)*processor->apvts.getRawParameterValue("algorithm");
-        auto& preset = *FDNReverb::ALL_PRESETS[
-            juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, algo)];
-        plotCurve(preset.acoustics.rt60,
-            AmbienceColors::TextSecondary.withAlpha(0.5f), 1.f);
-    }
+    // 目標ターゲット RT60 カーブ (半透明グレー: ノブ・EQ連動)
+    plotCurve(displayTargetRT60,
+        AmbienceColors::TextSecondary.withAlpha(0.60f), 1.5f);
 
     // 実際の反映カーブ (オレンジ)
     plotCurve(displayRT60, AmbienceColors::Accent, 2.f);

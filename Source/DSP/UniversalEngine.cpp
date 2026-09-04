@@ -337,6 +337,9 @@ namespace FDNReverb {
         scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * 0.75f);
         scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * 0.60f);
 
+        // ★ 目標 RT60 カーブ（UI 灰色線用）を保存
+        targetRT60 = scaledRT60;
+
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         std::array<float, NUM_BANDS> targetDbAccum;
         targetDbAccum.fill(0.0f);
@@ -463,6 +466,16 @@ namespace FDNReverb {
         }
         
         bypassER = (activeParams.erLevel < 0.01f);
+
+        // ★ 【ER ビジュアライザー用動的タップ抽出ブリッジ】
+        const auto& erPattern = PRESET_ER_PATTERNS[juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex)];
+        currentERTapCount = erPattern.numTaps;
+        const float maxSafeERDelaySamples = static_cast<float>(fs * 0.95);
+        for (int i = 0; i < erPattern.numTaps; ++i) {
+            const float delaySmp = erPattern.taps[i].delayMs * 0.001f * fsf * erSizeScale;
+            currentERDelaySamples[i] = juce::jlimit(1.0f, maxSafeERDelaySamples, delaySmp);
+            currentERGains[i] = erPattern.taps[i].gain;
+        }
 
         float edtCoeff = 0.7f;
         switch (currentTopology) {
@@ -734,7 +747,7 @@ namespace FDNReverb {
             const float fdnOutR = (oddSum + evenSum * crossLeak) * 0.353553f;
             fbVec = nextFb;
 
-            const float erMakeupGain = (currentERTapCount > 6) ? 1.5f : 2.5f;
+            const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
             const float erMixL = bypassER ? 0.0f : erOutL * erGainCurved * erMakeupGain;
             const float erMixR = bypassER ? 0.0f : erOutR * erGainCurved * erMakeupGain;
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel;

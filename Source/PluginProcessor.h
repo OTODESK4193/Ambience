@@ -41,6 +41,9 @@ public:
     std::array<float, FDNReverb::NUM_BANDS> getRT60ForDisplay() const noexcept {
         return engine.getEffectiveRT60();
     }
+    std::array<float, FDNReverb::NUM_BANDS> getTargetRT60ForDisplay() const noexcept {
+        return engine.getTargetRT60();
+    }
 
     float getInputRMSL()  const noexcept { return inputRMS_L.load(); }
     float getInputRMSR()  const noexcept { return inputRMS_R.load(); }
