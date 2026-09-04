@@ -13,7 +13,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 41.3981,
+    "value": 43.347,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -193,7 +193,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 41.142,
+    "value": 41.139,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -373,7 +373,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 44.3944,
+    "value": 44.3852,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -553,7 +553,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 39.1275,
+    "value": 39.1306,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -733,7 +733,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 43.5337,
+    "value": 43.5349,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -913,7 +913,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 45.3088,
+    "value": 45.2923,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1093,7 +1093,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 38.5167,
+    "value": 38.5173,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1273,7 +1273,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 45.0145,
+    "value": 45.0087,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1453,7 +1453,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 44.1634,
+    "value": 44.1684,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1633,7 +1633,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 38.4302,
+    "value": 38.431,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1813,7 +1813,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 43.3966,
+    "value": 44.5411,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1993,7 +1993,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 37.7495,
+    "value": 37.7486,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2173,7 +2173,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 47.8857,
+    "value": 47.8798,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2353,7 +2353,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 46.8896,
+    "value": 46.8881,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2533,7 +2533,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 37.9969,
+    "value": 37.9953,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2713,7 +2713,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 47.9566,
+    "value": 47.9448,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2893,7 +2893,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 35.4631,
+    "value": 35.4672,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -3073,7 +3073,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 38.2597,
+    "value": 38.2624,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -3253,7 +3253,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 41.6691,
+    "value": 41.6657,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -3433,7 +3433,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 38.9886,
+    "value": 38.9878,
     "thresh": 1.0,
     "eval": "FAIL"
   },
