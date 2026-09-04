@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <array>
 
 namespace FDNReverb {
@@ -13,7 +13,7 @@ namespace FDNReverb {
         float preDelayMs{ 10.0f };
         float modAmount{ 0.25f };
         float modRate{ 0.5f };
-        float stereoWidth{ 0.80f };
+        float stereoWidth{ 0.95f };
         float erLevel{ 0.6f };
         float lateLevel{ 1.0f };
         float wetDB{ -4.0f };

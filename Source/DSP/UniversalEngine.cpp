@@ -227,6 +227,8 @@ namespace FDNReverb {
         saturatorL.reset(); saturatorR.reset();
         outputLimiter.reset(); outputEQ.reset();
         dynamicDucker.reset();
+        outApL1.reset(); outApL2.reset();
+        outApR1.reset(); outApR2.reset();
         duckingEnvelope = 0.0f;
         loopEnergyEnv = 0.0f;
         for (auto& chDelays : nestedAllpassDelays)
@@ -325,16 +327,31 @@ namespace FDNReverb {
         std::array<float, NUM_BANDS> scaledRT60 = preset.acoustics.rt60;
         for (auto& v : scaledRT60) v *= activeParams.decayScale;
 
-        scaledRT60[0] *= activeParams.tiltLow;
-        scaledRT60[1] *= activeParams.tiltLow;
-        scaledRT60[2] *= activeParams.tiltLow;
-        scaledRT60[3] *= activeParams.tiltMid;
-        scaledRT60[4] *= activeParams.tiltMid;
-        scaledRT60[5] *= activeParams.tiltMid;
-        scaledRT60[6] *= activeParams.tiltMid;
-        scaledRT60[7] *= activeParams.tiltHigh;
-        scaledRT60[8] *= activeParams.tiltHigh;
-        scaledRT60[9] *= activeParams.tiltHigh;
+        // ★ TiltEq: 対数周波数軸上の滑らかな 2次多項式補間チルティング (WLS のギブズ現象・リップルを解消)
+        if (std::abs(activeParams.tiltLow - 1.0f) > 1e-4f ||
+            std::abs(activeParams.tiltMid - 1.0f) > 1e-4f ||
+            std::abs(activeParams.tiltHigh - 1.0f) > 1e-4f)
+        {
+            const float x0 = std::log2(BAND_FREQ[1]);    // Low 制御点 (62.5Hz, Band 1)
+            const float x1 = std::log2(BAND_FREQ[5]);    // Mid 制御点 (1000Hz, Band 5)
+            const float x2 = std::log2(BAND_FREQ[8]);    // High 制御点 (8000Hz, Band 8)
+            const float d01 = x0 - x1;
+            const float d02 = x0 - x2;
+            const float d12 = x1 - x2;
+            const float denom0 = d01 * d02;
+            const float denom1 = -d01 * d12;
+            const float denom2 = -d02 * -d12;
+
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                const float x = std::log2(BAND_FREQ[b]);
+                const float L0 = ((x - x1) * (x - x2)) / denom0;
+                const float L1 = ((x - x0) * (x - x2)) / denom1;
+                const float L2 = ((x - x0) * (x - x1)) / denom2;
+                float tiltFactor = activeParams.tiltLow * L0 + activeParams.tiltMid * L1 + activeParams.tiltHigh * L2;
+                tiltFactor = std::clamp(tiltFactor, 0.1f, 10.0f);
+                scaledRT60[b] *= tiltFactor;
+            }
+        }
         for (int b = 0; b < NUM_BANDS; ++b)
             scaledRT60[b] *= activeParams.rtBands[b];
 
@@ -591,7 +608,7 @@ namespace FDNReverb {
             }
 
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
-            const float depthSamples = modAmtCurved * 0.0035f * fsf * modDepthScale;
+            const float depthSamples = modAmtCurved * 0.0022f * fsf * modDepthScale;
 
             preDelayLineL.write(inL[n]);
             preDelayLineR.write(inR[n]);
@@ -777,6 +794,10 @@ namespace FDNReverb {
 
             float wetL = erMixL + satL;
             float wetR = erMixR + satR;
+
+            // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・位相直交化による空間広がり・IACC最適化)
+            wetL = outApL2.process(outApL1.process(wetL, 0.55f), 0.55f);
+            wetR = outApR2.process(outApR1.process(wetR, -0.55f), -0.55f);
 
             outputEQ.process(wetL, wetR);
 

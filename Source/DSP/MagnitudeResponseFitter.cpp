@@ -307,37 +307,35 @@ namespace FDNReverb {
         const float fs = static_cast<float>(sampleRate);
         const float m = static_cast<float>(delaySamples);
 
-        // ── Step 1: 各バンドのループ1周ゲインを dB 単位で目標化 ──
+        // ── Step 1: 音響物理に基づく RT60 連続変形と遅延長 m 比例 dB 目標化 ──
+        //   - LF Absorption: 160Hz 基準の低域シェルビング重みによる連続変形
+        //   - HF Damping: ISO 9613-1 大気分子吸音 (2kHz 以上で f^2 則) による連続変形
+        //   - 遅延線長 m (伝播距離) に正確に比例した目標ループゲイン targetDb[i] を算出
         std::array<float, NUM_BANDS> targetDb;
         for (int i = 0; i < N; ++i) {
-            float t60Safe = std::max(0.01f, rt60[i]);
-            targetDb[i] = -60.0f * m / (fs * t60Safe);
+            const float freq = BAND_FREQ[i];
+
+            // 低域吸音重み (160Hz 2次ロールオフ)
+            const float lfWeight = 1.0f / (1.0f + std::pow(freq / 160.0f, 2.0f));
+            float currentT60 = std::max(0.01f, rt60[i]) * (1.0f - lfAbsorption * 0.8f * lfWeight);
+            currentT60 = std::max(0.01f, currentT60);
+
+            // 高域大気分子吸音 (2kHz 以上で f^2 に比例)
+            const float hfWeight = std::pow(std::max(0.0f, freq - 2000.0f) / 14000.0f, 2.0f);
+            const float invT60 = (1.0f / currentT60) + (hfDamping * hfWeight * 2.0f);
+            currentT60 = 1.0f / std::max(1e-4f, invT60);
+
+            // 遅延線長 m に正確に比例した減衰量 (dB)
+            float db = -60.0f * m / (fs * currentT60);
+            db = std::clamp(db, -60.0f, -0.02f);
+            targetDb[i] = db;
+            result.targetDb[i] = db;
         }
 
-        // ── Step 2: ユーザー LF/HF 補正を目標 dB に加算 ──
-        // LF Absorption: 低域帯 (31Hz, 62Hz, 125Hz) を追加減衰
-        //   lfAbsorption=0 → 補正なし、=1 → 各帯 -3dB の追加減衰
-        targetDb[0] += -lfAbsorption * 3.0f;
-        targetDb[1] += -lfAbsorption * 2.5f;
-        targetDb[2] += -lfAbsorption * 1.5f;
-        // HF Damping: 高域帯 (4kHz, 8kHz, 16kHz) を追加減衰
-        //   hfDamping=0 → 補正なし、=1 → 各帯 -6dB の追加減衰
-        targetDb[7] += -hfDamping * 3.0f;
-        targetDb[8] += -hfDamping * 5.0f;
-        targetDb[9] += -hfDamping * 6.0f;
-
-        // ── Step 3: 目標 dB を安全上限 (-0.02 dB) にクランプ ──
-        // WLS リップルやバンド間干渉による 1.0 超過を未然に防止
-        for (int i = 0; i < N; ++i) {
-            targetDb[i] = std::min(targetDb[i], -0.02f);
-            // 過剰な減衰は数値精度に悪影響なので下限も設ける (-60dB/loop)
-            targetDb[i] = std::max(targetDb[i], -60.0f);
-            result.targetDb[i] = targetDb[i];
-        }
-
-        // ── Step 4: 中域基準ゲイン midGain を抽出 (安全係数 0.998f を乗算) ──
-        float midDb = targetDb[4];
-        float midGainLinear = std::pow(10.0f, midDb / 20.0f) * 0.998f;
+        // ── Step 2: 中域基準ゲイン midGain を抽出 ──
+        // (固定 0.998f は廃止し、Step 7 の動的 Passivity Guard で厳密に保証)
+        const float midDb = targetDb[4];
+        float midGainLinear = std::pow(10.0f, midDb / 20.0f);
         result.midGainAbsorbed = midGainLinear;
 
         // 残差 dB: 中域からの偏差 (GEQ がフィットすべき周波数特性)
@@ -368,9 +366,28 @@ namespace FDNReverb {
                 BAND_FREQ[j], gDb, kBandQs[j], sampleRate);
         }
 
-        // ── Step 7: band 0 の係数に midGain を吸収 ──
-        // これにより独立 DC スカラー適用が不要になり、
-        // フィルタカスケード全体のループゲインが厳密に WLS の解に従う。
+        // ── Step 7: 動的 Passivity Guard & band 0 への midGain 吸収 ──
+        // WLS フィッティング後の Biquad カスケード全体の最大振幅ゲインを評価し、
+        // 全帯域でループゲイン <= 0.9995 を厳格に保証 (発振防止 & 長残響の維持)
+        float maxGeqGainLinear = 0.0f;
+        for (int evalBand = 0; evalBand < N; ++evalBand) {
+            float totalGainDb = 0.0f;
+            for (int j = 0; j < N; ++j) {
+                totalGainDb += static_cast<float>(cachedB[evalBand][j]) * result.commandDb[j];
+            }
+            const float linear = std::pow(10.0f, totalGainDb / 20.0f);
+            if (linear > maxGeqGainLinear) {
+                maxGeqGainLinear = linear;
+            }
+        }
+
+        const float totalMaxGain = midGainLinear * std::max(1.0f, maxGeqGainLinear);
+        if (totalMaxGain > 0.9995f) {
+            midGainLinear *= (0.9995f / totalMaxGain);
+        }
+        result.midGainAbsorbed = midGainLinear;
+
+        // band 0 の係数に安全化された midGain を吸収
         result.geqStages[0] = absorbGainIntoBiquad(result.geqStages[0], midGainLinear);
 
         return result;

@@ -81,6 +81,29 @@ namespace FDNReverb {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  SimpleAllpass: 出力段ステレオ・オールパス・ディフューザー
+    //  (振幅着色ゼロ・位相直交化によるステレオ相関低減・IACC 最適化)
+    // ═══════════════════════════════════════════════════════════════════════════
+    template <size_t DelayLen>
+    class SimpleAllpass {
+    public:
+        void reset() noexcept {
+            buffer.fill(0.0f);
+            writeIdx = 0;
+        }
+        inline float process(float in, float g) noexcept {
+            const float delayed = buffer[writeIdx];
+            const float v = in - g * delayed;
+            buffer[writeIdx] = v;
+            writeIdx = (writeIdx + 1) % DelayLen;
+            return delayed + g * v;
+        }
+    private:
+        std::array<float, DelayLen> buffer{};
+        size_t writeIdx{ 0 };
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  UniversalEngine (V1.2.1 B010)
     // ═══════════════════════════════════════════════════════════════════════════
     class UniversalEngine {
@@ -224,6 +247,12 @@ namespace FDNReverb {
 
         MagnitudeResponseFitter fitter;
         bool isPreparedFlag{ false };
+
+        // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・素数ディレイ)
+        SimpleAllpass<37>  outApL1;
+        SimpleAllpass<61>  outApL2;
+        SimpleAllpass<71>  outApR1;
+        SimpleAllpass<103> outApR2;
     };
 
 } // namespace FDNReverb
