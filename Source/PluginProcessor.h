@@ -62,7 +62,7 @@ public:
     bool isParamsLocked() const noexcept { return paramsLocked.load(); }
     void setParamsLocked(bool locked) noexcept { paramsLocked.store(locked); }
 
-    void panic() noexcept;
+    void panic() noexcept { panicRequested.store(true, std::memory_order_release); }
 
     juce::String getLastSavedPresetName() const noexcept {
         const juce::ScopedLock sl(stateLock);
@@ -97,6 +97,9 @@ private:
 
     FDNReverb::UniversalEngine engine;
     std::atomic<bool> paramsLocked{ false };
+    std::atomic<bool> panicRequested{ false };
+    int panicFadeSamplesRemaining{ 0 };
+    int panicFadeTotalSamples{ 0 };
 
     FDNReverb::DSPParams lastSentParams;
     bool paramsNeedUpdate{ true };

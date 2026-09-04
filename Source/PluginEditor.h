@@ -116,6 +116,11 @@ private:
     bool isPresetModified{ false };
     int loadingPresetCounter{ 0 };
 
+    // ── Send Mode Parameter Cache ──
+    float cachedWetDB{ -12.0f };
+    float cachedDryDB{ 0.0f };
+    bool hasCachedSendMode{ false };
+
     // ── Layout Constants ──
     static constexpr int PAD = 8;
     static constexpr int KNOB_W = 64;

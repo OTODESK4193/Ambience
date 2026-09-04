@@ -48,7 +48,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             juce::jlimit(static_cast<int>(kBaseH * 0.80), static_cast<int>(kBaseH * 1.50), savedH));
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 2.0.0 B023", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 2.0.0 B024", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -108,10 +108,28 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     sendModeButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
     sendModeButton.onClick = [this] {
         const bool isSend = sendModeButton.getToggleState();
-        if (auto* wetParam = audioProcessor.apvts.getParameter("wetlevel"))
-            wetParam->setValueNotifyingHost(wetParam->convertTo0to1(isSend ? 0.0f : -12.0f));
-        if (auto* dryParam = audioProcessor.apvts.getParameter("drylevel"))
-            dryParam->setValueNotifyingHost(dryParam->convertTo0to1(isSend ? -60.0f : 0.0f));
+        auto* wetParam = audioProcessor.apvts.getParameter("wetlevel");
+        auto* dryParam = audioProcessor.apvts.getParameter("drylevel");
+
+        if (isSend) {
+            // ON: 現在の値をキャッシュして 100% Wet / Mute Dry に設定
+            if (wetParam && dryParam) {
+                cachedWetDB = *audioProcessor.apvts.getRawParameterValue("wetlevel");
+                cachedDryDB = *audioProcessor.apvts.getRawParameterValue("drylevel");
+                hasCachedSendMode = true;
+                wetParam->setValueNotifyingHost(wetParam->convertTo0to1(0.0f));
+                dryParam->setValueNotifyingHost(dryParam->convertTo0to1(-60.0f));
+            }
+        } else {
+            // OFF: キャッシュされていた元のユーザー値を完全復元
+            if (wetParam && dryParam) {
+                float restoreWet = hasCachedSendMode ? cachedWetDB : -12.0f;
+                float restoreDry = hasCachedSendMode ? cachedDryDB : 0.0f;
+                wetParam->setValueNotifyingHost(wetParam->convertTo0to1(restoreWet));
+                dryParam->setValueNotifyingHost(dryParam->convertTo0to1(restoreDry));
+                hasCachedSendMode = false;
+            }
+        }
     };
     content.addAndMakeVisible(sendModeButton);
 
@@ -649,7 +667,7 @@ void FDNReverbEditor::deleteCurrentPreset() {
 }
 
 void FDNReverbEditor::paint(juce::Graphics& g) {
-    g.fillAll(AmbienceColors::Background);
+    g.fillAll(laf.getTheme().background);
 }
 
 void FDNReverbEditor::resized() {
@@ -788,11 +806,12 @@ void FDNReverbEditor::layoutContent() {
 }
 
 void FDNReverbEditor::paintContent(juce::Graphics& g) {
-    g.fillAll(AmbienceColors::Background);
+    const auto& theme = laf.getTheme();
+    g.fillAll(theme.background);
 
     juce::ColourGradient grad(
-        AmbienceColors::Surface.withAlpha(0.12f), 0.f, 0.f,
-        AmbienceColors::Background, 0.f, (float)H, false);
+        theme.surface.withAlpha(0.12f), 0.f, 0.f,
+        theme.background, 0.f, (float)H, false);
     g.setGradientFill(grad);
     g.fillAll();
 
@@ -803,14 +822,14 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
     };
 
     if (!isRT60Tab && !isProTab) {
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        g.setColour(theme.primary.withAlpha(0.75f));
         sl(SEC_TIME, Y_SLABEL1, "TIME");
         sl(SEC_FREQUENCY, Y_SLABEL1, "FREQUENCY");
         sl(SEC_DIFFUSION, Y_SLABEL1, "DIFFUSION");
         sl(SEC_STEREO, Y_SLABEL1, "STEREO");
         sl(SEC_CHARACTER, Y_SLABEL1, "CHARACTER");
 
-        g.setColour(AmbienceColors::Separator);
+        g.setColour(theme.separator);
         auto drawSep = [&](int x) {
             g.drawVerticalLine(x, (float)Y_SLABEL1, (float)(Y_ROW1 + UNIT_H));
         };
@@ -819,72 +838,73 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         drawSep(SEP_DS);
         drawSep(SEP_SC);
 
-        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
+        g.setColour(theme.separator.withAlpha(0.5f));
         g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(W - PAD));
 
         const int outeq_x = PAD + 2 * (KNOB_W + PAD) + 16;
         const int duck_x = outeq_x + 2 * (KNOB_W + PAD) + 16;
 
-        g.setColour(AmbienceColors::Separator);
+        g.setColour(theme.separator);
         g.drawVerticalLine(outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
         drawSep(duck_x - 9);
 
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        g.setColour(theme.primary.withAlpha(0.75f));
         sl(PAD, Y_SLABEL2, "MIX");
         sl(outeq_x, Y_SLABEL2, "OUT EQ");
         sl(duck_x, Y_SLABEL2, "DUCKING");
     } else if (isRT60Tab) {
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        g.setColour(theme.primary.withAlpha(0.75f));
         sl(PAD, Y_SLABEL1, "BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)", 500);
 
-        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
+        g.setColour(theme.separator.withAlpha(0.5f));
         g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(W - PAD));
 
         const int tilt_x = PAD + KNOB_W + PAD + PAD + 8;
         const int outeq_x = tilt_x + 3 * (KNOB_W + PAD) + 16;
         const int theme_x = outeq_x + 2 * (KNOB_W + PAD) + 16;
 
-        g.setColour(AmbienceColors::Separator);
+        g.setColour(theme.separator);
         g.drawVerticalLine(outeq_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
         g.drawVerticalLine(theme_x - 9, (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
 
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        g.setColour(theme.primary.withAlpha(0.75f));
         sl(tilt_x, Y_SLABEL2, "TILT EQ");
         sl(outeq_x, Y_SLABEL2, "OUT EQ");
         sl(theme_x, Y_SLABEL2, "THEME");
     } else if (isProTab) {
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        g.setColour(theme.primary.withAlpha(0.75f));
         sl(PAD, Y_SLABEL1, "PRO ACOUSTICS DESIGN (SCATTERING / ER CROSSOVER / LATE DENSITY)", 500);
 
-        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
+        g.setColour(theme.separator.withAlpha(0.5f));
         g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(PRESET_PANEL_X - 16));
 
-        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        g.setColour(theme.primary.withAlpha(0.75f));
         sl(PAD, Y_SLABEL2, "PRO SPATIAL DESIGN (ASYMMETRY / C80 CLARITY / AIR ABSORB)", 500);
     }
 
-    g.setColour(AmbienceColors::Separator);
+    g.setColour(theme.separator);
     g.drawVerticalLine(PRESET_PANEL_X - 9,
         (float)Y_SLABEL2, (float)(Y_ROW2 + UNIT_H));
-    g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+    g.setColour(theme.primary.withAlpha(0.75f));
     sl(PRESET_PANEL_X, Y_SLABEL2, "PRESET");
 }
 
 void FDNReverbEditor::updateTheme(int idx) {
-    AmbienceColors::setTheme(idx);
+    laf.setTheme(idx);
+    const auto& theme = laf.getTheme();
 
-    rt60TabButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
-    proTabButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
-    erSoloButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
-    lockButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
-    sendModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
-    presetSaveButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Accent);
-    labelDecayLine.setColour(juce::Label::textColourId, AmbienceColors::Accent);
+    rt60TabButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
+    proTabButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
+    erSoloButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
+    lockButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
+    sendModeButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
+    presetSaveButton.setColour(juce::TextButton::buttonColourId, theme.primary);
+    labelDecayLine.setColour(juce::Label::textColourId, theme.primary);
 
     presetRevertButton.setColour(juce::TextButton::buttonColourId,
-        isPresetModified ? AmbienceColors::Accent : AmbienceColors::Surface);
+        isPresetModified ? theme.primary : theme.surface);
     presetRevertButton.setColour(juce::TextButton::textColourOffId,
-        isPresetModified ? AmbienceColors::Background : AmbienceColors::TextSecondary);
+        isPresetModified ? theme.background : theme.textSecondary);
 
     algoSelector.updateButtonColors();
 

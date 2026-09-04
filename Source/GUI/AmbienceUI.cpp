@@ -4,13 +4,20 @@
 // ─── AmbienceLookAndFeel ─────────────────────────────────────────────
 AmbienceLookAndFeel::AmbienceLookAndFeel()
 {
-    setColour(juce::Slider::backgroundColourId, AmbienceColors::ArcTrack);
-    setColour(juce::Slider::thumbColourId, AmbienceColors::Accent);
-    setColour(juce::Slider::trackColourId, AmbienceColors::ArcFill);
-    setColour(juce::Label::textColourId, AmbienceColors::TextSecondary);
-    setColour(juce::ComboBox::backgroundColourId, AmbienceColors::Surface);
-    setColour(juce::ComboBox::textColourId, AmbienceColors::TextPrimary);
-    setColour(juce::ComboBox::outlineColourId, AmbienceColors::Border);
+    setTheme(0);
+}
+
+void AmbienceLookAndFeel::setTheme(int idx) noexcept
+{
+    currentThemeIndex = juce::jlimit(0, 9, idx);
+    currentTheme = AmbienceColors::THEMES[currentThemeIndex];
+    setColour(juce::Slider::backgroundColourId, currentTheme.arcTrack);
+    setColour(juce::Slider::thumbColourId, currentTheme.primary);
+    setColour(juce::Slider::trackColourId, currentTheme.primary);
+    setColour(juce::Label::textColourId, currentTheme.textSecondary);
+    setColour(juce::ComboBox::backgroundColourId, currentTheme.surface);
+    setColour(juce::ComboBox::textColourId, currentTheme.textPrimary);
+    setColour(juce::ComboBox::outlineColourId, currentTheme.border);
 }
 
 void AmbienceLookAndFeel::drawRotarySlider(juce::Graphics& g,
@@ -24,25 +31,25 @@ void AmbienceLookAndFeel::drawRotarySlider(juce::Graphics& g,
 
     juce::Path track;
     track.addCentredArc(cx, cy, r, r, 0.f, startAngle, endAngle, true);
-    g.setColour(AmbienceColors::ArcTrack);
+    g.setColour(currentTheme.arcTrack);
     g.strokePath(track, juce::PathStrokeType(th,
         juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     float angle = startAngle + sliderPos * (endAngle - startAngle);
     juce::Path fill;
     fill.addCentredArc(cx, cy, r, r, 0.f, startAngle, angle, true);
-    juce::ColourGradient grad(AmbienceColors::AccentBlue, cx - r, cy,
-        AmbienceColors::Accent, cx + r, cy, false);
+    juce::ColourGradient grad(currentTheme.secondary, cx - r, cy,
+        currentTheme.primary, cx + r, cy, false);
     g.setGradientFill(grad);
     g.strokePath(fill, juce::PathStrokeType(th,
         juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    g.setColour(AmbienceColors::Panel);
+    g.setColour(currentTheme.panel);
     g.fillEllipse(cx - r * 0.28f, cy - r * 0.28f, r * 0.56f, r * 0.56f);
 
     float ix = cx + r * 0.6f * std::sin(angle);
     float iy = cy - r * 0.6f * std::cos(angle);
-    g.setColour(AmbienceColors::TextPrimary);
+    g.setColour(currentTheme.textPrimary);
     g.drawLine(cx, cy, ix, iy, 2.f);
 }
 
@@ -52,12 +59,12 @@ void AmbienceLookAndFeel::drawLinearSlider(juce::Graphics& g,
 {
     auto b = juce::Rectangle<int>(x, y, w, h).toFloat();
     float ty = b.getCentreY() - 2.f;
-    g.setColour(AmbienceColors::ArcTrack);
+    g.setColour(currentTheme.arcTrack);
     g.fillRoundedRectangle(b.getX(), ty, b.getWidth(), 4.f, 2.f);
-    g.setColour(AmbienceColors::Accent);
+    g.setColour(currentTheme.primary);
     g.fillRoundedRectangle(b.getX(), ty, sliderPos - b.getX(), 4.f, 2.f);
     float r = 7.f;
-    g.setColour(AmbienceColors::TextPrimary);
+    g.setColour(currentTheme.textPrimary);
     g.fillEllipse(sliderPos - r, b.getCentreY() - r, r * 2.f, r * 2.f);
 }
 
@@ -65,15 +72,15 @@ void AmbienceLookAndFeel::drawComboBox(juce::Graphics& g,
     int w, int h, bool isDown, int, int, int, int, juce::ComboBox&)
 {
     auto b = juce::Rectangle<int>(0, 0, w, h).toFloat();
-    g.setColour(isDown ? AmbienceColors::Panel : AmbienceColors::Surface);
+    g.setColour(isDown ? currentTheme.panel : currentTheme.surface);
     g.fillRoundedRectangle(b, 3.f);
-    g.setColour(AmbienceColors::Border);
+    g.setColour(currentTheme.border);
     g.drawRoundedRectangle(b.reduced(0.5f), 3.f, 1.f);
     juce::Path arrow;
     arrow.addTriangle(w - 16.f, h * 0.5f - 3.f,
         w - 8.f, h * 0.5f - 3.f,
         w - 12.f, h * 0.5f + 3.f);
-    g.setColour(AmbienceColors::TextSecondary);
+    g.setColour(currentTheme.textSecondary);
     g.fillPath(arrow);
 }
 
@@ -96,15 +103,14 @@ void AmbienceLookAndFeel::drawGroupComponentOutline(juce::Graphics& g,
     p.lineTo((float)w - indent, (float)h - 1.f);
     p.lineTo((float)w - indent, yOff);
 
-    // ✅ 変更後（警告なし）
     juce::GlyphArrangement ga;
     ga.addLineOfText(mainFont.withHeight(textH), text, 0.f, 0.f);
     float tw = ga.getBoundingBox(0, -1, true).getWidth() + 6.f;
 
     p.lineTo(indent + 14.f + tw, yOff);
-    g.setColour(AmbienceColors::Border);
+    g.setColour(currentTheme.border);
     g.strokePath(p, juce::PathStrokeType(1.f));
-    g.setColour(AmbienceColors::TextSecondary);
+    g.setColour(currentTheme.textSecondary);
     g.setFont(mainFont.withHeight(textH).boldened());
     g.drawText(text, (int)(indent + 14.f), 0, (int)tw, (int)textH,
         juce::Justification::centredLeft);
@@ -141,13 +147,16 @@ void RT60Visualizer::timerCallback() {
 
 void RT60Visualizer::paint(juce::Graphics& g)
 {
+    auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
+    const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[0];
+
     auto b = getLocalBounds().toFloat().reduced(2.f);
     float W = b.getWidth(), H = b.getHeight();
     float x0 = b.getX(), y0 = b.getY();
 
-    g.setColour(AmbienceColors::Surface);
+    g.setColour(theme.surface);
     g.fillRoundedRectangle(b, 4.f);
-    g.setColour(AmbienceColors::Border);
+    g.setColour(theme.border);
     g.drawRoundedRectangle(b.reduced(0.5f), 4.f, 1.f);
 
     // ★ 動的 Y 軸スケール
@@ -162,7 +171,7 @@ void RT60Visualizer::paint(juce::Graphics& g)
     };
 
     // グリッド線
-    g.setColour(AmbienceColors::Separator);
+    g.setColour(theme.separator);
     for (float v : kAllGridVals) {
         if (v > dynamicMaxRT60 * 1.05f) break;
         float ny = 1.f - (std::log10(v) - logMin) / (logMax - logMin);
@@ -171,7 +180,7 @@ void RT60Visualizer::paint(juce::Graphics& g)
 
     // 周波数ラベル (X軸)
     g.setFont(8.5f);
-    g.setColour(AmbienceColors::TextSecondary);
+    g.setColour(theme.textSecondary);
     static const char* fLbls[] = {
         "31","63","125","250","500","1k","2k","4k","8k","16k"
     };
@@ -225,14 +234,14 @@ void RT60Visualizer::paint(juce::Graphics& g)
         auto& preset = *FDNReverb::ALL_PRESETS[
             juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, algo)];
         plotCurve(preset.acoustics.rt60,
-            AmbienceColors::TextSecondary.withAlpha(0.5f), 1.2f);
+            theme.textSecondary.withAlpha(0.5f), 1.2f);
     }
 
     // ユーザー操作による現在の実効カーブ (オレンジ: デフォルト灰色線からの変化を表示)
-    plotCurve(displayRT60, AmbienceColors::Accent, 2.f);
+    plotCurve(displayRT60, theme.primary, 2.f);
 
     // 右上タイトル
-    g.setColour(AmbienceColors::TextSecondary);
+    g.setColour(theme.textSecondary);
     g.setFont(9.f);
     g.drawText("RT60 (s) per band",
         (int)x0 + 36, (int)y0 + 3, (int)W - 40, 12,
@@ -244,25 +253,28 @@ VUMeter::VUMeter(const juce::String& lbl, Side s) : label(lbl), side(s) {}
 
 void VUMeter::paint(juce::Graphics& g)
 {
+    auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
+    const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[0];
+
     auto b = getLocalBounds().toFloat().reduced(1.f);
-    g.setColour(AmbienceColors::Surface);
+    g.setColour(theme.surface);
     g.fillRoundedRectangle(b, 3.f);
 
     float bx = b.getX() + 22.f, bw = b.getWidth() - 22.f;
     auto bar = [&](float y, float level) {
         float n = juce::jlimit(0.f, 1.f, juce::jmap(
             juce::Decibels::gainToDecibels(level + 1e-9f), -60.f, 0.f, 0.f, 1.f));
-        g.setColour(AmbienceColors::ArcTrack);
+        g.setColour(theme.arcTrack);
         g.fillRoundedRectangle(bx, y, bw, 7.f, 2.f);
-        juce::ColourGradient gr(AmbienceColors::AccentBlue, bx, y,
-            AmbienceColors::Accent, bx + bw, y, false);
+        juce::ColourGradient gr(theme.secondary, bx, y,
+            theme.primary, bx + bw, y, false);
         g.setGradientFill(gr);
         g.fillRoundedRectangle(bx, y, bw * n, 7.f, 2.f);
         };
     bar(b.getY() + 2.f, levelL);
     bar(b.getY() + 11.f, levelR);
 
-    g.setColour(AmbienceColors::TextSecondary);
+    g.setColour(theme.textSecondary);
     g.setFont(8.f);
     g.drawText(label, (int)b.getX(), (int)b.getY(), 20, (int)b.getHeight(),
         juce::Justification::centredLeft);
@@ -366,18 +378,24 @@ void AlgorithmSelector::parameterChanged(const juce::String&, float newVal) {
 }
 
 void AlgorithmSelector::updateButtonColors() {
+    auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
+    const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[0];
+
     for (int i = 0; i < FDNReverb::NUM_ALGORITHMS; ++i) {
         bool on = (i == currentAlgo);
         buttons[i].setColour(juce::TextButton::buttonColourId,
-            on ? AmbienceColors::Accent : AmbienceColors::Surface);
+            on ? theme.primary : theme.surface);
         buttons[i].setColour(juce::TextButton::textColourOffId,
-            on ? AmbienceColors::Background : AmbienceColors::TextSecondary);
+            on ? theme.background : theme.textSecondary);
         buttons[i].repaint();
     }
 }
 
 void AlgorithmSelector::paint(juce::Graphics& g) {
-    g.setColour(AmbienceColors::Surface);
+    auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
+    const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[0];
+
+    g.setColour(theme.surface);
     g.fillRoundedRectangle(getLocalBounds().toFloat(), 4.f);
 }
 

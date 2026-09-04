@@ -65,7 +65,13 @@ void FDNReverbAudioProcessor::updateEngineParams()
 
     DSPParams p;
     p.algorithmIndex = currentAlgo;
-    p.preDelayMs = *apvts.getRawParameterValue(ParamID::PreDelay);
+    float effectivePreDelay = *apvts.getRawParameterValue(ParamID::PreDelay);
+    // ★ Send Mode 時の位相保護: Dry がミュート (-59dB以下) の場合、
+    // 原音トラックとのコムフィルタリング・位相干渉を音響工学的に自動防止 (+5.0ms 下限オフセットガード)
+    if (*apvts.getRawParameterValue(ParamID::DryLevel) <= -59.0f) {
+        effectivePreDelay = std::max(5.0f, effectivePreDelay);
+    }
+    p.preDelayMs = effectivePreDelay;
     // ★ RoomSize ノブ値 (0.3 ~ 2.0) をそのままスケール係数として伝達
     p.roomSizeScale = *apvts.getRawParameterValue(ParamID::RoomSize);
 
@@ -230,6 +236,41 @@ void FDNReverbAudioProcessor::processBlock(
             buffer.clear(ch, 0, numSamples);
     }
 
+    // ─── Panic による Graceful Mute ＆ オーディオスレッド安全リセット ───
+    if (panicRequested.load(std::memory_order_acquire)) {
+        if (panicFadeSamplesRemaining <= 0) {
+            const double sr = getSampleRate();
+            panicFadeTotalSamples = std::max(32, static_cast<int>((sr > 0.0 ? sr : 48000.0) * 0.007)); // 7ms
+            panicFadeSamplesRemaining = panicFadeTotalSamples;
+        }
+    }
+
+    if (panicFadeSamplesRemaining > 0) {
+        for (int i = 0; i < numSamples; ++i) {
+            float t = static_cast<float>(panicFadeSamplesRemaining) / static_cast<float>(panicFadeTotalSamples);
+            float gain = 0.5f * (1.0f - std::cos(juce::MathConstants<float>::pi * t));
+            for (int ch = 0; ch < numOut; ++ch) {
+                buffer.getWritePointer(ch)[i] *= gain;
+            }
+            --panicFadeSamplesRemaining;
+            if (panicFadeSamplesRemaining == 0) {
+                // フェードアウト完了：完全無音の状態でエンジンリセット
+                engine.reset();
+                inputRMS_L.store(0.0f);
+                inputRMS_R.store(0.0f);
+                outputRMS_L.store(0.0f);
+                outputRMS_R.store(0.0f);
+                specFifoIndex.store(0);
+                specFifoReady.store(false);
+                panicRequested.store(false, std::memory_order_release);
+                for (int c = 0; c < numOut; ++c) {
+                    juce::FloatVectorOperations::clear(buffer.getWritePointer(c) + i + 1, numSamples - (i + 1));
+                }
+                break;
+            }
+        }
+    }
+
     // 出力 RMS 計測 (Mono 出力時も安全に取得)
     const float outRMSL = (numOut > 0) ? buffer.getRMSLevel(0, 0, numSamples) : 0.0f;
     const float outRMSR = (numOut > 1) ? buffer.getRMSLevel(1, 0, numSamples) : outRMSL;
@@ -314,17 +355,6 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
     setParam(ParamID::TiltHigh, 1.0f);
 
     paramsNeedUpdate = true;
-}
-
-void FDNReverbAudioProcessor::panic() noexcept
-{
-    engine.reset();
-    inputRMS_L.store(0.0f);
-    inputRMS_R.store(0.0f);
-    outputRMS_L.store(0.0f);
-    outputRMS_R.store(0.0f);
-    specFifoIndex.store(0);
-    specFifoReady.store(false);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
