@@ -70,7 +70,7 @@ void FDNReverbAudioProcessor::updateEngineParams()
     p.roomSizeScale = *apvts.getRawParameterValue(ParamID::RoomSize);
 
     p.decayScale = *apvts.getRawParameterValue(ParamID::DecayTime)
-        / ALL_PRESETS[p.algorithmIndex]->acoustics.rt60[4];
+        / ALL_PRESETS[p.algorithmIndex]->acoustics.rt60[5];
 
     p.hfDamping = *apvts.getRawParameterValue(ParamID::HFDamping);
     p.lfAbsorption = *apvts.getRawParameterValue(ParamID::LFAbsorption);

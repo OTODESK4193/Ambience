@@ -354,18 +354,8 @@ namespace FDNReverb {
             }
         }
 
-        const float representativeDelay = fdnBaseDelaySamples[FDN_ORDER / 2];
-        for (int b = 0; b < NUM_BANDS; ++b) {
-            const float avgTargetDb = targetDbAccum[b] / static_cast<float>(FDN_ORDER);
-            if (avgTargetDb < -0.001f) {
-                effectiveRT60[b] = -60.0f * representativeDelay
-                    / (static_cast<float>(fs) * avgTargetDb);
-            }
-            else {
-                effectiveRT60[b] = scaledRT60[b];
-            }
-            effectiveRT60[b] = juce::jlimit(0.05f, 150.0f, effectiveRT60[b]);
-        }
+        // ★ 実効 RT60（ユーザー設定に 100% 忠実な物理値）
+        effectiveRT60 = scaledRT60;
 #else
         effectiveRT60 = scaledRT60;
         for (int i = 0; i < FDN_ORDER; ++i) {
