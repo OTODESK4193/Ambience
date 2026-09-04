@@ -173,6 +173,11 @@ namespace FDNReverb {
         saturatorR.prepare(sampleRate);
         dynamicDucker.prepare(sampleRate, maxBlockSize);
 
+        ismBufferL.resize(static_cast<size_t>(std::max(1024, maxBlockSize)), 0.0f);
+        ismBufferR.resize(static_cast<size_t>(std::max(1024, maxBlockSize)), 0.0f);
+        ismSeedBuffer.resize(static_cast<size_t>(std::max(1024, maxBlockSize)), 0.0f);
+        ismEngine.prepare(sampleRate, maxBlockSize);
+
         const float fsf = static_cast<float>(fs);
         constexpr float invFdnM1 = 1.0f / static_cast<float>(FDN_ORDER - 1);
         for (int i = 0; i < FDN_ORDER; ++i) {
@@ -230,6 +235,7 @@ namespace FDNReverb {
         plateMesh.reset();
         springChain.reset();
         inchindownEngine.reset();
+        ismEngine.reset();
 
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
@@ -495,6 +501,7 @@ namespace FDNReverb {
         saturatorL.setMode(activeParams.satTypeIdx);
         saturatorR.setMode(activeParams.satTypeIdx);
         dynamicDucker.setParameters(activeParams.duckingAmount, activeParams.duckingAttackMs, activeParams.duckingRelMs, activeParams.duckingThreshDB);
+        ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale, activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption);
 
         const float totalMakeupDB = juce::jlimit(-6.0f, 12.0f, baseDB + decayCompDB + algoOffset);
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
@@ -558,6 +565,20 @@ namespace FDNReverb {
 
         const float sideBoost = stereoWidth * 1.5f;
         constexpr float apfModFrac[SERIAL_APF_STAGES] = { 0.25f, 0.20f, 0.15f };
+
+        // ★ ISM (鏡像法) 初期反射エンジンによる並列 AVX2 処理
+        if (!bypassER && activeParams.erLevel > 0.001f) {
+            if (ismBufferL.size() < static_cast<size_t>(numSamples)) {
+                ismBufferL.resize(static_cast<size_t>(numSamples), 0.0f);
+                ismBufferR.resize(static_cast<size_t>(numSamples), 0.0f);
+                ismSeedBuffer.resize(static_cast<size_t>(numSamples), 0.0f);
+            }
+            std::fill(ismBufferL.begin(), ismBufferL.begin() + numSamples, 0.0f);
+            std::fill(ismBufferR.begin(), ismBufferR.begin() + numSamples, 0.0f);
+            std::fill(ismSeedBuffer.begin(), ismSeedBuffer.begin() + numSamples, 0.0f);
+
+            ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), ismSeedBuffer.data(), numSamples, activeParams.erLevel);
+        }
 
         for (int n = 0; n < numSamples; ++n) {
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
@@ -641,6 +662,11 @@ namespace FDNReverb {
                 }
                 erOutL *= erGainCurved;
                 erOutR *= erGainCurved;
+            }
+
+            if (!bypassER && activeParams.erLevel > 0.001f) {
+                erOutL += ismBufferL[n];
+                erOutR += ismBufferR[n];
             }
 
             if (!bypassER) {

@@ -4,7 +4,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "NED",
-    "value": 10.0,
+    "value": 15.0,
     "thresh": 50.0,
     "eval": "PASS"
   },
@@ -13,7 +13,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 45.3579,
+    "value": 41.3981,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -193,7 +193,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 46.5941,
+    "value": 41.142,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -202,7 +202,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.4376,
+    "value": 0.4374,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -373,7 +373,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 40.9296,
+    "value": 44.3944,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -382,7 +382,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.5853,
+    "value": 0.5849,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -553,7 +553,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 46.0223,
+    "value": 39.1275,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -562,7 +562,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.4287,
+    "value": 0.428,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -733,7 +733,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 40.1096,
+    "value": 43.5337,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -742,7 +742,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.6266,
+    "value": 0.6257,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -913,7 +913,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 44.5645,
+    "value": 45.3088,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -922,7 +922,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.8666,
+    "value": 0.8017,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -1093,7 +1093,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 42.8925,
+    "value": 38.5167,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1102,7 +1102,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.617,
+    "value": 0.6162,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -1273,7 +1273,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 47.8264,
+    "value": 45.0145,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1282,7 +1282,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.7968,
+    "value": 0.8006,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -1453,7 +1453,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 48.4215,
+    "value": 44.1634,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1462,7 +1462,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.8487,
+    "value": 0.8503,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -1633,7 +1633,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 39.4063,
+    "value": 38.4302,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1642,7 +1642,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.278,
+    "value": 0.2086,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -1804,7 +1804,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "NED",
-    "value": 20.0,
+    "value": 15.0,
     "thresh": 50.0,
     "eval": "PASS"
   },
@@ -1813,7 +1813,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 49.4208,
+    "value": 43.3966,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -1822,7 +1822,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3273,
+    "value": 0.3297,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -1993,7 +1993,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 50.8433,
+    "value": 37.7495,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2002,7 +2002,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3265,
+    "value": 0.3255,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -2173,7 +2173,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 47.7797,
+    "value": 47.8857,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2182,7 +2182,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2985,
+    "value": 0.3049,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -2353,7 +2353,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 40.0288,
+    "value": 46.8896,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2362,7 +2362,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3527,
+    "value": 0.3555,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -2533,7 +2533,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 49.278,
+    "value": 37.9969,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2542,7 +2542,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3301,
+    "value": 0.3321,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -2713,7 +2713,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 45.9424,
+    "value": 47.9566,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2722,7 +2722,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2827,
+    "value": 0.2858,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -2893,7 +2893,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 36.2592,
+    "value": 35.4631,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -2902,7 +2902,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.6391,
+    "value": 0.701,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -3073,7 +3073,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 46.9364,
+    "value": 38.2597,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -3082,9 +3082,9 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.0531,
+    "value": 0.1169,
     "thresh": 0.1,
-    "eval": "PASS"
+    "eval": "FAIL"
   },
   {
     "room": "Hall",
@@ -3253,7 +3253,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 38.0005,
+    "value": 41.6691,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -3262,7 +3262,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.7035,
+    "value": 0.6605,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -3433,7 +3433,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "ESPRIT",
-    "value": 40.0477,
+    "value": 38.9886,
     "thresh": 1.0,
     "eval": "FAIL"
   },
@@ -3442,7 +3442,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.7303,
+    "value": 0.7682,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -3568,7 +3568,7 @@
     "freq": 15000,
     "wave": "FM",
     "metric": "NED",
-    "value": 20.0,
+    "value": 15.0,
     "thresh": 50.0,
     "eval": "PASS"
   },
@@ -3622,7 +3622,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.1348,
+    "value": 0.1344,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -3802,7 +3802,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2548,
+    "value": 0.2587,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -3982,7 +3982,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2549,
+    "value": 0.2556,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -4162,7 +4162,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.1997,
+    "value": 0.2002,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -4342,7 +4342,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.1754,
+    "value": 0.1783,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -4522,9 +4522,9 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.1223,
+    "value": 0.099,
     "thresh": 0.1,
-    "eval": "FAIL"
+    "eval": "PASS"
   },
   {
     "room": "Plate",
@@ -4702,7 +4702,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.4296,
+    "value": 0.4052,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -4882,7 +4882,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2667,
+    "value": 0.1836,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -5062,7 +5062,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3507,
+    "value": 0.2921,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -5242,7 +5242,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.5924,
+    "value": 0.5375,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -7222,7 +7222,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3654,
+    "value": 0.3709,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -7402,7 +7402,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3373,
+    "value": 0.3378,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -7582,7 +7582,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2658,
+    "value": 0.2669,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -7762,7 +7762,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.3613,
+    "value": 0.3743,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -7942,7 +7942,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2424,
+    "value": 0.2286,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -8122,7 +8122,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.37,
+    "value": 0.391,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -8302,7 +8302,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.556,
+    "value": 0.5212,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -8482,7 +8482,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.6609,
+    "value": 0.4705,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -8662,7 +8662,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.7456,
+    "value": 0.7526,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -8842,7 +8842,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.4983,
+    "value": 0.5442,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -9022,7 +9022,7 @@
     "freq": 40,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.0886,
+    "value": 0.0945,
     "thresh": 0.1,
     "eval": "PASS"
   },
@@ -9202,7 +9202,7 @@
     "freq": 80,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.2194,
+    "value": 0.2146,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -9382,7 +9382,7 @@
     "freq": 160,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.0929,
+    "value": 0.0928,
     "thresh": 0.1,
     "eval": "PASS"
   },
@@ -9562,7 +9562,7 @@
     "freq": 320,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.1297,
+    "value": 0.125,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -9742,7 +9742,7 @@
     "freq": 640,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.096,
+    "value": 0.0901,
     "thresh": 0.1,
     "eval": "PASS"
   },
@@ -9922,7 +9922,7 @@
     "freq": 1280,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.115,
+    "value": 0.1308,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -10102,7 +10102,7 @@
     "freq": 2560,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.0763,
+    "value": 0.0937,
     "thresh": 0.1,
     "eval": "PASS"
   },
@@ -10282,7 +10282,7 @@
     "freq": 5120,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.1839,
+    "value": 0.1963,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -10462,7 +10462,7 @@
     "freq": 10240,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.6742,
+    "value": 0.6781,
     "thresh": 0.1,
     "eval": "FAIL"
   },
@@ -10642,7 +10642,7 @@
     "freq": 15000,
     "wave": "Sine",
     "metric": "IACC",
-    "value": 0.7002,
+    "value": 0.6986,
     "thresh": 0.1,
     "eval": "FAIL"
   },

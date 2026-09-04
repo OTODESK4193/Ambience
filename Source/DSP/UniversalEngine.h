@@ -21,6 +21,7 @@
 #include "SDNTopologySpring1D.h"
 #include "SDNTopologyInchindown.h"
 #include "DynamicEQDucker.h"
+#include "EarlyReflectionsISM.h"
 
 #define AMBIENCE_USE_STAGE2_ABSORPTION 1
 
@@ -216,6 +217,10 @@ namespace FDNReverb {
         Saturator saturatorL;
         Saturator saturatorR;
         DynamicEQDucker dynamicDucker;
+        EarlyReflectionsISM ismEngine;
+        std::vector<float> ismBufferL;
+        std::vector<float> ismBufferR;
+        std::vector<float> ismSeedBuffer;
 
         MagnitudeResponseFitter fitter;
         bool isPreparedFlag{ false };

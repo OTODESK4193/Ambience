@@ -51,6 +51,7 @@ target_sources(Ambience PRIVATE
     Source/DSP/Saturator.h
     Source/DSP/OutputLimiter.h
     Source/DSP/OutputEQ.h
+    Source/DSP/EarlyReflectionsISM.cpp
 )
 
 target_include_directories(Ambience PRIVATE
@@ -108,6 +109,7 @@ target_sources(ValidationRunner PRIVATE
     Source/DSP/BiquadFilters.cpp
     Source/DSP/MagnitudeResponseFitter.cpp
     Source/DSP/AcousticMetrics.cpp
+    Source/DSP/EarlyReflectionsISM.cpp
 )
 target_include_directories(ValidationRunner PRIVATE Source Source/DSP Source/GUI)
 target_link_libraries(ValidationRunner PRIVATE juce::juce_core juce::juce_audio_basics juce::juce_audio_processors juce::juce_dsp)
