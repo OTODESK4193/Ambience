@@ -128,6 +128,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     std::function<bool()> isLockedCallback;
+    std::function<void(int newAlgo, bool shouldResetKnobs)> onUserAlgorithmSelected;
     std::function<void(int)> onAlgorithmChangedCallback;
     void updateButtonColors();
 private:

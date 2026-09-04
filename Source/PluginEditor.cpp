@@ -48,7 +48,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             juce::jlimit(static_cast<int>(kBaseH * 0.80), static_cast<int>(kBaseH * 1.50), savedH));
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 2.0.0 B013", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 2.0.0 B014", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
@@ -117,10 +117,16 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     algoSelector.isLockedCallback = [this] {
         return lockButton.getToggleState();
     };
-    algoSelector.onAlgorithmChangedCallback = [this](int newAlgo) {
-        if (!lockButton.getToggleState()) {
+    algoSelector.onUserAlgorithmSelected = [this](int newAlgo, bool shouldResetKnobs) {
+        if (shouldResetKnobs) {
             audioProcessor.loadPresetDefaults(newAlgo);
         }
+        if (loadingPresetCounter > 0) return;
+        if (currentBasePresetName.isNotEmpty()) {
+            setPresetModified(true);
+        }
+    };
+    algoSelector.onAlgorithmChangedCallback = [this](int) {
         if (loadingPresetCounter > 0) return;
         if (currentBasePresetName.isNotEmpty()) {
             setPresetModified(true);

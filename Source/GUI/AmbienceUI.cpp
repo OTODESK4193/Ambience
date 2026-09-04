@@ -312,6 +312,8 @@ AlgorithmSelector::AlgorithmSelector(juce::AudioProcessorValueTreeState& a)
 
             bool isLocked = isLockedCallback ? isLockedCallback() : false;
             if (isLocked) {
+                if (onUserAlgorithmSelected)
+                    onUserAlgorithmSelected(idx, false);
                 if (auto* param = apvts.getParameter("algorithm"))
                     param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(idx)));
             } else {
@@ -327,6 +329,8 @@ AlgorithmSelector::AlgorithmSelector(juce::AudioProcessorValueTreeState& a)
                     true,
                     juce::ModalCallbackFunction::create([safeThis, idx](int result) {
                         if (safeThis != nullptr && result == 1) {
+                            if (safeThis->onUserAlgorithmSelected)
+                                safeThis->onUserAlgorithmSelected(idx, true);
                             if (auto* param = safeThis->apvts.getParameter("algorithm"))
                                 param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(idx)));
                         }
