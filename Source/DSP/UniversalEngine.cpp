@@ -193,6 +193,10 @@ namespace FDNReverb {
 
         // ★ 入力段 Bandwidth LPF (12kHz 1次ローパス)
         inBandwidthCoeff = 1.0f - std::exp(-6.2831853f * 12000.0f / fsf);
+        
+        // ★ FDN 遅延線の 1-pole スムージング時定数 (25ms)
+        delaySmoothCoeff = 1.0f - std::exp(-1.0f / (fsf * 0.025f));
+        currentFdnDelaySamples.fill(0.0f);
 
         duckingAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.010f));
         duckingReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.200f));
@@ -243,6 +247,7 @@ namespace FDNReverb {
         inLpfStateR = 0.0f;
         inputTransientEnvFast = 0.0f;
         inputTransientEnvSlow = 0.0f;
+        currentFdnDelaySamples.fill(0.0f);
     }
 
     void UniversalEngine::setParams(const DSPParams& p) {
@@ -739,10 +744,25 @@ namespace FDNReverb {
             for (int i = 0; i < FDN_ORDER; ++i) {
                 const float chorusVal = dualLFOs[i].tick();
                 
-                // ★ FDNベースディレイの高速整数リード (Asymmetry オフセット適用)
+                // ★ FDNベースディレイの 1-pole スムージング & Fractional リード
                 const float asymOffset = (i % 2 == 0 ? 1.0f : -1.0f) * (activeParams.asymmetry - 0.3f) * 10.0f;
-                const int delaySmpInt = static_cast<int>(fdnBaseDelaySamples[i] + asymOffset);
-                float d = fdnDelays[i].readInt(delaySmpInt);
+                const float targetSmp = fdnBaseDelaySamples[i] + asymOffset;
+                
+                if (currentFdnDelaySamples[i] == 0.0f) [[unlikely]] {
+                    currentFdnDelaySamples[i] = targetSmp;
+                } else if (std::abs(targetSmp - currentFdnDelaySamples[i]) > 1e-4f) {
+                    currentFdnDelaySamples[i] += delaySmoothCoeff * (targetSmp - currentFdnDelaySamples[i]);
+                } else {
+                    currentFdnDelaySamples[i] = targetSmp;
+                }
+
+                float d;
+                const int intDelay = static_cast<int>(std::round(currentFdnDelaySamples[i]));
+                if (std::abs(currentFdnDelaySamples[i] - static_cast<float>(intDelay)) < 1e-5f) {
+                    d = fdnDelays[i].readInt(intDelay);
+                } else {
+                    d = fdnDelays[i].read(currentFdnDelaySamples[i] - 1.0f);
+                }
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
                 for (int s = 0; s < ABSO_STAGES_S2; ++s)

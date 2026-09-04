@@ -202,6 +202,8 @@ namespace FDNReverb {
 
         std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs;
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples;
+        std::array<float, FDN_ORDER>               currentFdnDelaySamples;
+        float                                      delaySmoothCoeff{ 0.0f };
         std::array<float, FDN_ORDER>               fbVec;
 
         float apfGain{ 0.618f };
