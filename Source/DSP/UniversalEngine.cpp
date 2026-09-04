@@ -389,8 +389,22 @@ namespace FDNReverb {
         scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
         scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
 
+        // ★ GUI 表示用に物理減衰を反映した実効 RT60 を計算
+        std::array<float, NUM_BANDS> displayRT60 = scaledRT60;
+        for (int b = 0; b < NUM_BANDS; ++b) {
+            float t60 = displayRT60[b];
+            float f = BAND_FREQ[b];
+            float lfWeight = 1.0f / (1.0f + (f / 160.0f) * (f / 160.0f));
+            t60 = std::max(0.01f, t60 * (1.0f - activeParams.lfAbsorption * 0.8f * lfWeight));
+            
+            float hfWeight = std::pow(std::max(0.0f, f - 2000.0f) / 14000.0f, 2.0f);
+            float invT60 = (1.0f / t60) + (activeParams.hfDamping * hfWeight * 2.0f);
+            t60 = 1.0f / std::max(1e-4f, invT60);
+            displayRT60[b] = t60;
+        }
+
         // ★ 目標 RT60 カーブ（UI 灰色線用）を保存
-        targetRT60 = scaledRT60;
+        targetRT60 = displayRT60;
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         std::array<float, NUM_BANDS> targetDbAccum;
@@ -424,9 +438,9 @@ namespace FDNReverb {
         absoCrossfadePos = 0.0f; // Start crossfade
 
         // ★ 実効 RT60（ユーザー設定に 100% 忠実な物理値）
-        effectiveRT60 = scaledRT60;
+        effectiveRT60 = targetRT60;
 #else
-        effectiveRT60 = scaledRT60;
+        effectiveRT60 = targetRT60;
         for (int i = 0; i < FDN_ORDER; ++i) {
             auto absoStages = FilterDesign::designAbsorption(
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
@@ -858,7 +872,15 @@ namespace FDNReverb {
                         const float baseDelay = cachedApfBaseDelaySmp[i][s];
                         const float maxSafeMod = baseDelay * 0.40f;
                         const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
-                        const float safeMod = std::min(targetMod, maxSafeMod);
+                        
+                        const float knee = maxSafeMod * 0.75f;
+                        float safeMod = targetMod;
+                        if (targetMod > knee) {
+                            const float excess = targetMod - knee;
+                            const float room = maxSafeMod - knee;
+                            safeMod = knee + room * std::tanh(excess / room);
+                        }
+                        
                         const float apfDelaySmp = baseDelay + chorusVal * safeMod;
 
                         const float delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);

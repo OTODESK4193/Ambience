@@ -14,6 +14,11 @@ public:
         mask = bitmask;
         writeIndex = 0;
     }
+    void resetState() noexcept {
+        if (buffer && mask > 0) {
+            std::fill(buffer, buffer + mask + 1, 0.0f);
+        }
+    }
 
     // 4点サンプルおよび小数部 d の抽出 (AVX2 SIMD 用ヘルパー)
     inline void fetchSamples(float delayInSamples, float& ym1, float& y0, float& y1, float& y2, float& d) const noexcept {
@@ -21,7 +26,7 @@ public:
             ym1 = y0 = y1 = y2 = d = 0.0f;
             return;
         }
-        const float safeDelay = std::clamp(delayInSamples, 1.0f, static_cast<float>(mask - 4));
+        const float safeDelay = std::clamp(delayInSamples, 3.0f, static_cast<float>(mask - 4));
         const int id = static_cast<int>(safeDelay);
         d = safeDelay - static_cast<float>(id);
 
@@ -37,7 +42,7 @@ public:
 
     inline float read(float delayInSamples) const noexcept {
         if (buffer == nullptr || mask < 5) return 0.0f;
-        const float safeDelay = std::clamp(delayInSamples, 1.0f, static_cast<float>(mask - 4));
+        const float safeDelay = std::clamp(delayInSamples, 3.0f, static_cast<float>(mask - 4));
         const int id = static_cast<int>(safeDelay);
         const float d = safeDelay - static_cast<float>(id);
 
@@ -80,11 +85,13 @@ private:
 
 class BrownianModulator {
 public:
-    void prepare(double sampleRate) noexcept {
+    void prepare(double sampleRate, uint32_t seedOffset = 0) noexcept {
         fs = sampleRate;
         maxSlewPerSample = static_cast<float>(0.0005777 * (48000.0 / sampleRate));
         currentValue = 0.0f;
         targetValue = 0.0f;
+        rngState = 0x12345678 ^ (seedOffset * 0x9E3779B9);
+        if (rngState == 0) rngState = 1;
     }
 
     void reset() noexcept {
@@ -97,10 +104,25 @@ public:
         rngState ^= rngState >> 17;
         rngState ^= rngState << 5;
         float noise = static_cast<float>(static_cast<int32_t>(rngState)) * (1.0f / 2147483648.0f);
-        targetValue += noise * rate * 0.01f;
-        targetValue = std::clamp(targetValue, -depthInSamples, depthInSamples);
+        
+        targetValue += noise * rate * 0.002f; // Reduced noise amplitude for smoother walk
+        targetValue -= targetValue * rate * 0.0005f; // Gentle OU Process Mean Reversion
+        
+        if (depthInSamples > 0.0f) {
+            const float knee = depthInSamples * 0.75f;
+            float absTarget = std::abs(targetValue);
+            if (absTarget > knee) {
+                const float excess = absTarget - knee;
+                const float room = depthInSamples - knee;
+                absTarget = knee + room * std::tanh(excess / room);
+                targetValue = (targetValue > 0.0f ? 1.0f : -1.0f) * absTarget;
+            }
+        }
 
-        float diff = targetValue - currentValue;
+        // Apply a 1-pole lowpass filter for C1 continuity and zero FM sidebands
+        float smoothTarget = currentValue + 0.01f * (targetValue - currentValue);
+        
+        float diff = smoothTarget - currentValue;
         if (diff > maxSlewPerSample) diff = maxSlewPerSample;
         else if (diff < -maxSlewPerSample) diff = -maxSlewPerSample;
 
@@ -126,7 +148,7 @@ public:
 
     void prepare(double sampleRate, int) {
         fs = sampleRate;
-        for (int i = 0; i < NUM_NODES; ++i) modulators[i].prepare(sampleRate);
+        for (int i = 0; i < NUM_NODES; ++i) modulators[i].prepare(sampleRate, static_cast<uint32_t>(i));
     }
 
     void reset() {
