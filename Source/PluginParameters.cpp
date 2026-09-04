@@ -85,6 +85,22 @@ namespace FDNReverb {
             ParamID::Theme, "Theme",
             juce::StringArray{ "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber", "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome" }, 0));
 
+        // ── PRO Tab 物理音響パラメータ ──
+        addFloat(ParamID::Scattering, "Scattering", 0.0f, 1.0f, 0.5f);
+        addFloat(ParamID::ERCrossover, "ER Crossover", 10.0f, 100.0f, 40.0f, 1.0f, "ms");
+        addFloat(ParamID::LateDensity, "Late Density", 0.0f, 1.0f, 0.7f);
+        addFloat(ParamID::Asymmetry, "Asymmetry", 0.0f, 1.0f, 0.3f);
+        addFloat(ParamID::Clarity, "Clarity", -6.0f, 6.0f, 0.0f, 1.0f, "dB");
+        addFloat(ParamID::AirAbsorb, "Air Absorb", 0.2f, 2.5f, 1.0f, 1.0f, "x");
+
+        // ── タブ切替トグル ──
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            ParamID::RT60Tab, "RT60 Tab", false,
+            juce::AudioParameterBoolAttributes().withAutomatable(false)));
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            ParamID::ProTab, "Pro Tab", false,
+            juce::AudioParameterBoolAttributes().withAutomatable(false)));
+
         return { params.begin(), params.end() };
     }
 

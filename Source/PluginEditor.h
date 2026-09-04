@@ -61,15 +61,18 @@ private:
 
     juce::Label labelDecayLine;
 
-    juce::TextButton proModeButton;
+    juce::TextButton rt60TabButton;
+    juce::TextButton proTabButton;
     juce::TextButton erSoloButton;
     juce::TextButton lockButton;
     juce::TextButton sendModeButton;
     juce::TextButton panicButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> proModeAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> rt60TabAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> proTabAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> erSoloAttachment;
 
-    bool isProMode{ false };
+    bool isRT60Tab{ false };
+    bool isProTab{ false };
 
     // ── Normal Mode Knobs ──
     ArcKnob kPreDelay, kRoomSize, kDecay;
@@ -81,13 +84,17 @@ private:
     ArcKnob kDuckAmt, kDuckThr, kDuckAtt, kDuckRel;
     ArcKnob kLoCutNorm, kHiCutNorm;
 
-    // ── Pro Mode Panel ──
+    // ── RT60 Tab Panel ──
     std::array<ArcKnob, 10> kRTBands;
     juce::Label    satTypeLabel;
     juce::ComboBox satTypeCombo;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> satTypeAttachment;
     ArcKnob kTiltLow, kTiltMid, kTiltHigh;
     ArcKnob kLoCutPro, kHiCutPro;
+
+    // ── PRO Tab Knobs ──
+    ArcKnob kScattering, kERCrossover, kLateDensity;
+    ArcKnob kAsymmetry, kClarity, kAirAbsorb;
 
     juce::Label    themeLabel;
     juce::ComboBox themeCombo;

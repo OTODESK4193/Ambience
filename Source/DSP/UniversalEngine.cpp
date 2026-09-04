@@ -356,9 +356,10 @@ namespace FDNReverb {
             scaledRT60[b] *= activeParams.rtBands[b];
 
         // 大気減衰
-        scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * 0.90f);
-        scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * 0.75f);
-        scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * 0.60f);
+        const float airScale = activeParams.airAbsorbScale;
+        scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * (1.0f - (1.0f - 0.90f) * airScale));
+        scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * (1.0f - (1.0f - 0.75f) * airScale));
+        scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * (1.0f - (1.0f - 0.60f) * airScale));
 
         // ★ 目標 RT60 カーブ（UI 灰色線用）を保存
         targetRT60 = scaledRT60;
@@ -575,13 +576,20 @@ namespace FDNReverb {
         // (ダッキング変数は dynamicDucker に集約)
 
         const float diff = activeParams.diffusion * diffusionSensitivity;
-        const float diffuserGain = diff * 0.70f;
+        const float scatteringScale = activeParams.scattering / 0.5f;
+        const float diffuserGain = diff * 0.70f * scatteringScale;
         const float effectiveApfGain = apfGain * std::pow(diff, 0.75f);
-        const float apfGainStage = effectiveApfGain * 0.76f;
+        const float lateDensityScale = activeParams.lateDensity / 0.7f;
+        const float apfGainStage = effectiveApfGain * 0.76f * lateDensityScale;
         const bool  skipInputDiffusers = (diff < 0.05f);
 
         const float sideBoost = stereoWidth * 1.5f;
         constexpr float apfModFrac[SERIAL_APF_STAGES] = { 0.25f, 0.20f, 0.15f };
+
+        // ★ C80 自動調整サーボ (Clarity)
+        acousticMetrics.updateServo(activeParams.clarityDB, numSamples);
+        const float erServo = acousticMetrics.getERServoGain();
+        const float lateServo = acousticMetrics.getLateServoGain();
 
         // ★ ISM (鏡像法) 初期反射エンジンによる並列 AVX2 処理
         if (!bypassER && activeParams.erLevel > 0.001f) {
@@ -708,8 +716,9 @@ namespace FDNReverb {
             for (int i = 0; i < FDN_ORDER; ++i) {
                 const float chorusVal = dualLFOs[i].tick();
                 
-                // ★ FDNベースディレイの高速整数リード (Hermite多項式補間バイパス)
-                const int delaySmpInt = static_cast<int>(fdnBaseDelaySamples[i]);
+                // ★ FDNベースディレイの高速整数リード (Asymmetry オフセット適用)
+                const float asymOffset = (i % 2 == 0 ? 1.0f : -1.0f) * (activeParams.asymmetry - 0.3f) * 10.0f;
+                const int delaySmpInt = static_cast<int>(fdnBaseDelaySamples[i] + asymOffset);
                 float d = fdnDelays[i].readInt(delaySmpInt);
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
@@ -781,10 +790,10 @@ namespace FDNReverb {
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
-            const float erMixL = bypassER ? 0.0f : erOutL * erGainCurved * erMakeupGain;
-            const float erMixR = bypassER ? 0.0f : erOutR * erGainCurved * erMakeupGain;
-            const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel;
-            const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel;
+            const float erMixL = bypassER ? 0.0f : erOutL * erGainCurved * erMakeupGain * erServo;
+            const float erMixR = bypassER ? 0.0f : erOutR * erGainCurved * erMakeupGain * erServo;
+            const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel * lateServo;
+            const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel * lateServo;
 
             // ★ Vintage Warmth ADAA Saturator (出力段 L/R 独立 1次 ADAA 処理)
             float satL = saturatorL.processSample(lateMixL);
@@ -806,6 +815,8 @@ namespace FDNReverb {
 
             outL[n] = wetL;
             outR[n] = wetR;
+
+            acousticMetrics.processSample((wetL + wetR) * 0.5f);
 
             outputLimiter.process(outL[n], outR[n]);
         }

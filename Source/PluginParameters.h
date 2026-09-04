@@ -43,6 +43,18 @@ namespace FDNReverb {
         inline const juce::String LoCut = "locut";
         inline const juce::String HiCut = "hicut";
         inline const juce::String Theme = "theme";
+
+        // ── PRO Tab Parameters ──
+        inline const juce::String Scattering = "scattering";
+        inline const juce::String ERCrossover = "ercrossover";
+        inline const juce::String LateDensity = "latedensity";
+        inline const juce::String Asymmetry = "asymmetry";
+        inline const juce::String Clarity = "clarity";
+        inline const juce::String AirAbsorb = "airabsorb";
+
+        // ── Tab Toggles ──
+        inline const juce::String RT60Tab = "rt60tab";
+        inline const juce::String ProTab = "protab";
     }
 
 #include "DSP/DSPParams.h"

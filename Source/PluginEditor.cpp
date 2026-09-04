@@ -48,22 +48,33 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             juce::jlimit(static_cast<int>(kBaseH * 0.80), static_cast<int>(kBaseH * 1.50), savedH));
 
     // ── Title ──
-    titleLabel.setText("AMBIENCE 2.0.0 B017", juce::dontSendNotification);
+    titleLabel.setText("AMBIENCE 2.0.0 B018", juce::dontSendNotification);
     titleLabel.setFont(juce::Font(juce::FontOptions(
         "Helvetica Neue", 15.f, juce::Font::bold)));
     titleLabel.setColour(juce::Label::textColourId, AmbienceColors::TextPrimary);
     content.addAndMakeVisible(titleLabel);
 
-    // ── ProMode Button ──
-    proModeButton.setButtonText("PRO");
-    proModeButton.setClickingTogglesState(true);
-    proModeButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
-    proModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
-    proModeButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
-    proModeButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
-    content.addAndMakeVisible(proModeButton);
-    proModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        audioProcessor.apvts, "promode", proModeButton);
+    // ── RT60 Tab Button ──
+    rt60TabButton.setButtonText("RT60");
+    rt60TabButton.setClickingTogglesState(true);
+    rt60TabButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    rt60TabButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    rt60TabButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    rt60TabButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    content.addAndMakeVisible(rt60TabButton);
+    rt60TabAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "rt60tab", rt60TabButton);
+
+    // ── PRO Tab Button ──
+    proTabButton.setButtonText("PRO");
+    proTabButton.setClickingTogglesState(true);
+    proTabButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    proTabButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    proTabButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    proTabButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    content.addAndMakeVisible(proTabButton);
+    proTabAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "protab", proTabButton);
 
     // ── ER Solo Button ──
     erSoloButton.setButtonText("ER SOLO");
@@ -182,6 +193,14 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     kTiltHigh.build(a, "tilthigh", "TILT HI", &content, laf);
     kLoCutPro.build(a, "locut", "LO CUT", &content, laf);
     kHiCutPro.build(a, "hicut", "HI CUT", &content, laf);
+
+    // ── PRO Tab Knobs ──
+    kScattering.build(a, "scattering", "SCATTERING", &content, laf);
+    kERCrossover.build(a, "ercrossover", "ER CROSSOVER", &content, laf);
+    kLateDensity.build(a, "latedensity", "LATE DENSITY", &content, laf);
+    kAsymmetry.build(a, "asymmetry", "ASYMMETRY", &content, laf);
+    kClarity.build(a, "clarity", "CLARITY", &content, laf);
+    kAirAbsorb.build(a, "airabsorb", "AIR ABSORB", &content, laf);
 
     // ── Theme UI ──
     themeLabel.setText("THEME", juce::dontSendNotification);
@@ -342,7 +361,8 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         "duckthresh", "ersolo", "tiltlow", "tiltmid", "tilthigh",
         "rtband0", "rtband1", "rtband2", "rtband3", "rtband4",
         "rtband5", "rtband6", "rtband7", "rtband8", "rtband9",
-        "locut", "hicut"
+        "locut", "hicut",
+        "rt60tab", "protab", "scattering", "ercrossover", "latedensity", "asymmetry", "clarity", "airabsorb"
     };
     for (const auto& pid : kMonitoredParams)
         audioProcessor.apvts.addParameterListener(pid, this);
@@ -386,7 +406,8 @@ FDNReverbEditor::~FDNReverbEditor() {
         "duckthresh", "ersolo", "tiltlow", "tiltmid", "tilthigh",
         "rtband0", "rtband1", "rtband2", "rtband3", "rtband4",
         "rtband5", "rtband6", "rtband7", "rtband8", "rtband9",
-        "locut", "hicut"
+        "locut", "hicut",
+        "rt60tab", "protab", "scattering", "ercrossover", "latedensity", "asymmetry", "clarity", "airabsorb"
     };
     for (const auto& pid : kMonitoredParams)
         audioProcessor.apvts.removeParameterListener(pid, this);
@@ -415,9 +436,11 @@ void FDNReverbEditor::timerCallback() {
         }
     }
 
-    bool newProMode = (*audioProcessor.apvts.getRawParameterValue("promode") > 0.5f);
-    if (newProMode != isProMode) {
-        isProMode = newProMode;
+    bool newRT60Tab = (*audioProcessor.apvts.getRawParameterValue("rt60tab") > 0.5f);
+    bool newProTab  = (*audioProcessor.apvts.getRawParameterValue("protab") > 0.5f);
+    if (newRT60Tab != isRT60Tab || newProTab != isProTab) {
+        isRT60Tab = newRT60Tab;
+        isProTab  = newProTab;
         updatePanelVisibility();
         layoutContent();
         content.repaint();
@@ -425,40 +448,49 @@ void FDNReverbEditor::timerCallback() {
 }
 
 void FDNReverbEditor::updatePanelVisibility() {
-    bool normal = !isProMode;
-    kPreDelay.slider.setVisible(normal);   kPreDelay.label.setVisible(normal);
-    kRoomSize.slider.setVisible(normal);   kRoomSize.label.setVisible(normal);
-    kDecay.slider.setVisible(normal);      kDecay.label.setVisible(normal);
-    kHFDamp.slider.setVisible(normal);     kHFDamp.label.setVisible(normal);
-    kLFAbsorb.slider.setVisible(normal);   kLFAbsorb.label.setVisible(normal);
-    kDiffusion.slider.setVisible(normal);  kDiffusion.label.setVisible(normal);
-    kModAmt.slider.setVisible(normal);     kModAmt.label.setVisible(normal);
-    kModRate.slider.setVisible(normal);    kModRate.label.setVisible(normal);
-    kStereoW.slider.setVisible(normal);    kStereoW.label.setVisible(normal);
-    kERLevel.slider.setVisible(normal);    kERLevel.label.setVisible(normal);
-    kSaturation.slider.setVisible(normal); kSaturation.label.setVisible(normal);
-    kWet.slider.setVisible(normal);        kWet.label.setVisible(normal);
-    kDry.slider.setVisible(normal);        kDry.label.setVisible(normal);
-    kLoCutNorm.slider.setVisible(normal);  kLoCutNorm.label.setVisible(normal);
-    kHiCutNorm.slider.setVisible(normal);  kHiCutNorm.label.setVisible(normal);
-    kDuckAmt.slider.setVisible(normal);    kDuckAmt.label.setVisible(normal);
-    kDuckThr.slider.setVisible(normal);    kDuckThr.label.setVisible(normal);
-    kDuckAtt.slider.setVisible(normal);    kDuckAtt.label.setVisible(normal);
-    kDuckRel.slider.setVisible(normal);    kDuckRel.label.setVisible(normal);
+    bool isNormal = (!isRT60Tab && !isProTab);
+    kPreDelay.slider.setVisible(isNormal);   kPreDelay.label.setVisible(isNormal);
+    kRoomSize.slider.setVisible(isNormal);   kRoomSize.label.setVisible(isNormal);
+    kDecay.slider.setVisible(isNormal);      kDecay.label.setVisible(isNormal);
+    kHFDamp.slider.setVisible(isNormal);     kHFDamp.label.setVisible(isNormal);
+    kLFAbsorb.slider.setVisible(isNormal);   kLFAbsorb.label.setVisible(isNormal);
+    kDiffusion.slider.setVisible(isNormal);  kDiffusion.label.setVisible(isNormal);
+    kModAmt.slider.setVisible(isNormal);     kModAmt.label.setVisible(isNormal);
+    kModRate.slider.setVisible(isNormal);    kModRate.label.setVisible(isNormal);
+    kStereoW.slider.setVisible(isNormal);    kStereoW.label.setVisible(isNormal);
+    kERLevel.slider.setVisible(isNormal);    kERLevel.label.setVisible(isNormal);
+    kSaturation.slider.setVisible(isNormal); kSaturation.label.setVisible(isNormal);
+    kWet.slider.setVisible(isNormal);        kWet.label.setVisible(isNormal);
+    kDry.slider.setVisible(isNormal);        kDry.label.setVisible(isNormal);
+    kLoCutNorm.slider.setVisible(isNormal);  kLoCutNorm.label.setVisible(isNormal);
+    kHiCutNorm.slider.setVisible(isNormal);  kHiCutNorm.label.setVisible(isNormal);
+    kDuckAmt.slider.setVisible(isNormal);    kDuckAmt.label.setVisible(isNormal);
+    kDuckThr.slider.setVisible(isNormal);    kDuckThr.label.setVisible(isNormal);
+    kDuckAtt.slider.setVisible(isNormal);    kDuckAtt.label.setVisible(isNormal);
+    kDuckRel.slider.setVisible(isNormal);    kDuckRel.label.setVisible(isNormal);
 
+    // RT60 Tab (10-Band + Tilt + Satu + Theme)
     for (auto& k : kRTBands) {
-        k.slider.setVisible(isProMode);
-        k.label.setVisible(isProMode);
+        k.slider.setVisible(isRT60Tab);
+        k.label.setVisible(isRT60Tab);
     }
-    satTypeLabel.setVisible(isProMode);
-    satTypeCombo.setVisible(isProMode);
-    kTiltLow.slider.setVisible(isProMode);  kTiltLow.label.setVisible(isProMode);
-    kTiltMid.slider.setVisible(isProMode);  kTiltMid.label.setVisible(isProMode);
-    kTiltHigh.slider.setVisible(isProMode); kTiltHigh.label.setVisible(isProMode);
-    kLoCutPro.slider.setVisible(isProMode); kLoCutPro.label.setVisible(isProMode);
-    kHiCutPro.slider.setVisible(isProMode); kHiCutPro.label.setVisible(isProMode);
-    themeLabel.setVisible(isProMode);
-    themeCombo.setVisible(isProMode);
+    satTypeLabel.setVisible(isRT60Tab);
+    satTypeCombo.setVisible(isRT60Tab);
+    kTiltLow.slider.setVisible(isRT60Tab);  kTiltLow.label.setVisible(isRT60Tab);
+    kTiltMid.slider.setVisible(isRT60Tab);  kTiltMid.label.setVisible(isRT60Tab);
+    kTiltHigh.slider.setVisible(isRT60Tab); kTiltHigh.label.setVisible(isRT60Tab);
+    kLoCutPro.slider.setVisible(isRT60Tab); kLoCutPro.label.setVisible(isRT60Tab);
+    kHiCutPro.slider.setVisible(isRT60Tab); kHiCutPro.label.setVisible(isRT60Tab);
+    themeLabel.setVisible(isRT60Tab);
+    themeCombo.setVisible(isRT60Tab);
+
+    // PRO Tab (6 Knobs)
+    kScattering.slider.setVisible(isProTab);  kScattering.label.setVisible(isProTab);
+    kERCrossover.slider.setVisible(isProTab); kERCrossover.label.setVisible(isProTab);
+    kLateDensity.slider.setVisible(isProTab); kLateDensity.label.setVisible(isProTab);
+    kAsymmetry.slider.setVisible(isProTab);   kAsymmetry.label.setVisible(isProTab);
+    kClarity.slider.setVisible(isProTab);     kClarity.label.setVisible(isProTab);
+    kAirAbsorb.slider.setVisible(isProTab);   kAirAbsorb.label.setVisible(isProTab);
 }
 
 void FDNReverbEditor::refreshPresetCombo() {
@@ -512,8 +544,24 @@ void FDNReverbEditor::refreshPresetCombo() {
     presetRevertButton.setEnabled(isPresetModified);
 }
 
-void FDNReverbEditor::parameterChanged(const juce::String& paramID, float) {
+void FDNReverbEditor::parameterChanged(const juce::String& paramID, float newValue) {
     if (loadingPresetCounter > 0) return;
+
+    if (paramID == "rt60tab") {
+        if (newValue > 0.5f) {
+            if (auto* p = audioProcessor.apvts.getParameter("protab"))
+                if (p->getValue() > 0.5f) p->setValueNotifyingHost(0.0f);
+        }
+        return;
+    }
+    if (paramID == "protab") {
+        if (newValue > 0.5f) {
+            if (auto* p = audioProcessor.apvts.getParameter("rt60tab"))
+                if (p->getValue() > 0.5f) p->setValueNotifyingHost(0.0f);
+        }
+        return;
+    }
+
     if (paramID == "promode" || paramID == "theme") return;
     if (currentBasePresetName.isNotEmpty()) {
         juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
@@ -613,12 +661,13 @@ void FDNReverbEditor::resized() {
 
 // ── V1.2.0 オリジナル完全一致レイアウト ──
 void FDNReverbEditor::layoutContent() {
-    titleLabel.setBounds(PAD, Y_HEADER, 180, 32);
-    proModeButton.setBounds(196, Y_HEADER + 5, 48, 22);
-    erSoloButton.setBounds(248, Y_HEADER + 5, 62, 22);
-    lockButton.setBounds(314, Y_HEADER + 5, 48, 22);
-    sendModeButton.setBounds(366, Y_HEADER + 5, 48, 22);
-    panicButton.setBounds(418, Y_HEADER + 5, 48, 22);
+    titleLabel.setBounds(PAD, Y_HEADER, 140, 32);
+    rt60TabButton.setBounds(145, Y_HEADER + 5, 48, 22);
+    proTabButton.setBounds(197, Y_HEADER + 5, 48, 22);
+    erSoloButton.setBounds(249, Y_HEADER + 5, 62, 22);
+    lockButton.setBounds(315, Y_HEADER + 5, 48, 22);
+    sendModeButton.setBounds(367, Y_HEADER + 5, 48, 22);
+    panicButton.setBounds(419, Y_HEADER + 5, 48, 22);
 
     vuIn.setBounds(W - 220, Y_HEADER + 2, 96, 28);
     vuOut.setBounds(W - 120, Y_HEADER + 2, 96, 28);
@@ -636,7 +685,7 @@ void FDNReverbEditor::layoutContent() {
         x += KNOB_W + PAD;
     };
 
-    if (!isProMode) {
+    if (!isRT60Tab && !isProTab) {
         // Row 1
         int kx = PAD;
         place1(kPreDelay, kx, Y_ROW1);
@@ -663,7 +712,7 @@ void FDNReverbEditor::layoutContent() {
         place2(kDuckThr, kx, Y_ROW2);
         place2(kDuckAtt, kx, Y_ROW2);
         place2(kDuckRel, kx, Y_ROW2);
-    } else {
+    } else if (isRT60Tab) {
         int kx = PAD;
         for (int i = 0; i < 10; ++i)
             place1(kRTBands[i], kx, Y_ROW1);
@@ -682,6 +731,28 @@ void FDNReverbEditor::layoutContent() {
         const int theme_x = kx2 + 16;
         themeLabel.setBounds(theme_x, Y_SLABEL2, 100, KNOB_LBL_H);
         themeCombo.setBounds(theme_x, Y_SLABEL2 + KNOB_LBL_H + 2, 100, 24);
+    } else if (isProTab) {
+        // PRO Tab: 6ノブ（上段3つ、下段3つ）を PRESET_PANEL_X (632px) 手前の領域に美しくセンタリング配置
+        const int availableW = PRESET_PANEL_X - PAD;
+        const int totalKnobW = 3 * KNOB_W;
+        const int gap = (availableW - totalKnobW) / 4;
+        const int startX = PAD + gap;
+
+        auto placePro = [&](ArcKnob& k, int& x, int y) {
+            k.label.setBounds(x, y, KNOB_W, KNOB_LBL_H);
+            k.slider.setBounds(x, y + KNOB_LBL_H, KNOB_W, KNOB_H);
+            x += KNOB_W + gap;
+        };
+
+        int kx = startX;
+        placePro(kScattering, kx, Y_ROW1);
+        placePro(kERCrossover, kx, Y_ROW1);
+        placePro(kLateDensity, kx, Y_ROW1);
+
+        kx = startX;
+        placePro(kAsymmetry, kx, Y_ROW2);
+        placePro(kClarity, kx, Y_ROW2);
+        placePro(kAirAbsorb, kx, Y_ROW2);
     }
 
     // Preset Section (Idea B: Wide Combo Top, 4 Buttons Bottom with zero cut-off)
@@ -731,7 +802,7 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         g.drawText(text, x, y, w, KNOB_LBL_H, juce::Justification::centredLeft);
     };
 
-    if (!isProMode) {
+    if (!isRT60Tab && !isProTab) {
         g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
         sl(SEC_TIME, Y_SLABEL1, "TIME");
         sl(SEC_FREQUENCY, Y_SLABEL1, "FREQUENCY");
@@ -762,7 +833,7 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         sl(PAD, Y_SLABEL2, "MIX");
         sl(outeq_x, Y_SLABEL2, "OUT EQ");
         sl(duck_x, Y_SLABEL2, "DUCKING");
-    } else {
+    } else if (isRT60Tab) {
         g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
         sl(PAD, Y_SLABEL1, "BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)", 500);
 
@@ -781,6 +852,15 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         sl(tilt_x, Y_SLABEL2, "TILT EQ");
         sl(outeq_x, Y_SLABEL2, "OUT EQ");
         sl(theme_x, Y_SLABEL2, "THEME");
+    } else if (isProTab) {
+        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        sl(PAD, Y_SLABEL1, "PRO ACOUSTICS DESIGN (SCATTERING / ER CROSSOVER / LATE DENSITY)", 500);
+
+        g.setColour(AmbienceColors::Separator.withAlpha(0.5f));
+        g.drawHorizontalLine(Y_SLABEL2 - 4, (float)PAD, (float)(PRESET_PANEL_X - 16));
+
+        g.setColour(AmbienceColors::Accent.withAlpha(0.75f));
+        sl(PAD, Y_SLABEL2, "PRO SPATIAL DESIGN (ASYMMETRY / C80 CLARITY / AIR ABSORB)", 500);
     }
 
     g.setColour(AmbienceColors::Separator);
@@ -793,7 +873,8 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
 void FDNReverbEditor::updateTheme(int idx) {
     AmbienceColors::setTheme(idx);
 
-    proModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    rt60TabButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    proTabButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
     erSoloButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
     lockButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
     sendModeButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);

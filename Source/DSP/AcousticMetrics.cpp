@@ -34,6 +34,9 @@ namespace FDNReverb {
         c50.store(0.0f, std::memory_order_relaxed);
         c80.store(0.0f, std::memory_order_relaxed);
         edt.store(0.0f, std::memory_order_relaxed);
+
+        erServoGain = 1.0f;
+        lateServoGain = 1.0f;
     }
 
     void AcousticMetrics::processSample(float sample) noexcept {
@@ -163,6 +166,40 @@ namespace FDNReverb {
         // 50ms 内に有意なエネルギーがあるか判定
         constexpr double kActivityThreshold = 1e-6;  // -60dBFS 相当
         return recent50msEnergy > kActivityThreshold;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    //  C80 自動調整サーボ
+    // ─────────────────────────────────────────────────────────────────────────────
+    void AcousticMetrics::updateServo(float targetClarityOffsetDB, int blockSize) noexcept {
+        // デフォルト (0.0dB) 時は完全バイパス (IEEE 754 厳密にビット一致保証)
+        if (std::abs(targetClarityOffsetDB) < 0.001f) {
+            erServoGain = 1.0f;
+            lateServoGain = 1.0f;
+            return;
+        }
+
+        // 有意な入力エネルギーがない場合はゲインを 1.0f へ緩やかに復帰
+        if (!isActive()) {
+            constexpr float returnAlpha = 0.05f;
+            erServoGain += (1.0f - erServoGain) * returnAlpha;
+            lateServoGain += (1.0f - lateServoGain) * returnAlpha;
+            return;
+        }
+
+        // 目標 C80 オフセットに応じて ER と Late のバランスをサーボ制御
+        // targetClarityOffsetDB > 0: 明瞭度重視 (ER を微増、Late を微減)
+        // targetClarityOffsetDB < 0: 拡散性重視 (ER を微減、Late を微増)
+        // 最大変動幅は ±3dB (約 0.707 〜 1.414) に安全クランプ
+        const float targetGainER = std::clamp(std::pow(10.0f, (targetClarityOffsetDB * 0.25f) / 20.0f), 0.70f, 1.40f);
+        const float targetGainLate = std::clamp(std::pow(10.0f, (-targetClarityOffsetDB * 0.25f) / 20.0f), 0.70f, 1.40f);
+
+        // 100ms 時定数のスムーズ追従 (クリック・ポンピング防止)
+        const float timeConstSmp = 0.100f * static_cast<float>(sampleRate);
+        const float alpha = 1.0f - std::exp(-static_cast<float>(blockSize) / timeConstSmp);
+
+        erServoGain += (targetGainER - erServoGain) * alpha;
+        lateServoGain += (targetGainLate - lateServoGain) * alpha;
     }
 
 }  // namespace FDNReverb

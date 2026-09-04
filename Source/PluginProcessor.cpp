@@ -110,6 +110,15 @@ void FDNReverbAudioProcessor::updateEngineParams()
     p.loCutHz = *apvts.getRawParameterValue(ParamID::LoCut);
     p.hiCutHz = *apvts.getRawParameterValue(ParamID::HiCut);
 
+    p.scattering = *apvts.getRawParameterValue(ParamID::Scattering);
+    p.erCrossoverMs = *apvts.getRawParameterValue(ParamID::ERCrossover);
+    p.lateDensity = *apvts.getRawParameterValue(ParamID::LateDensity);
+    p.asymmetry = *apvts.getRawParameterValue(ParamID::Asymmetry);
+    p.clarityDB = *apvts.getRawParameterValue(ParamID::Clarity);
+    p.airAbsorbScale = *apvts.getRawParameterValue(ParamID::AirAbsorb);
+    p.rt60Tab = *apvts.getRawParameterValue(ParamID::RT60Tab) > 0.5f;
+    p.proTab = *apvts.getRawParameterValue(ParamID::ProTab) > 0.5f;
+
     smoothWetGain.setTargetValue(
         juce::Decibels::decibelsToGain(p.wetDB + kWetInternalOffsetDB));
 

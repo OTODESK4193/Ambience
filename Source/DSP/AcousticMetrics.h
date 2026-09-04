@@ -55,6 +55,11 @@ namespace FDNReverb {
         // 入力アクティブ判定 (近時 50ms に有意なエネルギーがあるか)
         bool isActive() const noexcept;
 
+        // ─── C80 自動調整サーボ ───
+        void updateServo(float targetClarityOffsetDB, int blockSize) noexcept;
+        float getERServoGain() const noexcept { return erServoGain; }
+        float getLateServoGain() const noexcept { return lateServoGain; }
+
         // ── リセット ──
         void reset() noexcept;
 
@@ -99,6 +104,10 @@ namespace FDNReverb {
         // ある程度のサンプル間隔で更新する
         int updateCounter{ 0 };
         static constexpr int kUpdateInterval = 1024;  // 約 21ms @ 48kHz
+
+        // ── C80 自動調整サーボゲイン ──
+        float erServoGain{ 1.0f };
+        float lateServoGain{ 1.0f };
     };
 
 }  // namespace FDNReverb

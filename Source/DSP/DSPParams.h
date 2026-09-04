@@ -34,6 +34,18 @@ namespace FDNReverb {
         float loCutHz{ 20.0f };
         float hiCutHz{ 20000.0f };
 
+        // ── PRO Tab 物理音響パラメータ ──
+        float scattering{ 0.5f };       // 0.0 ~ 1.0 (デフォルト 0.5)
+        float erCrossoverMs{ 40.0f };   // 10.0 ~ 100.0 ms (デフォルト 40.0ms)
+        float lateDensity{ 0.7f };     // 0.0 ~ 1.0 (デフォルト 0.7)
+        float asymmetry{ 0.3f };       // 0.0 ~ 1.0 (デフォルト 0.3)
+        float clarityDB{ 0.0f };       // -6.0 ~ +6.0 dB (デフォルト 0.0dB)
+        float airAbsorbScale{ 1.0f };  // 0.2 ~ 2.5 x (デフォルト 1.0x)
+
+        // ── 排他的タブ状態 ──
+        bool rt60Tab{ false };
+        bool proTab{ false };
+
         bool operator==(const DSPParams& o) const noexcept {
             return algorithmIndex == o.algorithmIndex
                 && decayScale == o.decayScale
@@ -62,7 +74,15 @@ namespace FDNReverb {
                 && tiltHigh == o.tiltHigh
                 && rtBands == o.rtBands
                 && loCutHz == o.loCutHz
-                && hiCutHz == o.hiCutHz;
+                && hiCutHz == o.hiCutHz
+                && scattering == o.scattering
+                && erCrossoverMs == o.erCrossoverMs
+                && lateDensity == o.lateDensity
+                && asymmetry == o.asymmetry
+                && clarityDB == o.clarityDB
+                && airAbsorbScale == o.airAbsorbScale
+                && rt60Tab == o.rt60Tab
+                && proTab == o.proTab;
         }
         bool operator!=(const DSPParams& o) const noexcept { return !(*this == o); }
     };
