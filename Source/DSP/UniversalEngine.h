@@ -218,6 +218,10 @@ namespace FDNReverb {
         float lateMixScale{ 1.0f };
         float lateMakeupGainLinear{ 1.0f };
 
+        // ★ Graceful Bypass: ER スムーズゲイン
+        float erSmoothedGain{ 1.0f };
+        float erSmoothCoeff{ 0.0f };
+
         float diffusionSensitivity{ 1.0f };
         float modDepthScale{ 1.0f };
         float smoothedModAmount{ 0.0f };

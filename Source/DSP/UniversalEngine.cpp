@@ -196,6 +196,11 @@ namespace FDNReverb {
         
         // ★ FDN 遅延線の 1-pole スムージング時定数 (25ms)
         delaySmoothCoeff = 1.0f - std::exp(-1.0f / (fsf * 0.025f));
+        
+        // ★ ER の 1-pole スムージング時定数 (20ms)
+        erSmoothCoeff = 1.0f - std::exp(-1.0f / (fsf * 0.020f));
+        erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
+
         currentFdnDelaySamples.fill(0.0f);
 
         duckingAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.010f));
@@ -254,6 +259,7 @@ namespace FDNReverb {
         inputTransientEnvFast = 0.0f;
         inputTransientEnvSlow = 0.0f;
         currentFdnDelaySamples.fill(0.0f);
+        erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
     }
 
     void UniversalEngine::setParams(const DSPParams& p) {
@@ -518,7 +524,7 @@ namespace FDNReverb {
             inchindownEngine.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.0f);
         }
         
-        bypassER = (activeParams.erLevel < 0.01f);
+        // bypassER = (activeParams.erLevel < 0.01f); // ★ 削除: ハードスイッチングを廃止し、プロセスブロックでの動的スムージングに移行
 
         // ★ 【ER ビジュアライザー用動的タップ抽出ブリッジ】
         const auto& erPattern = PRESET_ER_PATTERNS[juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex)];
@@ -612,6 +618,10 @@ namespace FDNReverb {
         const float lateLevel = activeParams.lateLevel;
         const bool  erSolo = activeParams.erSolo;
 
+        // ★ Graceful Bypass: CPU 負荷最適化（完全バイパスへの移行）
+        // ターゲットが十分に低く、かつスムーザーも減衰しきった定常状態でのみバイパス
+        bypassER = (erGainCurved < 1e-4f && erSmoothedGain < 1e-4f);
+
         // (ダッキング変数は dynamicDucker に集約)
 
         // ★ 入力 diffusion の安全クランプ [0.0, 1.0]
@@ -637,7 +647,7 @@ namespace FDNReverb {
         const float lateServo = acousticMetrics.getLateServoGain();
 
         // ★ ISM (鏡像法) 初期反射エンジンによる並列 AVX2 処理
-        if (!bypassER && activeParams.erLevel > 0.001f) {
+        if (!bypassER) {
             if (ismBufferL.size() < static_cast<size_t>(numSamples)) {
                 ismBufferL.resize(static_cast<size_t>(numSamples), 0.0f);
                 ismBufferR.resize(static_cast<size_t>(numSamples), 0.0f);
@@ -653,6 +663,8 @@ namespace FDNReverb {
         for (int n = 0; n < numSamples; ++n) {
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
             smoothedModRate   += (activeParams.modRate - smoothedModRate)     * 0.005f;
+            erSmoothedGain    += erSmoothCoeff * (erGainCurved - erSmoothedGain);
+
             
             if (absoCrossfadePos < 1.0f) {
                 absoCrossfadePos += absoCrossfadeInc;
@@ -747,11 +759,11 @@ namespace FDNReverb {
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR);
                 }
-                erOutL *= erGainCurved;
-                erOutR *= erGainCurved;
+                erOutL *= erSmoothedGain;
+                erOutR *= erSmoothedGain;
             }
 
-            if (!bypassER && activeParams.erLevel > 0.001f) {
+            if (!bypassER) {
                 erOutL += ismBufferL[n];
                 erOutR += ismBufferR[n];
             }
@@ -907,8 +919,8 @@ namespace FDNReverb {
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
-            const float erMixL = bypassER ? 0.0f : erOutL * erGainCurved * erMakeupGain * erServo;
-            const float erMixR = bypassER ? 0.0f : erOutR * erGainCurved * erMakeupGain * erServo;
+            const float erMixL = bypassER ? 0.0f : erOutL * erSmoothedGain * erMakeupGain * erServo;
+            const float erMixR = bypassER ? 0.0f : erOutR * erSmoothedGain * erMakeupGain * erServo;
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel * lateServo;
             const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel * lateServo;
 
