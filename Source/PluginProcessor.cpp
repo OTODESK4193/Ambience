@@ -292,8 +292,10 @@ void FDNReverbAudioProcessor::processBlock(
 void FDNReverbAudioProcessor::getStateInformation(juce::MemoryBlock& d) {
     const juce::ScopedLock sl(stateLock);
     auto state = apvts.copyState();
-    if (lastSavedPresetName.isNotEmpty())
+    if (lastSavedPresetName.isNotEmpty()) {
         state.setProperty("currentPresetName", lastSavedPresetName, nullptr);
+        state.setProperty("isPresetModified", lastPresetModified, nullptr);
+    }
     state.setProperty("editorWidth", savedEditorWidth, nullptr);
     state.setProperty("editorHeight", savedEditorHeight, nullptr);
 
@@ -313,6 +315,7 @@ void FDNReverbAudioProcessor::setStateInformation(const void* d, int s) {
             {
                 const juce::ScopedLock sl(stateLock);
                 lastSavedPresetName = tree.getProperty("currentPresetName", "").toString();
+                lastPresetModified = tree.getProperty("isPresetModified", false);
                 savedEditorWidth = tree.getProperty("editorWidth", 900);
                 savedEditorHeight = tree.getProperty("editorHeight", 540);
             }

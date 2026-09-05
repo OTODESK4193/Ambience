@@ -262,6 +262,29 @@ void PresetBrowser::setCurrentPreset(const juce::String& name)
     repaint();
 }
 
+bool PresetBrowser::loadPresetByName(const juce::String& name)
+{
+    for (const auto& def : factoryPresets) {
+        if (def.name == name) {
+            currentPresetName = name;
+            setCurrentPreset(name);
+            if (onLoadFactory)
+                onLoadFactory(def);
+            return true;
+        }
+    }
+    for (const auto& uname : presetManager.getPresetNames()) {
+        if (uname == name) {
+            currentPresetName = name;
+            setCurrentPreset(name);
+            if (onLoadUser)
+                onLoadUser(name);
+            return true;
+        }
+    }
+    return false;
+}
+
 bool PresetBrowser::loadPreviousPreset()
 {
     if (filteredItems.isEmpty())

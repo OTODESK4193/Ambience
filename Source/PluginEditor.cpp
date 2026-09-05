@@ -30,6 +30,9 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 {
     setLookAndFeel(&laf);
 
+    currentBasePresetName = audioProcessor.getLastSavedPresetName();
+    isPresetModified = audioProcessor.isLastPresetModified();
+
     // ── Content Component の設定 (80%縮小〜150%拡大) ──
     addAndMakeVisible(content);
     content.onPaint = [this](juce::Graphics& g) { paintContent(g); };
@@ -336,20 +339,32 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     presetRevertButton.setTooltip("Revert to saved preset settings");
     presetRevertButton.setEnabled(false);
     presetRevertButton.onClick = [this] {
-        if (currentBasePresetName.isNotEmpty() && presetManager) {
-            ++loadingPresetCounter;
-            presetManager->loadPreset(currentBasePresetName);
-            setPresetModified(false);
-            refreshPresetCombo();
-            applySavedTheme();
-            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
-            juce::Timer::callAfterDelay(50, [safeThis] {
-                if (safeThis != nullptr) {
-                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
-                    safeThis->setPresetModified(false);
-                    safeThis->applySavedTheme();
-                }
-            });
+        if (currentBasePresetName.isNotEmpty()) {
+            if (presetBrowser && presetBrowser->loadPresetByName(currentBasePresetName)) {
+                audioProcessor.setLastSavedPresetName(currentBasePresetName);
+                audioProcessor.setLastPresetModified(false);
+                setPresetModified(false);
+                refreshPresetCombo();
+                applySavedTheme();
+                return;
+            }
+            if (presetManager) {
+                ++loadingPresetCounter;
+                presetManager->loadPreset(currentBasePresetName);
+                audioProcessor.setLastSavedPresetName(currentBasePresetName);
+                audioProcessor.setLastPresetModified(false);
+                setPresetModified(false);
+                refreshPresetCombo();
+                applySavedTheme();
+                juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+                juce::Timer::callAfterDelay(50, [safeThis] {
+                    if (safeThis != nullptr) {
+                        if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                        safeThis->setPresetModified(false);
+                        safeThis->applySavedTheme();
+                    }
+                });
+            }
         }
     };
     content.addAndMakeVisible(presetRevertButton);
@@ -363,6 +378,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     presetManager = std::make_unique<PresetManager>(audioProcessor);
     presetManager->onPresetLoaded = [this](const juce::String& name) {
         audioProcessor.setLastSavedPresetName(name);
+        audioProcessor.setLastPresetModified(false);
         currentBasePresetName = name;
         setPresetModified(false);
         refreshPresetCombo();
@@ -427,6 +443,8 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
         --loadingPresetCounter;
         currentBasePresetName = def.name;
+        audioProcessor.setLastSavedPresetName(def.name);
+        audioProcessor.setLastPresetModified(false);
         setPresetModified(false);
         refreshPresetCombo();
         applySavedTheme();
@@ -438,6 +456,8 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             ++loadingPresetCounter;
             presetManager->loadPreset(name);
             currentBasePresetName = name;
+            audioProcessor.setLastSavedPresetName(name);
+            audioProcessor.setLastPresetModified(false);
             setPresetModified(false);
             refreshPresetCombo();
             applySavedTheme();
@@ -468,6 +488,8 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             ++loadingPresetCounter;
             presetManager->loadPreset(name);
             currentBasePresetName = name;
+            audioProcessor.setLastSavedPresetName(name);
+            audioProcessor.setLastPresetModified(false);
             setPresetModified(false);
             refreshPresetCombo();
             applySavedTheme();
@@ -489,6 +511,8 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             ++loadingPresetCounter;
             presetManager->loadPrevPreset();
             currentBasePresetName = presetManager->getCurrentPresetName();
+            audioProcessor.setLastSavedPresetName(currentBasePresetName);
+            audioProcessor.setLastPresetModified(false);
             setPresetModified(false);
             refreshPresetCombo();
             applySavedTheme();
@@ -510,6 +534,8 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             ++loadingPresetCounter;
             presetManager->loadNextPreset();
             currentBasePresetName = presetManager->getCurrentPresetName();
+            audioProcessor.setLastSavedPresetName(currentBasePresetName);
+            audioProcessor.setLastPresetModified(false);
             setPresetModified(false);
             refreshPresetCombo();
             applySavedTheme();
@@ -702,12 +728,12 @@ void FDNReverbEditor::refreshPresetCombo() {
     auto names = presetManager->getPresetNames();
 
     if (currentBasePresetName.isEmpty()) {
-        if (presetManager->getCurrentPresetName().isNotEmpty())
+        auto saved = audioProcessor.getLastSavedPresetName();
+        if (saved.isNotEmpty()) {
+            currentBasePresetName = saved;
+            isPresetModified = audioProcessor.isLastPresetModified();
+        } else if (presetManager->getCurrentPresetName().isNotEmpty()) {
             currentBasePresetName = presetManager->getCurrentPresetName();
-        else {
-            auto saved = audioProcessor.getLastSavedPresetName();
-            if (saved.isNotEmpty())
-                currentBasePresetName = saved;
         }
     }
 
@@ -783,6 +809,7 @@ void FDNReverbEditor::parameterChanged(const juce::String& paramID, float newVal
 
 void FDNReverbEditor::setPresetModified(bool modified) {
     isPresetModified = modified;
+    audioProcessor.setLastPresetModified(modified);
     if (currentBasePresetName.isNotEmpty()) {
         juce::String displayText = currentBasePresetName + (modified ? " *" : "");
         int idx = presetManager ? presetManager->getCurrentPresetIndex() : -1;

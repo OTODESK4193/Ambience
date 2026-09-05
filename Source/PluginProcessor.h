@@ -78,6 +78,15 @@ public:
         lastSavedPresetName = name;
     }
 
+    bool isLastPresetModified() const noexcept {
+        const juce::ScopedLock sl(stateLock);
+        return lastPresetModified;
+    }
+    void setLastPresetModified(bool modified) noexcept {
+        const juce::ScopedLock sl(stateLock);
+        lastPresetModified = modified;
+    }
+
     int getSavedEditorWidth() const noexcept {
         const juce::ScopedLock sl(stateLock);
         return savedEditorWidth;
@@ -122,6 +131,7 @@ private:
 
     mutable juce::CriticalSection stateLock;
     juce::String lastSavedPresetName;
+    bool lastPresetModified{ false };
     int savedEditorWidth{ 900 };
     int savedEditorHeight{ 540 };
 
