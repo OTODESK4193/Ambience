@@ -115,6 +115,10 @@ void FDNReverbAudioProcessor::updateEngineParams()
 
     p.loCutHz = *apvts.getRawParameterValue(ParamID::LoCut);
     p.hiCutHz = *apvts.getRawParameterValue(ParamID::HiCut);
+    p.loEQType = static_cast<int>(*apvts.getRawParameterValue(ParamID::LoEQType));
+    p.hiEQType = static_cast<int>(*apvts.getRawParameterValue(ParamID::HiEQType));
+    p.loGainDB = *apvts.getRawParameterValue(ParamID::LoGain);
+    p.hiGainDB = *apvts.getRawParameterValue(ParamID::HiGain);
 
     p.scattering = *apvts.getRawParameterValue(ParamID::Scattering);
     p.erCrossoverMs = *apvts.getRawParameterValue(ParamID::ERCrossover);
@@ -125,13 +129,19 @@ void FDNReverbAudioProcessor::updateEngineParams()
     p.rt60Tab = *apvts.getRawParameterValue(ParamID::RT60Tab) > 0.5f;
     p.proTab = *apvts.getRawParameterValue(ParamID::ProTab) > 0.5f;
 
-    smoothWetGain.setTargetValue(
-        juce::Decibels::decibelsToGain(p.wetDB + kWetInternalOffsetDB));
-
-    if (p.erSolo) {
-        smoothDryGain.setTargetValue(0.0f);
+    const bool isBypass = bypassEnabled.load(std::memory_order_relaxed);
+    if (isBypass) {
+        smoothWetGain.setTargetValue(0.0f);
+        smoothDryGain.setTargetValue(1.0f);
     } else {
-        smoothDryGain.setTargetValue(juce::Decibels::decibelsToGain(p.dryDB));
+        smoothWetGain.setTargetValue(
+            juce::Decibels::decibelsToGain(p.wetDB + kWetInternalOffsetDB));
+
+        if (p.erSolo) {
+            smoothDryGain.setTargetValue(0.0f);
+        } else {
+            smoothDryGain.setTargetValue(juce::Decibels::decibelsToGain(p.dryDB));
+        }
     }
 
     if (paramsNeedUpdate || p != lastSentParams) {
@@ -217,6 +227,7 @@ void FDNReverbAudioProcessor::processBlock(
     }
 
     oversampler->processSamplesDown(block);
+    duckingReductionDB.store(engine.getDuckingReductionDB(), std::memory_order_relaxed);
 
     // 出力チャンネルへの書き戻しとルーティング
     if (numOut >= 2) {

@@ -138,6 +138,8 @@ namespace FDNReverb {
             return (idx >= 0 && idx < currentERTapCount) ? currentERGains[idx] : 0.0f;
         }
         bool   isPrepared() const noexcept { return isPreparedFlag; }
+        const OutputEQ& getOutputEQ() const noexcept { return outputEQ; }
+        float getDuckingReductionDB() const noexcept { return dynamicDucker.getCurrentReductionDB(); }
 
     private:
         void updateTopologyAndRouting();
@@ -171,6 +173,11 @@ namespace FDNReverb {
         float inputTransientEnvSlow{ 0.0f };
 
         LinearDelayLine                              erDelay;
+        // ★ ER Solo / Send Mode 0〜5ms コムフィルター防止オフセット用バッファ (192kHz でも 10.6ms をカバー)
+        alignas(32) std::array<float, 2048>          erOffsetDelayL{};
+        alignas(32) std::array<float, 2048>          erOffsetDelayR{};
+        size_t                                       erOffsetWriteIdx{ 0 };
+
         // Legacy ER taps replaced by SDN Core
         SDNShoebox3D                                 sdnEngine;
         SDNTopology2DMesh                            plateMesh;

@@ -24,33 +24,85 @@ void AmbienceLookAndFeel::drawRotarySlider(juce::Graphics& g,
     int x, int y, int w, int h,
     float sliderPos, float startAngle, float endAngle, juce::Slider&)
 {
-    auto b = juce::Rectangle<float>((float)x, (float)y, (float)w, (float)h).reduced(4.f);
+    auto b = juce::Rectangle<float>((float)x, (float)y, (float)w, (float)h).reduced(3.f);
     float cx = b.getCentreX(), cy = b.getCentreY();
-    float r = juce::jmin(b.getWidth(), b.getHeight()) * 0.45f;
-    float th = r * 0.22f;
+    float r = juce::jmin(b.getWidth(), b.getHeight()) * 0.44f;
+    float th = r * 0.20f;
 
+    // ── 目盛りドット (Subtle Min/Mid/Max Dots) ──
+    {
+        const float dotR = r + th * 0.9f;
+        g.setColour(currentTheme.textSecondary.withAlpha(0.28f));
+        for (float a : { startAngle, (startAngle + endAngle) * 0.5f, endAngle }) {
+            float dx = cx + dotR * std::sin(a);
+            float dy = cy - dotR * std::cos(a);
+            g.fillEllipse(dx - 1.2f, dy - 1.2f, 2.4f, 2.4f);
+        }
+    }
+
+    // ── トラック円弧背景 ──
     juce::Path track;
     track.addCentredArc(cx, cy, r, r, 0.f, startAngle, endAngle, true);
     g.setColour(currentTheme.arcTrack);
     g.strokePath(track, juce::PathStrokeType(th,
         juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
+    // ── 値の円弧 (グラデーション ＆ ネオングロー) ──
     float angle = startAngle + sliderPos * (endAngle - startAngle);
-    juce::Path fill;
-    fill.addCentredArc(cx, cy, r, r, 0.f, startAngle, angle, true);
-    juce::ColourGradient grad(currentTheme.secondary, cx - r, cy,
-        currentTheme.primary, cx + r, cy, false);
-    g.setGradientFill(grad);
-    g.strokePath(fill, juce::PathStrokeType(th,
-        juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    if (sliderPos > 0.001f) {
+        juce::Path fill;
+        fill.addCentredArc(cx, cy, r, r, 0.f, startAngle, angle, true);
 
-    g.setColour(currentTheme.panel);
-    g.fillEllipse(cx - r * 0.28f, cy - r * 0.28f, r * 0.56f, r * 0.56f);
+        // 外側ネオングロー
+        g.setColour(currentTheme.primary.withAlpha(0.18f));
+        g.strokePath(fill, juce::PathStrokeType(th * 1.8f,
+            juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    float ix = cx + r * 0.6f * std::sin(angle);
-    float iy = cy - r * 0.6f * std::cos(angle);
-    g.setColour(currentTheme.textPrimary);
-    g.drawLine(cx, cy, ix, iy, 2.f);
+        // メイン発光ストローク
+        juce::ColourGradient grad(currentTheme.secondary, cx - r, cy + r,
+            currentTheme.primary, cx + r, cy - r, false);
+        g.setGradientFill(grad);
+        g.strokePath(fill, juce::PathStrokeType(th,
+            juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+
+    // ── 立体感のあるインナーダイヤル (Metallic / Matte Glass Dial) ──
+    const float innerR = r - th * 0.8f;
+    if (innerR > 4.f) {
+        // ダイヤル外周ドロップシャドウ
+        g.setColour(juce::Colours::black.withAlpha(0.35f));
+        g.fillEllipse(cx - innerR, cy - innerR + 1.2f, innerR * 2.f, innerR * 2.f);
+
+        // ダイヤル面 (立体グラデーション)
+        juce::ColourGradient dialGrad(
+            currentTheme.surface.interpolatedWith(juce::Colours::white, 0.05f), cx, cy - innerR,
+            currentTheme.panel.interpolatedWith(juce::Colours::black, 0.20f), cx, cy + innerR, false);
+        g.setGradientFill(dialGrad);
+        g.fillEllipse(cx - innerR, cy - innerR, innerR * 2.f, innerR * 2.f);
+
+        // 微細ハイライト枠線
+        g.setColour(currentTheme.border.withAlpha(0.6f));
+        g.drawEllipse(cx - innerR, cy - innerR, innerR * 2.f, innerR * 2.f, 0.8f);
+
+        // ── インジケーターポインター (ニードル ＆ 先端ネオンドット) ──
+        float pointerLen = innerR * 0.80f;
+        float px = cx + pointerLen * std::sin(angle);
+        float py = cy - pointerLen * std::cos(angle);
+
+        // ニードル線
+        g.setColour(currentTheme.textPrimary.withAlpha(0.85f));
+        g.drawLine(cx, cy, px, py, 1.6f);
+
+        // 先端発光ドット
+        g.setColour(currentTheme.primary);
+        g.fillEllipse(px - 2.0f, py - 2.0f, 4.0f, 4.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.9f));
+        g.fillEllipse(px - 0.9f, py - 0.9f, 1.8f, 1.8f);
+
+        // ダイヤル中央ピボット
+        g.setColour(currentTheme.surface.withAlpha(0.8f));
+        g.fillEllipse(cx - 2.5f, cy - 2.5f, 5.0f, 5.0f);
+    }
 }
 
 void AmbienceLookAndFeel::drawLinearSlider(juce::Graphics& g,
@@ -248,8 +300,139 @@ void RT60Visualizer::paint(juce::Graphics& g)
         juce::Justification::right);
 }
 
+// ─── OutEQVisualizer ─────────────────────────────────────────────────
+OutEQVisualizer::OutEQVisualizer() {}
+
+void OutEQVisualizer::setParams(int loType, float loFreq, float loGain,
+                               int hiType, float hiFreq, float hiGain)
+{
+    if (loEQType != loType || loFreqHz != loFreq || loGainDB != loGain ||
+        hiEQType != hiType || hiFreqHz != hiFreq || hiGainDB != hiGain) {
+        loEQType = loType;
+        loFreqHz = loFreq;
+        loGainDB = loGain;
+        hiEQType = hiType;
+        hiFreqHz = hiFreq;
+        hiGainDB = hiGain;
+        repaint();
+    }
+}
+
+void OutEQVisualizer::paint(juce::Graphics& g)
+{
+    auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
+    const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[0];
+
+    auto b = getLocalBounds().toFloat().reduced(1.f);
+    g.setColour(theme.surface);
+    g.fillRoundedRectangle(b, 4.f);
+    g.setColour(theme.border);
+    g.drawRoundedRectangle(b.reduced(0.5f), 4.f, 1.f);
+
+    float W = b.getWidth(), H = b.getHeight();
+    float x0 = b.getX(), y0 = b.getY();
+
+    // 0dB センターライン
+    float midY = y0 + H * 0.5f;
+    g.setColour(theme.separator.withAlpha(0.6f));
+    g.drawHorizontalLine((int)midY, x0 + 4.f, x0 + W - 4.f);
+    // +6dB / -6dB ガイド線
+    g.setColour(theme.separator.withAlpha(0.3f));
+    g.drawHorizontalLine((int)(midY - H * 0.35f), x0 + 4.f, x0 + W - 4.f);
+    g.drawHorizontalLine((int)(midY + H * 0.35f), x0 + 4.f, x0 + W - 4.f);
+
+    // 100Hz, 1kHz, 10kHz グリッド線
+    auto freqToX = [&](float f) {
+        float norm = (std::log10(std::clamp(f, 20.f, 20000.f)) - std::log10(20.f)) / (std::log10(20000.f) - std::log10(20.f));
+        return x0 + norm * W;
+    };
+    g.drawVerticalLine((int)freqToX(100.f), y0 + 4.f, y0 + H - 4.f);
+    g.drawVerticalLine((int)freqToX(1000.f), y0 + 4.f, y0 + H - 4.f);
+    g.drawVerticalLine((int)freqToX(10000.f), y0 + 4.f, y0 + H - 4.f);
+
+    // 周波数応答曲線の計算 (20Hz ~ 20kHz, 120ポイント)
+    constexpr int numPoints = 120;
+    juce::Path curvePath;
+    bool first = true;
+
+    for (int i = 0; i < numPoints; ++i) {
+        float norm = (float)i / (float)(numPoints - 1);
+        float f = 20.f * std::pow(1000.f, norm); // 20Hz ~ 20kHz
+        float px = x0 + norm * W;
+
+        float respDB = 0.f;
+
+        // Lo 応答
+        if (loEQType == 1) { // Cut (12dB/oct HPF)
+            float ratio = loFreqHz / f;
+            respDB += -10.f * std::log10(1.f + ratio * ratio * ratio * ratio);
+        } else if (loEQType == 2) { // Shelf
+            float ratio = f / loFreqHz;
+            respDB += loGainDB / (1.f + ratio * ratio);
+        }
+
+        // Hi 応答
+        if (hiEQType == 1) { // Cut (12dB/oct LPF)
+            float ratio = f / hiFreqHz;
+            respDB += -10.f * std::log10(1.f + ratio * ratio * ratio * ratio);
+        } else if (hiEQType == 2) { // Shelf
+            float ratio = hiFreqHz / f;
+            respDB += hiGainDB / (1.f + ratio * ratio);
+        }
+
+        // dB を Y座標にマップ (±18dB レンジ)
+        float clampedDB = std::clamp(respDB, -18.f, 18.f);
+        float py = midY - (clampedDB / 18.f) * (H * 0.45f);
+
+        if (first) {
+            curvePath.startNewSubPath(px, py);
+            first = false;
+        } else {
+            curvePath.lineTo(px, py);
+        }
+    }
+
+    g.setColour(theme.primary);
+    g.strokePath(curvePath, juce::PathStrokeType(2.f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    // 右上ラベル
+    g.setColour(theme.textSecondary);
+    g.setFont(8.f);
+    g.drawText("OutEQ Response", (int)(x0 + 4.f), (int)(y0 + 2.f), (int)W - 8, 12, juce::Justification::topRight);
+}
+
 // ─── VUMeter ─────────────────────────────────────────────────────────
 VUMeter::VUMeter(const juce::String& lbl, Side s) : label(lbl), side(s) {}
+
+void VUMeter::setLevels(float l, float r) noexcept
+{
+    levelL = l; levelR = r;
+
+    // バリスティクス: アタックは瞬時、リリースは滑らかな減衰 (~300ms)
+    smoothL = (levelL > smoothL) ? levelL : smoothL * 0.82f + levelL * 0.18f;
+    smoothR = (levelR > smoothR) ? levelR : smoothR * 0.82f + levelR * 0.18f;
+
+    // ピークホールド (約 1.2 秒ホールド後にゆっくりフォールオフ)
+    if (levelL >= peakL) {
+        peakL = levelL;
+        peakHoldL = 36;
+    } else if (peakHoldL > 0) {
+        --peakHoldL;
+    } else {
+        peakL *= 0.94f;
+    }
+
+    if (levelR >= peakR) {
+        peakR = levelR;
+        peakHoldR = 36;
+    } else if (peakHoldR > 0) {
+        --peakHoldR;
+    } else {
+        peakR *= 0.94f;
+    }
+
+    smoothGR = smoothGR * 0.85f + reductionDB * 0.15f;
+}
 
 void VUMeter::paint(juce::Graphics& g)
 {
@@ -260,24 +443,65 @@ void VUMeter::paint(juce::Graphics& g)
     g.setColour(theme.surface);
     g.fillRoundedRectangle(b, 3.f);
 
-    float bx = b.getX() + 22.f, bw = b.getWidth() - 22.f;
-    auto bar = [&](float y, float level) {
-        float n = juce::jlimit(0.f, 1.f, juce::jmap(
-            juce::Decibels::gainToDecibels(level + 1e-9f), -60.f, 0.f, 0.f, 1.f));
-        g.setColour(theme.arcTrack);
-        g.fillRoundedRectangle(bx, y, bw, 7.f, 2.f);
-        juce::ColourGradient gr(theme.secondary, bx, y,
-            theme.primary, bx + bw, y, false);
-        g.setGradientFill(gr);
-        g.fillRoundedRectangle(bx, y, bw * n, 7.f, 2.f);
-        };
-    bar(b.getY() + 2.f, levelL);
-    bar(b.getY() + 11.f, levelR);
+    float bx = b.getX() + 22.f, bw = b.getWidth() - 24.f;
 
+    // K-14 スケール: -60dB ~ +4dBFS (-14dBFS が 0VU / 72% の位置)
+    constexpr float minDB = -60.f;
+    constexpr float maxDB = 0.f;
+    constexpr float k14DB = -14.f;
+    const float k14Norm = (k14DB - minDB) / (maxDB - minDB);
+
+    auto drawSingleBar = [&](float y, float level, float peak) {
+        float db = juce::Decibels::gainToDecibels(level + 1e-9f);
+        float n = juce::jlimit(0.f, 1.f, juce::jmap(db, minDB, maxDB, 0.f, 1.f));
+
+        float peakDB = juce::Decibels::gainToDecibels(peak + 1e-9f);
+        float peakN = juce::jlimit(0.f, 1.f, juce::jmap(peakDB, minDB, maxDB, 0.f, 1.f));
+
+        // トラック
+        g.setColour(theme.arcTrack.withAlpha(0.6f));
+        g.fillRoundedRectangle(bx, y, bw, 6.f, 1.5f);
+
+        // K-System ゾーン別カラーグラデーション
+        juce::Colour zoneCol = (db > -2.f) ? juce::Colour(0xFFEF4444) // クリップ警告
+                             : (db > k14DB) ? theme.primary          // K-14 ヘッドルーム
+                             : theme.secondary;                     // 安全ゾーン
+
+        juce::ColourGradient gr(theme.secondary, bx, y,
+                                zoneCol, bx + bw * n, y, false);
+        g.setGradientFill(gr);
+        g.fillRoundedRectangle(bx, y, bw * n, 6.f, 1.5f);
+
+        // ピークホールドインジケーター線
+        if (peakN > 0.02f) {
+            g.setColour(juce::Colours::white.withAlpha(0.85f));
+            float px = bx + bw * peakN;
+            g.drawVerticalLine((int)px, y, y + 6.f);
+        }
+
+        // K-14 (0VU) リファレンスマーカー線
+        float refX = bx + bw * k14Norm;
+        g.setColour(theme.separator.withAlpha(0.7f));
+        g.drawVerticalLine((int)refX, y - 1.f, y + 7.f);
+    };
+
+    drawSingleBar(b.getY() + 2.f, smoothL, peakL);
+    drawSingleBar(b.getY() + 10.f, smoothR, peakR);
+
+    // ラベル
     g.setColour(theme.textSecondary);
     g.setFont(8.f);
     g.drawText(label, (int)b.getX(), (int)b.getY(), 20, (int)b.getHeight(),
         juce::Justification::centredLeft);
+
+    // Output 側の Gain Reduction (GR) 表示 (ダッキング動作時)
+    if (side == Side::Output && smoothGR > 0.2f) {
+        juce::String grText = "GR -" + juce::String(smoothGR, 1) + "dB";
+        g.setFont(7.5f);
+        g.setColour(juce::Colour(0xFFFF9500)); // オレンジ
+        g.drawText(grText, (int)(bx + bw - 60.f), (int)b.getY(), 60, (int)b.getHeight(),
+            juce::Justification::centredRight);
+    }
 }
 
 // ─── ArcKnob ─────────────────────────────────────────────────────────
@@ -287,13 +511,70 @@ void ArcKnob::build(juce::AudioProcessorValueTreeState& apvts,
     juce::Component* parent,
     AmbienceLookAndFeel& laf)
 {
-    slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 62, 14);
     slider.setLookAndFeel(&laf);
     slider.setColour(juce::Slider::textBoxTextColourId,
         AmbienceColors::TextSecondary);
     slider.setColour(juce::Slider::textBoxOutlineColourId,
         juce::Colours::transparentBlack);
+
+    if (auto* p = apvts.getParameter(paramID)) {
+        const juce::String unit = p->label;
+        if (unit == "%") {
+            slider.textFromValue = [](double val) {
+                return juce::String(juce::roundToInt(val * 100.0)) + " %";
+            };
+            slider.valueFromText = [](const juce::String& text) {
+                juce::String t = text.upToFirstOccurrenceOf("%", false, false).trim();
+                return t.getDoubleValue() / 100.0;
+            };
+        } else if (unit == "Hz") {
+            slider.textFromValue = [](double val) {
+                if (val >= 1000.0)
+                    return juce::String(val / 1000.0, 1) + " kHz";
+                return juce::String(juce::roundToInt(val)) + " Hz";
+            };
+            slider.valueFromText = [](const juce::String& text) {
+                juce::String t = text.trim().toLowerCase();
+                if (t.endsWith("khz") || t.endsWith("k")) {
+                    t = t.upToFirstOccurrenceOf("k", false, false).trim();
+                    return t.getDoubleValue() * 1000.0;
+                }
+                t = t.upToFirstOccurrenceOf("hz", false, false).trim();
+                return t.getDoubleValue();
+            };
+        } else if (unit == "ms") {
+            slider.textFromValue = [](double val) {
+                return juce::String(val, (val < 10.0f ? 1 : 0)) + " ms";
+            };
+            slider.valueFromText = [](const juce::String& text) {
+                return text.upToFirstOccurrenceOf("ms", false, false).trim().getDoubleValue();
+            };
+        } else if (unit == "s") {
+            slider.textFromValue = [](double val) {
+                return juce::String(val, 2) + " s";
+            };
+            slider.valueFromText = [](const juce::String& text) {
+                return text.upToFirstOccurrenceOf("s", false, false).trim().getDoubleValue();
+            };
+        } else if (unit == "dB") {
+            slider.textFromValue = [](double val) {
+                return juce::String(val, 1) + " dB";
+            };
+            slider.valueFromText = [](const juce::String& text) {
+                return text.upToFirstOccurrenceOf("db", false, false).trim().getDoubleValue();
+            };
+        } else if (unit == "x") {
+            slider.textFromValue = [](double val) {
+                return juce::String(val, 2) + " x";
+            };
+            slider.valueFromText = [](const juce::String& text) {
+                return text.upToFirstOccurrenceOf("x", false, false).trim().getDoubleValue();
+            };
+        } else if (unit.isNotEmpty()) {
+            slider.setTextValueSuffix(" " + unit);
+        }
+    }
+
     parent->addAndMakeVisible(slider);
 
     label.setText(labelText, juce::dontSendNotification);

@@ -256,6 +256,9 @@ namespace FDNReverb {
         springChain.reset();
         inchindownEngine.reset();
         ismEngine.reset();
+        erOffsetDelayL.fill(0.0f);
+        erOffsetDelayR.fill(0.0f);
+        erOffsetWriteIdx = 0;
 
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
@@ -311,8 +314,8 @@ namespace FDNReverb {
 
         // 即時反映パラメータ (トポロジー再計算不要・吸音クロスフェード遮断)
         preDelaySamples = p.preDelayMs * 0.001f * static_cast<float>(fs);
-        outputEQ.setLoCutHz(p.loCutHz);
-        outputEQ.setHiCutHz(p.hiCutHz);
+        outputEQ.setLoParams(p.loEQType, p.loCutHz, p.loGainDB);
+        outputEQ.setHiParams(p.hiEQType, p.hiCutHz, p.hiGainDB);
         dynamicDucker.setParameters(p.duckingAmount, p.duckingAttackMs, p.duckingRelMs, p.duckingThreshDB);
 
         if (algoChanged) {
@@ -987,8 +990,23 @@ namespace FDNReverb {
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
-            const float erMixL = bypassER ? 0.0f : erOutL * erSmoothedGain * erMakeupGain * erServo;
-            const float erMixR = bypassER ? 0.0f : erOutR * erSmoothedGain * erMakeupGain * erServo;
+            float erMixL = bypassER ? 0.0f : erOutL * erSmoothedGain * erMakeupGain * erServo;
+            float erMixR = bypassER ? 0.0f : erOutR * erSmoothedGain * erMakeupGain * erServo;
+
+            // ★ ER Solo / Send Mode 時の 0〜5ms コムフィルター防止オフセット（音響工学的インテリジェント制御）
+            const bool isSendOrErSolo = (erSolo || activeParams.dryDB <= -59.0f);
+            if (isSendOrErSolo && !bypassER) {
+                const float minAllowedDelaySmp = 0.005f * fsf; // 5ms 下限 (コムフィルター完全防止境界)
+                if (preDelaySamples < minAllowedDelaySmp) {
+                    const int shiftSmp = static_cast<int>(minAllowedDelaySmp - preDelaySamples);
+                    erOffsetDelayL[erOffsetWriteIdx] = erMixL;
+                    erOffsetDelayR[erOffsetWriteIdx] = erMixR;
+                    const size_t readIdx = (erOffsetWriteIdx + 2048 - static_cast<size_t>(shiftSmp)) & 2047;
+                    erMixL = erOffsetDelayL[readIdx];
+                    erMixR = erOffsetDelayR[readIdx];
+                    erOffsetWriteIdx = (erOffsetWriteIdx + 1) & 2047;
+                }
+            }
             // ★ ModAmt 変調時の Hermite 補間通過損失を動的補正（音量低下ゼロ化）
             const float modLossComp = 1.0f + (0.08f + 0.08f * std::min(5.0f, currentRT60Mid)) * modAmtCurved;
             const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel * lateServo * modLossComp;
@@ -1004,13 +1022,27 @@ namespace FDNReverb {
             float wetR = erMixR + satR;
 
             // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・位相直交化による空間広がり・IACC最適化)
-            wetL = outApL2.process(outApL1.process(wetL, 0.55f), 0.55f);
-            wetR = outApR2.process(outApR1.process(wetR, -0.55f), -0.55f);
+            const float widthClamped = std::clamp(stereoWidth, 0.0f, 1.0f);
+            const float apDiffGain = 0.55f * widthClamped;
+            wetL = outApL2.process(outApL1.process(wetL, apDiffGain), apDiffGain);
+            wetR = outApR2.process(outApR1.process(wetR, -apDiffGain), -apDiffGain);
 
             outputEQ.process(wetL, wetR);
 
             // ★ 4バンド・ダイナミックEQダッキング (周波数追従型マスキング解消)
             dynamicDucker.processStereo(inL[n], inR[n], wetL, wetR);
+
+            // ★ 最終出力段 Mid/Side（和差）幅制御 ＆ 完全モノラル保証
+            if (widthClamped <= 1e-6f) {
+                const float mono = 0.5f * (wetL + wetR);
+                wetL = mono;
+                wetR = mono;
+            } else if (widthClamped < 0.9999f) {
+                const float mid = 0.5f * (wetL + wetR);
+                const float side = 0.5f * (wetL - wetR) * widthClamped;
+                wetL = mid + side;
+                wetR = mid - side;
+            }
 
             outL[n] = wetL;
             outR[n] = wetR;

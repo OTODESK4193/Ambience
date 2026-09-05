@@ -42,6 +42,10 @@ namespace FDNReverb {
         inline const juce::String RTBand9 = "rtband9";
         inline const juce::String LoCut = "locut";
         inline const juce::String HiCut = "hicut";
+        inline const juce::String LoEQType = "loeqtype";
+        inline const juce::String HiEQType = "hieqtype";
+        inline const juce::String LoGain = "logain";
+        inline const juce::String HiGain = "higain";
         inline const juce::String Theme = "theme";
 
         // ── PRO Tab Parameters ──

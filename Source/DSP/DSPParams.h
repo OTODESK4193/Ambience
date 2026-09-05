@@ -34,6 +34,12 @@ namespace FDNReverb {
         float loCutHz{ 20.0f };
         float hiCutHz{ 20000.0f };
 
+        // ── OutEQ 拡張 ──
+        int   loEQType{ 0 };    // 0: Off, 1: Cut, 2: Shelf (デフォルト 0 = Off)
+        int   hiEQType{ 0 };    // 0: Off, 1: Cut, 2: Shelf (デフォルト 0 = Off)
+        float loGainDB{ 0.0f }; // -12 ~ +12 dB
+        float hiGainDB{ 0.0f }; // -12 ~ +12 dB
+
         // ── PRO Tab 物理音響パラメータ ──
         float scattering{ 0.5f };       // 0.0 ~ 1.0 (デフォルト 0.5)
         float erCrossoverMs{ 40.0f };   // 10.0 ~ 100.0 ms (デフォルト 40.0ms)
@@ -75,6 +81,10 @@ namespace FDNReverb {
                 && rtBands == o.rtBands
                 && loCutHz == o.loCutHz
                 && hiCutHz == o.hiCutHz
+                && loEQType == o.loEQType
+                && hiEQType == o.hiEQType
+                && loGainDB == o.loGainDB
+                && hiGainDB == o.hiGainDB
                 && scattering == o.scattering
                 && erCrossoverMs == o.erCrossoverMs
                 && lateDensity == o.lateDensity

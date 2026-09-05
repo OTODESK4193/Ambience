@@ -62,6 +62,11 @@ public:
     bool isParamsLocked() const noexcept { return paramsLocked.load(); }
     void setParamsLocked(bool locked) noexcept { paramsLocked.store(locked); }
 
+    bool isBypassed() const noexcept { return bypassEnabled.load(std::memory_order_relaxed); }
+    void setBypass(bool b) noexcept { bypassEnabled.store(b, std::memory_order_release); }
+
+    float getDuckingReductionDB() const noexcept { return duckingReductionDB.load(std::memory_order_relaxed); }
+
     void panic() noexcept { panicRequested.store(true, std::memory_order_release); }
 
     juce::String getLastSavedPresetName() const noexcept {
@@ -97,6 +102,8 @@ private:
 
     FDNReverb::UniversalEngine engine;
     std::atomic<bool> paramsLocked{ false };
+    std::atomic<bool> bypassEnabled{ false };
+    std::atomic<float> duckingReductionDB{ 0.0f };
     std::atomic<bool> panicRequested{ false };
     int panicFadeSamplesRemaining{ 0 };
     int panicFadeTotalSamples{ 0 };

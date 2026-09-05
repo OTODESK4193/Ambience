@@ -40,7 +40,10 @@ void DecayCurveViz::paint(juce::Graphics& g)
     auto bounds = getLocalBounds().toFloat();
     if (bounds.getWidth() < 10.0f || bounds.getHeight() < 10.0f) return;
 
-    g.fillAll(AmbienceColors::Background);
+    auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
+    const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[AmbienceColors::activeThemeIndex];
+
+    g.fillAll(theme.background);
 
     const float topMargin = 4.0f;
     const float bottomMargin = 14.0f;
@@ -74,21 +77,23 @@ void DecayCurveViz::paint(juce::Graphics& g)
 
     // ─── ER ゾーン背景 ───
     const float erZoneW = plotW * splitRatio;
+    juce::Colour erBgStart = theme.surface.interpolatedWith(theme.secondary, 0.08f);
+    juce::Colour erBgEnd   = theme.background;
     juce::ColourGradient erZoneGrad(
-        juce::Colour(0xFF0F1B2A), plotX, plotY,
-        juce::Colour(0xFF09101A), plotX + erZoneW, plotY, false);
+        erBgStart, plotX, plotY,
+        erBgEnd, plotX + erZoneW, plotY, false);
     g.setGradientFill(erZoneGrad);
     g.fillRect(plotX, plotY, erZoneW, plotH);
 
     // ─── グリッド線 ───
-    g.setColour(AmbienceColors::Separator.withAlpha(0.25f));
+    g.setColour(theme.separator.withAlpha(0.25f));
     for (float db = 0.0f; db >= -60.0f; db -= 20.0f)
         g.drawHorizontalLine((int)dbToY(db), plotX, plotX + plotW);
 
     // ER 垂直グリッド (ms)
     {
         static const float erGridMs[] = { 20.0f, 50.0f, 100.0f, 150.0f, 200.0f };
-        g.setColour(AmbienceColors::Separator.withAlpha(0.35f));
+        g.setColour(theme.separator.withAlpha(0.35f));
         for (float ms : erGridMs) {
             const float t = ms * 0.001f;
             if (t >= maxTimeSec) break;
@@ -104,18 +109,18 @@ void DecayCurveViz::paint(juce::Graphics& g)
     else if (maxTimeSec <= 45.0f) timeStep = 10.0f;
     else                          timeStep = 25.0f;
 
-    g.setColour(AmbienceColors::Separator.withAlpha(0.20f));
+    g.setColour(theme.separator.withAlpha(0.20f));
     for (float t = splitSec + timeStep; t <= maxTimeSec; t += timeStep)
         g.drawVerticalLine((int)timeToX(t), plotY, plotY + plotH);
 
     // スプリット境界線
     const float splitX = timeToX(splitSec);
-    g.setColour(juce::Colour(0xFF00E5FF).withAlpha(0.20f));
+    g.setColour(theme.secondary.withAlpha(0.35f));
     g.drawVerticalLine((int)splitX, plotY, plotY + plotH);
 
     // ─── 軸ラベル ───
     g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::plain)));
-    g.setColour(AmbienceColors::TextSecondary.withAlpha(0.55f));
+    g.setColour(theme.textSecondary.withAlpha(0.65f));
 
     for (float db = 0.0f; db >= -60.0f; db -= 20.0f) {
         const float y = dbToY(db);
@@ -165,21 +170,21 @@ void DecayCurveViz::paint(juce::Graphics& g)
         lateFill.closeSubPath();
 
         juce::ColourGradient fillGrad(
-            AmbienceColors::Accent.withAlpha(0.20f), plotX, plotY,
-            juce::Colour(0xFF100B1A).withAlpha(0.04f), plotX, yBottom, false);
+            theme.primary.withAlpha(0.22f), plotX, plotY,
+            theme.background.withAlpha(0.02f), plotX, yBottom, false);
         g.setGradientFill(fillGrad);
         g.fillPath(lateFill);
 
-        g.setColour(AmbienceColors::Accent.withAlpha(0.25f));
+        g.setColour(theme.primary.withAlpha(0.25f));
         g.strokePath(lateCurve, juce::PathStrokeType(3.5f, juce::PathStrokeType::curved));
 
-        g.setColour(AmbienceColors::Accent.withAlpha(0.90f));
+        g.setColour(theme.primary.withAlpha(0.95f));
         g.strokePath(lateCurve, juce::PathStrokeType(1.5f, juce::PathStrokeType::curved));
     }
 
     // ─── ER レーザーピン ＆ 発光ネオンオーブ ───
     if (!cachedERBypassed && cachedERTapCount > 0) {
-        const juce::Colour erColor = AmbienceColors::AccentBlue;
+        const juce::Colour erColor = theme.secondary;
 
         for (int t = 0; t < cachedERTapCount; ++t) {
             const float timeSec = cachedERDelayMs[t] * 0.001f;
@@ -212,9 +217,9 @@ void DecayCurveViz::paint(juce::Graphics& g)
     // ─── ゾーンバッジ ───
     g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::bold)));
 
-    g.setColour(AmbienceColors::AccentBlue.withAlpha(0.9f));
+    g.setColour(theme.secondary.withAlpha(0.9f));
     g.drawText("ER", (int)(plotX + 6), (int)(plotY + 2), 30, 11, juce::Justification::centredLeft);
 
-    g.setColour(AmbienceColors::Accent.withAlpha(0.9f));
+    g.setColour(theme.primary.withAlpha(0.9f));
     g.drawText("LATE", (int)(splitX + 6), (int)(plotY + 2), 40, 11, juce::Justification::centredLeft);
 }

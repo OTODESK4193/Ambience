@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "Version.h"
 #include "PluginProcessor.h"
 #include "PresetManager.h"
 #include "GUI/AmbienceUI.h"
@@ -61,18 +62,24 @@ private:
 
     juce::Label labelDecayLine;
 
+    juce::TextButton mainTabButton;
     juce::TextButton rt60TabButton;
     juce::TextButton proTabButton;
     juce::TextButton erSoloButton;
     juce::TextButton lockButton;
     juce::TextButton sendModeButton;
     juce::TextButton panicButton;
+    juce::TextButton bypassButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> rt60TabAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> proTabAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> erSoloAttachment;
 
     bool isRT60Tab{ false };
     bool isProTab{ false };
+    float tabTransitionAlpha{ 1.0f };
+    float tabPillCurrentX{ 175.0f };
+    float tabPillTargetX{ 175.0f };
+    float contentSlideOffset{ 0.0f };
 
     // ── Normal Mode Knobs ──
     ArcKnob kPreDelay, kRoomSize, kDecay;
@@ -92,15 +99,28 @@ private:
     ArcKnob kTiltLow, kTiltMid, kTiltHigh;
     ArcKnob kLoCutPro, kHiCutPro;
 
-    // ── PRO Tab Knobs ──
+    // ── PRO Tab Knobs & OutEQ Section ──
     ArcKnob kScattering, kERCrossover, kLateDensity;
     ArcKnob kAsymmetry, kClarity, kAirAbsorb;
+
+    juce::Label    loEQTypeLabel;
+    juce::ComboBox loEQTypeCombo;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> loEQTypeAttachment;
+    ArcKnob        kLoGainPro;
+
+    juce::Label    hiEQTypeLabel;
+    juce::ComboBox hiEQTypeCombo;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> hiEQTypeAttachment;
+    ArcKnob        kHiGainPro;
+
+    OutEQVisualizer outEQViz;
 
     juce::Label    themeLabel;
     juce::ComboBox themeCombo;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> themeAttachment;
 
     void updateTheme(int idx);
+    void updateBypassButtonColor();
 
     // ── Preset UI ──
     std::unique_ptr<PresetManager> presetManager;

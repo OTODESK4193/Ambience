@@ -81,6 +81,12 @@ namespace FDNReverb {
             wetR *= gainSmoothed;
         }
 
+        float getCurrentReductionDB() const noexcept {
+            if (duckAmount <= 0.001f) return 0.0f;
+            float g = std::clamp(gainSmoothed, 1e-5f, 1.0f);
+            return -20.0f * std::log10(g); // 減衰量を正の値 (dB) で返す
+        }
+
     private:
         double fs{ 48000.0 };
         float duckAmount{ 0.0f };

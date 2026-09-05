@@ -116,23 +116,105 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RT60Visualizer)
 };
 
-// ─── VU Meter ────────────────────────────────────────────────────────
+// ─── OutEQ Visualizer ────────────────────────────────────────────────
+class OutEQVisualizer : public juce::Component
+{
+public:
+    OutEQVisualizer();
+    void setParams(int loType, float loFreq, float loGain,
+                   int hiType, float hiFreq, float hiGain);
+    void paint(juce::Graphics&) override;
+private:
+    int loEQType{ 0 };
+    float loFreqHz{ 20.0f };
+    float loGainDB{ 0.0f };
+    int hiEQType{ 0 };
+    float hiFreqHz{ 20000.0f };
+    float hiGainDB{ 0.0f };
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OutEQVisualizer)
+};
+
+// ─── VU Meter with K-System & GR Ballistics ─────────────────────────
 class VUMeter : public juce::Component
 {
 public:
     enum class Side { Input, Output };
     VUMeter(const juce::String& label, Side side);
     void paint(juce::Graphics&) override;
-    void setLevels(float l, float r) noexcept { levelL = l; levelR = r; }
+    void setLevels(float l, float r) noexcept;
+    void setReduction(float grDB) noexcept { reductionDB = grDB; }
 private:
     juce::String label;
     Side side;
     float levelL{ 0.f }, levelR{ 0.f };
+    float smoothL{ 0.f }, smoothR{ 0.f };
+    float peakL{ 0.f }, peakR{ 0.f };
+    int peakHoldL{ 0 }, peakHoldR{ 0 };
+    float reductionDB{ 0.f };
+    float smoothGR{ 0.f };
+};
+
+// ─── ArcKnobSlider with Double-Click & Shift-Drag ────────────────────
+class ArcKnobSlider : public juce::Slider
+{
+public:
+    ArcKnobSlider()
+    {
+        setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        setTextBoxStyle(juce::Slider::TextBoxBelow, false, 62, 14);
+        setMouseDragSensitivity(250);
+    }
+
+    void mouseDoubleClick(const juce::MouseEvent&) override
+    {
+        showTextBox();
+    }
+
+    void mouseDown(const juce::MouseEvent& e) override
+    {
+        if (e.mods.isShiftDown())
+            setMouseDragSensitivity(1250); // Fine adjust (5x precision)
+        else
+            setMouseDragSensitivity(250);
+        juce::Slider::mouseDown(e);
+    }
+
+    void mouseDrag(const juce::MouseEvent& e) override
+    {
+        if (e.mods.isShiftDown())
+            setMouseDragSensitivity(1250);
+        else
+            setMouseDragSensitivity(250);
+        juce::Slider::mouseDrag(e);
+    }
+
+    void mouseUp(const juce::MouseEvent& e) override
+    {
+        setMouseDragSensitivity(250);
+        juce::Slider::mouseUp(e);
+    }
+
+    std::function<juce::String(double)> textFromValue;
+    std::function<double(const juce::String&)> valueFromText;
+
+    juce::String getTextFromValue(double val) override
+    {
+        if (textFromValue)
+            return textFromValue(val);
+        return juce::Slider::getTextFromValue(val);
+    }
+
+    double getValueFromText(const juce::String& text) override
+    {
+        if (valueFromText)
+            return valueFromText(text);
+        return juce::Slider::getValueFromText(text);
+    }
 };
 
 // ─── Labelled Arc Knob ───────────────────────────────────────────────
 struct ArcKnob {
-    juce::Slider slider;
+    ArcKnobSlider slider;
     juce::Label  label;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
 

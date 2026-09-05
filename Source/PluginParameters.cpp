@@ -24,19 +24,19 @@ namespace FDNReverb {
             juce::StringArray{ "ROOM1","ROOM2","HALL1","HALL2","PLATE","SPRING","GOLDFOIL","INCHINDOWN" }, 0));
 
         addFloat(ParamID::PreDelay, "Pre-Delay", 0.0f, 500.0f, 10.0f, 1.0f, "ms");
-        addFloat(ParamID::RoomSize, "Room Size", 0.3f, 2.0f, 1.0f);
+        addFloat(ParamID::RoomSize, "Room Size", 0.3f, 2.0f, 1.0f, 1.0f, "x");
         addFloat(ParamID::DecayTime, "Decay Time", 0.1f, 120.0f, 1.5f, 0.25f, "s");
-        addFloat(ParamID::HFDamping, "HF Damping", 0.0f, 1.0f, 0.0f);
-        addFloat(ParamID::LFAbsorption, "LF Absorption", 0.0f, 1.0f, 0.0f);
+        addFloat(ParamID::HFDamping, "HF Damping", 0.0f, 1.0f, 0.0f, 1.0f, "%");
+        addFloat(ParamID::LFAbsorption, "LF Absorption", 0.0f, 1.0f, 0.0f, 1.0f, "%");
 
-        addFloat(ParamID::Diffusion, "Diffusion", 0.0f, 1.0f, 0.7f);
-        addFloat(ParamID::ModAmount, "Mod Amount", 0.0f, 1.0f, 0.25f);
+        addFloat(ParamID::Diffusion, "Diffusion", 0.0f, 1.0f, 0.7f, 1.0f, "%");
+        addFloat(ParamID::ModAmount, "Mod Amount", 0.0f, 1.0f, 0.25f, 1.0f, "%");
         addFloat(ParamID::ModRate, "Mod Rate", 0.05f, 2.0f, 0.5f, 0.35f, "Hz");
 
-        addFloat(ParamID::StereoWidth, "Stereo Width", 0.0f, 1.0f, 0.8f);
+        addFloat(ParamID::StereoWidth, "Stereo Width", 0.0f, 1.0f, 0.8f, 1.0f, "%");
 
-        addFloat(ParamID::ERLevel, "ER Level", 0.0f, 1.0f, 0.6f);
-        addFloat(ParamID::Saturation, "Saturation", 0.0f, 1.0f, 0.0f);
+        addFloat(ParamID::ERLevel, "ER Level", 0.0f, 1.0f, 0.6f, 1.0f, "%");
+        addFloat(ParamID::Saturation, "Saturation", 0.0f, 1.0f, 0.0f, 1.0f, "%");
 
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             ParamID::SatType, "Sat Type",
@@ -63,33 +63,43 @@ namespace FDNReverb {
             ParamID::ProMode, "Pro Mode", false,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));
 
-        addFloat(ParamID::TiltLow, "Tilt Low", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::TiltMid, "Tilt Mid", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::TiltHigh, "Tilt High", 0.5f, 2.0f, 1.0f);
+        addFloat(ParamID::TiltLow, "Tilt Low", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::TiltMid, "Tilt Mid", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::TiltHigh, "Tilt High", 0.5f, 2.0f, 1.0f, 1.0f, "x");
 
-        addFloat(ParamID::RTBand0, "RT 31Hz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand1, "RT 62Hz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand2, "RT 125Hz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand3, "RT 250Hz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand4, "RT 500Hz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand5, "RT 1kHz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand6, "RT 2kHz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand7, "RT 4kHz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand8, "RT 8kHz", 0.5f, 2.0f, 1.0f);
-        addFloat(ParamID::RTBand9, "RT 16kHz", 0.5f, 2.0f, 1.0f);
+        addFloat(ParamID::RTBand0, "RT 31Hz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand1, "RT 62Hz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand2, "RT 125Hz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand3, "RT 250Hz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand4, "RT 500Hz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand5, "RT 1kHz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand6, "RT 2kHz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand7, "RT 4kHz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand8, "RT 8kHz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
+        addFloat(ParamID::RTBand9, "RT 16kHz", 0.5f, 2.0f, 1.0f, 1.0f, "x");
 
-        addFloat(ParamID::LoCut, "Lo Cut", 20.0f, 500.0f, 20.0f, 0.3f, "Hz");
-        addFloat(ParamID::HiCut, "Hi Cut", 1000.0f, 20000.0f, 20000.0f, 0.3f, "Hz");
+        // ── OutEQ (Lo / Hi) ──
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            ParamID::LoEQType, "Lo EQ Curve",
+            juce::StringArray{ "Off", "Cut", "Shelf" }, 0));
+        addFloat(ParamID::LoCut, "Lo Freq", 20.0f, 1000.0f, 20.0f, 0.3f, "Hz");
+        addFloat(ParamID::LoGain, "Lo Gain", -12.0f, 12.0f, 0.0f, 1.0f, "dB");
+
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            ParamID::HiEQType, "Hi EQ Curve",
+            juce::StringArray{ "Off", "Cut", "Shelf" }, 0));
+        addFloat(ParamID::HiCut, "Hi Freq", 1000.0f, 20000.0f, 20000.0f, 0.3f, "Hz");
+        addFloat(ParamID::HiGain, "Hi Gain", -12.0f, 12.0f, 0.0f, 1.0f, "dB");
 
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             ParamID::Theme, "Theme",
             juce::StringArray{ "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber", "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome" }, 0));
 
         // ── PRO Tab 物理音響パラメータ ──
-        addFloat(ParamID::Scattering, "Scattering", 0.0f, 1.0f, 0.5f);
+        addFloat(ParamID::Scattering, "Scattering", 0.0f, 1.0f, 0.5f, 1.0f, "%");
         addFloat(ParamID::ERCrossover, "ER Crossover", 10.0f, 100.0f, 40.0f, 1.0f, "ms");
-        addFloat(ParamID::LateDensity, "Late Density", 0.0f, 1.0f, 0.7f);
-        addFloat(ParamID::Asymmetry, "Asymmetry", 0.0f, 1.0f, 0.3f);
+        addFloat(ParamID::LateDensity, "Late Density", 0.0f, 1.0f, 0.7f, 1.0f, "%");
+        addFloat(ParamID::Asymmetry, "Asymmetry", 0.0f, 1.0f, 0.3f, 1.0f, "%");
         addFloat(ParamID::Clarity, "Clarity", -6.0f, 6.0f, 0.0f, 1.0f, "dB");
         addFloat(ParamID::AirAbsorb, "Air Absorb", 0.2f, 2.5f, 1.0f, 1.0f, "x");
 
