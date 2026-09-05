@@ -387,6 +387,41 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         setParamVal("lfabsorption", def.lfAbsorb);
         setParamVal("saturation", def.saturation);
         setParamVal("sattype", (float)def.satType);
+
+        // Dry / Wet
+        setParamVal("drylevel", def.dryDB);
+        setParamVal("wetlevel", def.wetDB);
+
+        // Ducking
+        setParamVal("duckamount", def.duckAmount);
+        setParamVal("duckthresh", def.duckThresh);
+        setParamVal("duckattack", def.duckAttack);
+        setParamVal("duckrelease", def.duckRelease);
+
+        // OutEQ
+        setParamVal("loeqtype", (float)def.loEQType);
+        setParamVal("locut", def.loCut);
+        setParamVal("logain", def.loGain);
+        setParamVal("hieqtype", (float)def.hiEQType);
+        setParamVal("hicut", def.hiCut);
+        setParamVal("higain", def.hiGain);
+
+        // PRO ACOUSTIC 6ノブ
+        setParamVal("scattering", def.scattering);
+        setParamVal("ercrossover", def.erCrossoverMs);
+        setParamVal("latedensity", def.lateDensity);
+        setParamVal("asymmetry", def.asymmetry);
+        setParamVal("clarity", def.clarityDB);
+        setParamVal("airabsorb", def.airAbsorbScale);
+
+        // ★ 10バンド RT60 はユーザーの調整幅を残すためデフォルト(1.00x)に設定
+        for (int b = 0; b < 10; ++b) {
+            setParamVal("rtband" + juce::String(b), 1.0f);
+        }
+        setParamVal("tiltlow", 1.0f);
+        setParamVal("tiltmid", 1.0f);
+        setParamVal("tilthigh", 1.0f);
+
         --loadingPresetCounter;
         currentBasePresetName = def.name;
         setPresetModified(false);

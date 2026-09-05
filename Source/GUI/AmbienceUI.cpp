@@ -211,24 +211,15 @@ void RT60Visualizer::paint(juce::Graphics& g)
     g.setColour(theme.border);
     g.drawRoundedRectangle(b.reduced(0.5f), 4.f, 1.f);
 
-    // ★ 動的 Y 軸スケール
+    // ★ 動的 Y 軸スケール (最大 200s 対応 & スマート間引き)
     float logMin = std::log10(MIN_RT60_DISPLAY);
     float logMax = std::log10(dynamicMaxRT60);
 
-    // グリッド値を動的 Y 軸に合わせて生成
-    // 固定候補値から dynamicMaxRT60 以下のものだけを描画する
+    // グリッド値候補（0.05s 〜 200s の標準対数系列）
     static constexpr float kAllGridVals[] = {
-        0.1f, 0.3f, 0.5f, 1.0f, 2.0f, 4.0f,
-        8.0f, 12.0f, 16.0f, 20.0f
+        0.05f, 0.1f, 0.2f, 0.3f, 0.5f, 1.0f, 2.0f, 3.0f, 5.0f,
+        10.0f, 15.0f, 20.0f, 30.0f, 50.0f, 80.0f, 120.0f, 160.0f, 200.0f
     };
-
-    // グリッド線
-    g.setColour(theme.separator);
-    for (float v : kAllGridVals) {
-        if (v > dynamicMaxRT60 * 1.05f) break;
-        float ny = 1.f - (std::log10(v) - logMin) / (logMax - logMin);
-        g.drawHorizontalLine((int)(y0 + ny * H), x0 + 36.f, x0 + W - 4.f);
-    }
 
     // 周波数ラベル (X軸)
     g.setFont(8.5f);
@@ -242,16 +233,41 @@ void RT60Visualizer::paint(juce::Graphics& g)
             24, 13, juce::Justification::centred);
     }
 
-    // 秒数ラベル (Y軸) - 動的
+    // グリッド線 ＆ 秒数ラベル (Y軸) - スマート間引きで文字被りを完全排除
+    float lastDrawnY = 9999.0f; // 下から上へ走査（Y座標は減少）
     for (float v : kAllGridVals) {
-        if (v > dynamicMaxRT60 * 1.05f) break;
+        if (v < MIN_RT60_DISPLAY * 0.99f) continue;
+        if (v > dynamicMaxRT60 * 1.02f) break;
+
         float ny = 1.f - (std::log10(v) - logMin) / (logMax - logMin);
         float py = y0 + ny * H;
-        juce::String lbl = (v < 1.f)
-            ? juce::String(v, 1) + "s"
-            : (v < 10.f ? juce::String(v, 1) : juce::String((int)v)) + "s";
-        g.drawText(lbl, (int)(x0 + 2.f), (int)(py - 7.f), 32, 14,
-            juce::Justification::centredLeft);
+
+        // 上下の描画安全マージン（下端周波数ラベル、上端タイトルとの重なり防止）
+        if (py > y0 + H - 16.0f || py < y0 + 10.0f) continue;
+
+        // 前のラベルとの距離が 12px 未満なら文字が重なるため間引き
+        if (std::abs(lastDrawnY - py) < 12.0f) continue;
+
+        // グリッド線描画
+        g.setColour(theme.separator.withAlpha(0.65f));
+        g.drawHorizontalLine((int)py, x0 + 36.f, x0 + W - 4.f);
+
+        // 秒数ラベル描画
+        juce::String lbl;
+        if (v < 0.1f) {
+            lbl = juce::String(v, 2) + "s";
+        } else if (v < 1.0f) {
+            lbl = juce::String(v, 1) + "s";
+        } else if (v < 10.0f) {
+            lbl = (std::abs(v - std::round(v)) < 0.05f) ? juce::String((int)std::round(v)) + "s" : juce::String(v, 1) + "s";
+        } else {
+            lbl = juce::String((int)std::round(v)) + "s";
+        }
+
+        g.setColour(theme.textSecondary);
+        g.drawText(lbl, (int)(x0 + 2.f), (int)(py - 7.f), 32, 14, juce::Justification::centredLeft);
+
+        lastDrawnY = py;
     }
 
     auto plotCurve = [&](const std::array<float, FDNReverb::NUM_BANDS>& rt60,

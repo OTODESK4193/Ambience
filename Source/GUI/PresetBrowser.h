@@ -15,19 +15,42 @@ class PresetBrowser : public juce::Component
 public:
     struct FactoryPresetDef {
         juce::String name;
-        int algorithmIndex; // 0..7
-        float roomSize;
-        float decayTime;
-        float diffusion;
-        float modAmount;
-        float modRate;
-        float stereoWidth;
-        float preDelayMs;
-        float erLevel;
-        float hfDamp;
-        float lfAbsorb;
-        float saturation;
-        int   satType;
+        juce::String description; // 英文説明・タグ（例: "Vocal, Acoustic | Dry, Intimate | Natural room sound"）
+        int algorithmIndex{ 0 };  // 0..7
+        float roomSize{ 1.0f };
+        float decayTime{ 1.5f };
+        float diffusion{ 0.7f };
+        float modAmount{ 0.25f };
+        float modRate{ 0.5f };
+        float stereoWidth{ 0.8f };
+        float preDelayMs{ 10.0f };
+        float erLevel{ 0.6f };
+        float hfDamp{ 0.0f };
+        float lfAbsorb{ 0.0f };
+        float saturation{ 0.0f };
+        int   satType{ 0 };       // 0: Warm, 1: Tape, 2: Tube, 3: Hard
+        // Dry / Wet
+        float dryDB{ 0.0f };
+        float wetDB{ -12.0f };
+        // Ducking
+        float duckAmount{ 0.0f };
+        float duckThresh{ -20.0f };
+        float duckAttack{ 10.0f };
+        float duckRelease{ 200.0f };
+        // OutEQ
+        int   loEQType{ 0 };      // 0: Off, 1: Cut, 2: Shelf
+        float loCut{ 20.0f };
+        float loGain{ 0.0f };
+        int   hiEQType{ 0 };      // 0: Off, 1: Cut, 2: Shelf
+        float hiCut{ 20000.0f };
+        float hiGain{ 0.0f };
+        // PRO ACOUSTIC 6ノブ
+        float scattering{ 0.5f };
+        float erCrossoverMs{ 40.0f };
+        float lateDensity{ 0.7f };
+        float asymmetry{ 0.3f };
+        float clarityDB{ 0.0f };
+        float airAbsorbScale{ 1.0f };
     };
 
     std::function<void(const FactoryPresetDef&)> onLoadFactory;
@@ -61,6 +84,7 @@ private:
     int selCat{ 0 };
     int selSub{ 0 };
     juce::String currentPresetName;
+    juce::Rectangle<int> infoPanelArea;
 
     // Items
     struct DisplayItem {
@@ -71,6 +95,7 @@ private:
         juce::String displayName;
     };
     juce::Array<DisplayItem> filteredItems;
+    const DisplayItem* getSelectedDisplayItem() const;
 
     void initFactoryPresets();
     std::vector<FactoryPresetDef> factoryPresets;
