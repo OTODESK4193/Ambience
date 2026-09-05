@@ -479,6 +479,9 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         }
     };
     presetPrevButton.onClick = [this] {
+        if (presetBrowser && presetBrowser->loadPreviousPreset()) {
+            return;
+        }
         if (presetManager) {
             ++loadingPresetCounter;
             presetManager->loadPrevPreset();
@@ -497,6 +500,9 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         }
     };
     presetNextButton.onClick = [this] {
+        if (presetBrowser && presetBrowser->loadNextPreset()) {
+            return;
+        }
         if (presetManager) {
             ++loadingPresetCounter;
             presetManager->loadNextPreset();

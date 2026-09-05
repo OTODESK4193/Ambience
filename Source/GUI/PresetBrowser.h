@@ -62,6 +62,8 @@ public:
 
     void refresh();
     void setCurrentPreset(const juce::String& name);
+    bool loadPreviousPreset();
+    bool loadNextPreset();
 
     void paint(juce::Graphics& g) override;
     void resized() override;

@@ -252,8 +252,86 @@ const PresetBrowser::DisplayItem* PresetBrowser::getSelectedDisplayItem() const
 void PresetBrowser::setCurrentPreset(const juce::String& name)
 {
     currentPresetName = name;
+    for (int i = 0; i < filteredItems.size(); ++i) {
+        if (filteredItems.getReference(i).displayName == currentPresetName) {
+            fileList.selectRow(i);
+            break;
+        }
+    }
     fileList.repaint();
     repaint();
+}
+
+bool PresetBrowser::loadPreviousPreset()
+{
+    if (filteredItems.isEmpty())
+        return false;
+
+    int curIdx = -1;
+    for (int i = 0; i < filteredItems.size(); ++i) {
+        if (filteredItems.getReference(i).displayName == currentPresetName) {
+            curIdx = i;
+            break;
+        }
+    }
+
+    int nextIdx = 0;
+    if (curIdx < 0) {
+        nextIdx = filteredItems.size() - 1;
+    } else {
+        nextIdx = (curIdx - 1 + filteredItems.size()) % filteredItems.size();
+    }
+
+    const auto& item = filteredItems.getReference(nextIdx);
+    currentPresetName = item.displayName;
+    fileList.selectRow(nextIdx);
+    fileList.repaint();
+    repaint();
+
+    if (item.isFactory) {
+        if (onLoadFactory)
+            onLoadFactory(item.factoryDef);
+    } else {
+        if (onLoadUser)
+            onLoadUser(item.userName);
+    }
+    return true;
+}
+
+bool PresetBrowser::loadNextPreset()
+{
+    if (filteredItems.isEmpty())
+        return false;
+
+    int curIdx = -1;
+    for (int i = 0; i < filteredItems.size(); ++i) {
+        if (filteredItems.getReference(i).displayName == currentPresetName) {
+            curIdx = i;
+            break;
+        }
+    }
+
+    int nextIdx = 0;
+    if (curIdx < 0) {
+        nextIdx = 0;
+    } else {
+        nextIdx = (curIdx + 1) % filteredItems.size();
+    }
+
+    const auto& item = filteredItems.getReference(nextIdx);
+    currentPresetName = item.displayName;
+    fileList.selectRow(nextIdx);
+    fileList.repaint();
+    repaint();
+
+    if (item.isFactory) {
+        if (onLoadFactory)
+            onLoadFactory(item.factoryDef);
+    } else {
+        if (onLoadUser)
+            onLoadUser(item.userName);
+    }
+    return true;
 }
 
 void PresetBrowser::updateSubCategories()
