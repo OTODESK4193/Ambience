@@ -338,6 +338,7 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
         }
     };
 
+    // ── メインノブ ──
     setParam(ParamID::RoomSize, def.roomSize);
     setParam(ParamID::DecayTime, def.decayTime);
     setParam(ParamID::PreDelay, def.preDelayMs);
@@ -351,6 +352,19 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
     setParam(ParamID::Saturation, def.saturation);
     setParam(ParamID::SatType, static_cast<float>(def.satType));
 
+    // ── ルームタイプ共通デフォルト: Dry 0dB / Wet -12dB ──
+    setParam(ParamID::DryLevel, 0.0f);
+    setParam(ParamID::WetLevel, -12.0f);
+
+    // ── PRO ACOUSTIC 6ノブ (DeepResearch 音響物理設計値) ──
+    setParam(ParamID::Scattering, def.scattering);
+    setParam(ParamID::ERCrossover, def.erCrossoverMs);
+    setParam(ParamID::LateDensity, def.lateDensity);
+    setParam(ParamID::Asymmetry, def.asymmetry);
+    setParam(ParamID::Clarity, def.clarityDB);
+    setParam(ParamID::AirAbsorb, def.airAbsorbScale);
+
+    // ── ルームタイプ共通デフォルト: 10-Band RT60 & Tilt (フラット) ──
     setParam(ParamID::RTBand0, 1.0f);
     setParam(ParamID::RTBand1, 1.0f);
     setParam(ParamID::RTBand2, 1.0f);
@@ -364,6 +378,20 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
     setParam(ParamID::TiltLow, 1.0f);
     setParam(ParamID::TiltMid, 1.0f);
     setParam(ParamID::TiltHigh, 1.0f);
+
+    // ── ルームタイプ共通デフォルト: Ducking (バイパス/初期値) ──
+    setParam(ParamID::DuckAmount, 0.0f);
+    setParam(ParamID::DuckThresh, -20.0f);
+    setParam(ParamID::DuckAttack, 20.0f);
+    setParam(ParamID::DuckRelease, 100.0f);
+
+    // ── ルームタイプ共通デフォルト: OutEQ (フラット) ──
+    setParam(ParamID::LoCut, 20.0f);
+    setParam(ParamID::HiCut, 20000.0f);
+    setParam(ParamID::LoEQType, 0.0f);
+    setParam(ParamID::HiEQType, 0.0f);
+    setParam(ParamID::LoGain, 0.0f);
+    setParam(ParamID::HiGain, 0.0f);
 
     paramsNeedUpdate = true;
 }
