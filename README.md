@@ -1,25 +1,59 @@
 # Ambience
 
-![Release](https://img.shields.io/badge/release-v1.3.0-blue)
+![Release](https://img.shields.io/badge/release-v2.0.0-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Downloads](https://img.shields.io/github/downloads/OTODESK4193/Ambience1.0.1/total.svg)
 
-##
-<img src="Source/Assets/Screenshot1.jpg" width="600">
+<p align="center">
+  <img src="Source/Assets/Screenshot_main.jpg" width="720" alt="Ambience 2.0.0 Main Interface">
+  <br>
+  <em>Ambience 2.0.0 — Main Interface featuring 16-channel FDN & SDN hybrid architecture, elegant glassmorphic controls, and dynamic two-tone vector styling.</em>
+</p>
 
 ## Demo Videos
 
 <p align="center">
-  <b>Introduction YoutubeLink</b><br>
+  <b>Introduction YouTube Link</b><br>
   <a href="https://youtu.be/kytVu2M-t30">
     <img src="Source/Assets/Samnail.jpg"
-         alt="Ambience - Introduction YoutubeLink" width="640" height="360">
+         alt="Ambience - Introduction YouTube Link" width="640" height="360">
   </a>
 </p>
 
 ## Changelog
+
+### v2.0.0 Major Update!!
+
+**Hybrid Acoustic Engine & Algorithm Tuning:**
+- **SDN × FDN Hybrid Architecture**: Integrated Spatial Decomposition Networks (SDN) early reflection modeling with the 16-channel Feedback Delay Network (FDN) core for seamless transition from direct sound to late reverberation.
+- **8 Calibrated Reverb Topologies**: Comprehensive tuning of all 8 room algorithms (`ROOM1`, `ROOM2`, `HALL1`, `HALL2`, `PLATE`, `SPRING`, `GOLDFOIL`, `INCHINDOWN`) with distinct Allpass gains, scattering matrices, and algorithm-specific early reflection patterns (ISM, 2D Mesh, Spring1D, and Subterranean Inchindown).
+- **Extreme Decay Auto-Scaling (up to 200s)**: Logarithmic RT60 auto-scaling series (`0.05s` to `200s`) with intelligent label decimation, perfectly accommodating Inchindown's world-record 112s decay without label overlapping.
+
+**New PRO Acoustic Controls & Vector Visualizer:**
+- **6 PRO Acoustic Physical Controls**: Added `SCATTERING`, `ER CROSSOVER` (10–100ms), `LATE DENSITY`, `ASYMMETRY`, `CLARITY` (-6 to +6dB), and `AIR ABSORB` (0.2–2.5x) for deep acoustic physics tailoring.
+- **Pro Acoustic Space Visualizer (`ProAcousticSpaceViz`)**: Pure JUCE 8 vector-rendered 2.5D perspective visualizer illustrating room asymmetry morphing, scattering boundary textures, acoustic pulse wavefront rings, particle late density, core source clarity bloom, and atmospheric fog absorption.
+
+**Next-Generation Preset Browser & 104 Factory Presets:**
+- **104 Master-Calibrated Factory Presets**: Expanded library to 13 curated presets per algorithm (80% production-ready musical spaces, 20% creative sound-design presets) with individual dry/wet, ducking, OutEQ, and PRO acoustic knob settings.
+- **Hybrid `[ ROOM ]` / `[ TAGS ]` Filtering**: Instant switching between traditional room topology browsing and multi-category acoustic tags (`Vocal & Speech`, `Drums & Snare`, `Acoustic & Guitar`, `Piano & Keys`, `Strings & Orch`, `Brass & Horns`, `Bass & LowEnd`, `Ambient & Pad`, `Creative & FX`).
+- **Interactive INFO & Acoustic Tags Panel**: Real-time display showing preset title, algorithm badge, instrument tags, character vibe, detailed acoustic description, and quick parameter summaries.
+- **Context-Aware `◀ ▶` Navigation**: Toolbar Previous / Next buttons dynamically cycle within the currently filtered tag or room type list.
+
+**DSP Hardening & Sound Quality Refinements:**
+- **Hermite / Farrow Fractional Delay Interpolation**: FDN delay lines upgraded to fractional interpolation with 1-pole target smoothing, completely eliminating clicks and zipper artifacts during realtime automation.
+- **Dual-State Biquad Absorption Crossfading**: Dual-state ping-pong crossfading across all 160 absorption biquads, preventing transient energy bumps during decay and damping parameter changes.
+- **Graceful ER Bypass**: Smooth 20ms gain fade-out replaces hard switches when ER Level is zeroed, eradicating discontinuity clicks.
+- **Bit-Exact Mono Output**: Guaranteed $L = R$ bit-identical stereo collapse when `StereoWidth = 0%`.
+- **Comb-Filter Offset Guard**: Intelligent +5ms delay floor protection during ER Solo and Send modes to prevent comb filtering with direct signals.
+- **Ornstein-Uhlenbeck Modulation**: Independent seed Weil hash and mean-reverting OU random walk modulation for extreme stereo decorrelation (IACC ≤ 0.10).
+
+**GUI & Theme Aesthetics:**
+- **Enhanced Two-Tone Color Contrast**: Refined `Solar Flare` (solar gold × crimson flare), `Dark Amber` (amber gold × electric turquoise), and `Blood Moon` (blood red × moonlight ice blue) for superior contrast and visual clarity.
+- **Theme-Reactive Modern Scrollbars**: Custom 6px pill-shaped vector scrollbars that automatically adapt their color and glow to the active theme across all browser lists.
+
+---
 
 ### 1.3.0 Update!!
 - Further sound quality improvements (noise reduction, silkier reverb tail)
@@ -70,280 +104,257 @@
 **Sound Quality Improvements:**
 - **Chorus-style pitch modulation**: Added sine-wave LFO (ChorusLFO) per FDN channel with golden-ratio phase/rate distribution, layered on top of the existing noise LFO for richer, more organic tail texture.
 - **3-stage serial allpass chain**: Expanded nested allpass from 1 stage to 3 serial stages per FDN channel with varied delay times and modulation depths, greatly increasing late-field echo density.
-- **ER竊鱈ate reverb transition smoothing**: Early reflection output is now fed into the FDN input at 15% blend, simulating the natural transition from early reflections to late reverberation.
-- **Frequency-dependent modulation**: Modulation depth now scales per FDN channel (1.5ﾃ・for short-delay/HF channels, 0.5ﾃ・for long-delay/LF channels), matching the physical behavior of air turbulence.
+- **ER to late reverb transition smoothing**: Early reflection output is now fed into the FDN input at 15% blend, simulating the natural transition from early reflections to late reverberation.
+- **Frequency-dependent modulation**: Modulation depth now scales per FDN channel (1.5x for short-delay/HF channels, 0.5x for long-delay/LF channels), matching the physical behavior of air turbulence.
 - **Soft-knee RMS compression in FDN loop**: Added per-channel RMS envelope follower with soft-knee compression (threshold 0.35), providing transparent level control without harmonic distortion.
-- **Thiran allpass fractional delay interpolation**: Replaced linear interpolation with 1st-order Thiran allpass for FDN main delay lines, achieving flat magnitude response (|H(ﾏ・|=1) and preserving high-frequency clarity in the feedback loop.
+- **Thiran allpass fractional delay interpolation**: Replaced linear interpolation with 1st-order Thiran allpass for FDN main delay lines, achieving flat magnitude response (|H(ω)|=1) and preserving high-frequency clarity in the feedback loop.
 
 **CPU Optimizations:**
-- Replaced `std::sin()` in chorus LFO with parabolic sine approximation (5-10ﾃ・faster, <0.1% error).
+- Replaced `std::sin()` in chorus LFO with parabolic sine approximation (5–10x faster, <0.1% error).
 - Moved `std::sqrt()` in soft-knee compression inside threshold branch (only computed when compression is active).
-- Precomputed all loop-invariant values: frequency-dependent modulation scales, input diffuser delays, allpass base delays (16ch ﾃ・3 stages), ER tap gains, and allpass gain stage.
-- Cached sample rate as float to eliminate repeated double竊断loat casts in the hot path.
+- Precomputed all loop-invariant values: frequency-dependent modulation scales, input diffuser delays, allpass base delays (16ch × 3 stages), ER tap gains, and allpass gain stage.
+- Cached sample rate as float to eliminate repeated double to float casts in the hot path.
 
 ## Overview
 
-**Ambience** is a high-quality, open-source algorithmic reverb VST3 plugin built on a **16-channel Feedback Delay Network (FDN)** architecture. Designed with professional audio standards in mind, it delivers rich, natural-sounding reverberation ranging from intimate studio rooms to vast concert halls and beyond 窶・with the precision and stability demanded by real-world production environments.
+**Ambience** is a high-quality, open-source algorithmic reverb VST3 plugin built on a **16-channel Feedback Delay Network (FDN)** and **Spatial Decomposition Network (SDN)** hybrid architecture. Designed with professional audio engineering standards in mind, it delivers rich, natural-sounding reverberation ranging from intimate studio booths to monumental scoring stages and infinite subterranean tanks — with the mathematical precision and real-time stability demanded by high-end music production.
 
-Ambience ships with **21 factory presets** modeled after some of the world's most iconic acoustic spaces, including Abbey Road Studio 1 & 2, Vienna Musikverein, Amsterdam Concertgebouw, Boston Symphony Hall, Carnegie Hall, and more. Whether you need a tight drum room, a lush orchestral hall, a vintage plate, or an infinite ambient space, Ambience covers it all.
+Ambience ships with **104 acoustically calibrated factory presets** spanning 8 distinct reverb algorithms. Whether you need a tight drum room, a warm vocal plate, a classic spring coil, an opulent symphonic hall, or an expansive ambient drone space, Ambience delivers pristine clarity, lush envelopment, and zero metallic ringing.
 
-痩 **[Watch the Demo Video (蜍穂ｽ懊ョ繝｢蜍慕判縺ｯ縺薙■繧会ｼ・](https://x.com/kijyoumusic/status/2055967062325944741?s=20)**
-
+👉 **[Watch the Demo Video (動作デモ動画はこちら)](https://x.com/kijyoumusic/status/2055967062325944741?s=20)**
 
 ## Key Features
 
-### 鋤・・16-Channel FDN Reverb Engine
+### 🎛️ 16-Channel FDN & SDN Hybrid Engine
 
 A research-grade Feedback Delay Network forms the acoustic core of Ambience:
 
 * **16-channel FWHT Feedback Matrix:** Fast Walsh-Hadamard Transform ensures dense, colorless diffusion with optimal mode distribution.
 * **Nearest-Prime Delay Allocation:** Delay lines are tuned to unique prime numbers distributed on a logarithmic scale, guaranteeing mutual coprimality across all 16 channels and eliminating comb-filter artifacts at any room size.
-* **7 Reverb Algorithms:** ROOM1 / ROOM2 / HALL1 / HALL2 / PLATE / SPRING / GOLDFOIL 窶・each with distinct topological routing, Allpass gain, and ER patterns.
+* **8 Reverb Algorithms:** ROOM1, ROOM2, HALL1, HALL2, PLATE, SPRING, GOLDFOIL, INCHINDOWN — each with distinct topological routing, allpass gains, boundary scattering, and early reflection patterns.
 
-### 寺・・Professional DSP Modules
+### 🧪 Professional DSP Modules
 
-* **Stage 2 GEQ Absorption (Vﾃ､limﾃ､ki-Liski):** A 10-band biquad Graphic EQ cascade per FDN channel, solving a Weighted Least Squares system to achieve accurate, frequency-dependent RT60 targets across the full audible spectrum.
-* **ISM-Based Early Reflections:** Image Source Method patterns tuned per algorithm, providing perceptually accurate pre-echo with full stereo imaging control.
-* **BandlimitedNoise LFO:** Each of the 16 FDN channels is driven by an independent, mutually asynchronous low-frequency oscillator using a white noise source filtered by a 1st-order IIR 窶・initialized via the Golden Ratio Weyl sequence to guarantee non-periodic modulation.
-* **ADAA Saturator (4 Modes):** Anti-Derivative Anti-Aliasing saturation applied to the wet path. Modes: **Warm** (Vicanek x/竏・1+xﾂｲ)), **Tape** (Padﾃｩ rational polynomial), **Tube** (asymmetric ADAA for even-order harmonics), **Hard** (hard clip + ADAA).
-* **Micro-Saturation (FDN Loop):** An internal Padﾃｩ saturator in the FDN feedback loop acts as a safety limiter, suppressing limit cycles without audible coloration.
-* **Output EQ:** Linkwitz-Riley 12 dB/oct Lo Cut (20窶・00 Hz) and Hi Cut (1 kHz窶・0 kHz) applied exclusively to the wet path.
-* **Brick-Wall Output Limiter:** -0.5 dBFS brick-wall limiter as the final stage, transparent under normal use.
-* **Ducking:** Sidechain-style envelope follower with independent Threshold, Amount, Attack, and Release controls.
+* **Stage 2 GEQ Absorption (Välimäki-Liski):** A 10-band biquad Graphic EQ cascade per FDN channel, solving a Weighted Least Squares system to achieve accurate, frequency-dependent RT60 targets across the audible spectrum.
+* **ISM & Mesh Early Reflections:** Image Source Method and physical mesh patterns tuned per algorithm, providing perceptually accurate pre-echo with full stereo imaging control.
+* **Ornstein-Uhlenbeck Modulation:** Each of the 16 FDN channels is modulated by independent-seed, mean-reverting stochastic processes to guarantee non-periodic, chorus-free spatial decorrelation.
+* **ADAA Saturator (4 Modes):** Anti-Derivative Anti-Aliasing saturation applied to the wet path: **Warm** (Vicanek), **Tape** (Padé rational), **Tube** (asymmetric even harmonics), **Hard** (hard clip + ADAA).
+* **Micro-Saturation (FDN Loop):** Internal saturator in the feedback loop acts as a safety limiter, suppressing limit cycles without audible coloration.
+* **Output EQ:** Linkwitz-Riley 12 dB/oct Lo Cut (20–1000 Hz) and Hi Cut (1 kHz–20 kHz) applied to the wet path with Shelf/Cut curve selection.
+* **Brick-Wall Output Limiter:** -0.5 dBFS brick-wall limiter as the final safety stage.
+* **Dynamic Ducking:** Envelope follower with independent Threshold, Amount, Attack, and Release controls.
 
-### 投 Real-Time Visualizers
+### 📊 Real-Time Visualizers
 
-* **RT60 Graph:** Displays 10-band RT60 curves (31 Hz 窶・16 kHz) in logarithmic scale. The orange curve shows the actual effective RT60 (including HF Damping and LF Absorption), while the gray curve shows the raw preset reference. The Y-axis dynamically scales to the current decay time.
-* **Decay Curve Visualizer:** A split time-axis display showing Early Reflections (0窶・00 ms, expanded 2ﾃ・ and Late Reverb decay curve side-by-side, with color-coded ER tap markers and envelope fill.
-* **Acoustic Metrics:** Live readout of D50 (%), C50 (dB), C80 (dB), and EDT (s) derived from real-time signal analysis.
+<p align="center">
+  <img src="Source/Assets/Screenshot_RT.60jpg.jpg" width="720" alt="RT60 and Spectrum Visualizer">
+  <br>
+  <em>Multi-Band RT60 Visualizer & Real-time Spectrum Analyzer featuring dynamic logarithmic auto-scaling (0.05s to 200s), ER/Late split decay curves, and live acoustic metrics.</em>
+</p>
 
-### 字・・Pro Mode
+* **RT60 Graph:** Displays 10-band RT60 curves (31 Hz – 16 kHz) in logarithmic scale. The orange curve shows the actual effective RT60 (including HF Damping and LF Absorption), while the gray curve shows the preset baseline. The Y-axis automatically scales from 0.05s up to 200s with intelligent label decimation.
+* **Decay Curve Visualizer:** Split time-axis display showing Early Reflections (0–100 ms, expanded 2×) and Late Reverb decay curve side-by-side with color-coded ER tap markers and envelope fill.
+* **Real-time Spectrum Overlay:** Lock-free frequency distribution overlay showing both dry and wet signals in real time.
+* **Acoustic Metrics:** Live readout of D50 (%), C50 (dB), C80 (dB), and EDT (s) derived from acoustic analysis.
 
-##
-<img src="Source/Assets/Screenshot2.jpg" width="600">
+### 🔬 Pro Mode & Pro Acoustic Controls
 
-Unlock deep per-band control:
+<p align="center">
+  <img src="Source/Assets/Screenshot_pro.jpg" width="720" alt="Ambience Pro Mode">
+  <br>
+  <em>Pro Mode Panel featuring the 6 PRO ACOUSTIC physical knobs, real-time 2.5D Pro Acoustic Space Visualizer, 10-band octave RT60 multipliers, and OutEQ curve visualizer.</em>
+</p>
 
-* **10-Band RT60 Multiplier:** Fine-tune the RT60 curve at each octave band (31 Hz 窶・16 kHz) independently.
-* **Tilt EQ ﾃ・3:** Broad spectral tilt controls for Low / Mid / High regions.
-* **Saturation Type Selector:** Choose from Warm / Tape / Tube / Hard within Pro Mode.
-* **Output EQ:** Lo Cut and Hi Cut knobs available in both Normal and Pro Mode panels.
+Unlock deep per-band and physical acoustic control:
 
-### 沈 Preset Management
+* **6 PRO ACOUSTIC Physical Controls:**
+  - **SCATTERING (0–100%):** Boundary surface acoustic scattering coefficient (specular reflection to QRD diffusion panels).
+  - **ER CROSSOVER (10–100ms):** Temporal boundary transition between discrete early reflections and late reverberation.
+  - **LATE DENSITY (0–100%):** Rate of late echo buildup and modal density growth.
+  - **ASYMMETRY (0–100%):** Room non-parallelism and geometric skew, breaking axial standing waves.
+  - **CLARITY (-6 to +6dB):** Direct sound clarity (C80/C50) contrast ratio.
+  - **AIR ABSORB (0.2–2.5x):** High-frequency atmospheric molecular absorption scaling.
+* **Pro Acoustic Space Visualizer:** Real-time 2.5D perspective vector display dynamically illustrating room deformation, scattering textures, wavefront rings, particle density, sound clarity glow, and atmospheric depth fog.
+* **10-Band RT60 Multipliers:** Fine-tune octave band RT60 multipliers independently (31 Hz – 16 kHz).
+* **Tilt EQ × 3:** Broad spectral tilt controls for Low, Mid, and High frequency regions.
+* **OutEQ Curve Visualizer:** Real-time visual curve of high-pass and low-pass output filtering.
 
-* **File-Based Preset System:** Presets are saved as `.ambpreset` files 窶・a standard binary XML format compatible with JUCE's state management system.
-* **21 Factory Presets:** Modeled after real-world acoustic spaces across all 7 reverb algorithm types.
-* **SAVE / LOAD / DELETE / PREV / NEXT:** Full preset browser UI integrated directly into the main panel.
-* **Shareable:** Simply share `.ambpreset` files directly with other users 窶・no installation required.
+### 📚 Preset Management & Browser
 
-### 笞｡ Real-Time Safety & DAW Compatibility
+<p align="center">
+  <img src="Source/Assets/Screenshot_browser.jpg" width="720" alt="Preset Browser Overlay">
+  <br>
+  <em>3-Column Overlay Preset Browser with 104 curated factory presets, hybrid [ROOM] / [TAGS] filtering, instant search, favorite tagging, and acoustic information panel.</em>
+</p>
 
-Built to the strictest real-time audio standards, with specific hardening for Ableton Live:
+* **3-Column Modern Overlay Browser:** Click the preset display to open a full-height overlay browser without obstructing essential workflow controls.
+* **Hybrid `[ ROOM ]` / `[ TAGS ]` Browsing:** Switch seamlessly between room topology categorization and musical instrument tags (`Vocal & Speech`, `Drums & Snare`, `Acoustic & Guitar`, `Piano & Keys`, `Strings & Orch`, `Brass & Horns`, `Bass & LowEnd`, `Ambient & Pad`, `Creative & FX`).
+* **INFO & Acoustic Tags Panel:** Right-hand card displaying preset title, algorithm badge, instrument tags, character description, and quick acoustic parameter readouts.
+* **Context-Aware `◀ ▶` Cycling:** Top navigation buttons cycle strictly within the active tag, room type, or search filter.
+* **Favorite Tagging (★):** Single-click favorite tagging with instant persistence to disk.
+* **Instant Full-Text Search:** Real-time search across preset names, tags, and acoustic descriptions.
+* **Revert & Save Functions:** 1-click `REVERT` button to undo edits, alongside `SAVE` and `DELETE` for custom user presets.
+
+### ⚡ Real-Time Safety & DAW Compatibility
+
+Built to the strictest real-time audio standards, with specific hardening for Ableton Live and major DAWs:
 
 * **Zero Heap Allocation on Audio Thread:** All buffers pre-allocated in `prepareToPlay()`. No `new` / `malloc` / `std::vector::resize()` calls in `processBlock()`.
-* **Dirty-Flag Parameter Dispatch:** `setParams()` is called only when DSP parameters change, preventing the expensive Stage 2 GEQ WLS matrix computation (16 ch ﾃ・10-band LDLT) from running unnecessarily every buffer.
-* **Ableton Live Sample-Rate Jitter Protection:** A mismatch guard at the top of `processBlock()` detects asynchronous sample-rate changes (a known Ableton Live edge case) and triggers a safe internal reset.
+* **Lock-Free Parameter Dispatch:** Dirty-flag parameter updates prevent redundant Stage 2 GEQ matrix inversions during steady states.
+* **Fractional Delay Smoothing:** 1-pole smoothed delay line reading prevents clicks or zipper noise during parameter automation.
+* **Dual-State Filter Crossfading:** Equal-power crossfading eliminates transient energy bumps when changing decay times or absorption filters.
+* **Graceful ER Bypass:** 20ms gain smoothing prevents audio dropouts or pops when bypassing early reflections.
 * **ScopedNoDenormals:** Applied at the entry of every `processBlock()` call to suppress denormal CPU spikes.
-* **SmoothedValue Gain:** Wet and Dry gain changes are interpolated sample-accurately to eliminate zipper noise under automation.
-* **Safe Editor Destruction:** `stopTimer()` and `setLookAndFeel(nullptr)` are called explicitly in the Editor destructor to prevent Ableton Live cleanup-order crashes.
-
+* **Safe Component Destruction:** `stopTimer()` and `setLookAndFeel(nullptr)` called explicitly to prevent host shutdown crashes.
 
 ## Preset Guide
 
-### Factory Presets (21)
+### 104 Curated Factory Presets
 
-Ambience ships with 21 factory presets organized by reverb algorithm type:
+Ambience ships with 104 factory presets spanning 8 algorithms (13 presets each: ~80% musical, ~20% creative):
 
-| Algorithm | Preset Name | Reference Space |
-|---|---|---|
-| ROOM1 | Abbey Road Studio2 | Abbey Road Studio 2, London |
-| ROOM1 | Drums in a Box | Small dead studio room |
-| ROOM1 | Tracking Room | Medium tracking room |
-| ROOM2 | Abbey Road Studio1 | Abbey Road Studio 1 (large hall) |
-| ROOM2 | Capitol Studio A | Capitol Studios Studio A, Los Angeles |
-| ROOM2 | Skywalker Sound | Skywalker Sound, California |
-| HALL1 | Carnegie Hall | Carnegie Hall, New York |
-| HALL1 | Tokyo Opera City | Tokyo Opera City Concert Hall |
-| HALL1 | Berlin Konzerthaus | Konzerthaus Berlin |
-| HALL2 | Vienna Musikverein | Wiener Musikverein Goldener Saal |
-| HALL2 | Boston Symphony | Boston Symphony Hall |
-| HALL2 | Concertgebouw | Amsterdam Concertgebouw |
-| PLATE | EMT140 Vocal | EMT 140 plate 窶・vocal setting |
-| PLATE | EMT140 Snare | EMT 140 plate 窶・snare setting |
-| PLATE | Dark Plate | Dark plate, enhanced low end |
-| SPRING | Surf Guitar | Guitar amp spring tank |
-| SPRING | Vintage Studio | Fender-style spring tank |
-| SPRING | Deep Tank | AKG BX-20 style deep spring |
-| GOLDFOIL | Gothic Cathedral | Cologne Cathedral reference |
-| GOLDFOIL | Stone Chamber | Stone underground chamber |
-| GOLDFOIL | Infinite Space | Synthetic infinite ambient space |
+| Algorithm | Count | Sound Character & Typical Applications | Example Presets |
+|---|---|---|---|
+| **ROOM1** | 13 | Tight acoustic studio, vocal isolation booth, drum tracking room | *Tight Vocal Isolation Booth*, *Modern Snare Ambient Pocket*, *Intimate Acoustic Guitar* |
+| **ROOM2** | 13 | Medium live recording room, natural oak floor, warm grand piano | *Natural Oak Drum Room*, *Vintage Maple Live Studio*, *Vocal Wood Chamber Lush* |
+| **HALL1** | 13 | Medium concert hall, recital stage, film scoring stage | *Viennese String Hall*, *Steinway Recital Stage*, *Hollywood Scoring Stage* |
+| **HALL2** | 13 | Large symphony hall, gothic stone cathedral, arena rock | *Concert Symphony Hall*, *Monumental Stone Cathedral*, *Lush Ballad Vocal* |
+| **PLATE** | 13 | Classic EMT 140 steel plate, warm tube preamp, fast dense build | *EMT 140 Vintage Vocal*, *Tight Snare Plate*, *Silky Pop Vocal*, *60s Motown Plate* |
+| **SPRING** | 13 | Dual-spring amp tank, AKG BX20 studio spring, Kingston dub splash | *63 Surf Twin Drip*, *Studio Golden BX20*, *Kingston Dub Splash*, *Suitcase Rhodes Spring* |
+| **GOLDFOIL** | 13 | EMT 240 gold-foil micro-plate, luxurious top-end sheen, delicate decay | *01 Gold Modern Lead Vocal*, *03 Silk String Ensemble Air*, *04 Grand Piano Golden Aura* |
+| **INCHINDOWN**| 13 | Guinness World Record 112s subterranean oil tank, infinite drone space | *Guinness Subterranean 112s*, *Cinematic Drone Horizon*, *Dark Post-Rock Cavern* |
 
 ### Preset File Location
 
-Factory presets and user presets are stored at:
+User presets are saved as `.ambpreset` files (standard binary XML format):
 
 ```
 Windows: C:\Users\<YourName>\Documents\Ambience\Presets\
 ```
 
-Each preset is saved as a `.ambpreset` file (binary XML containing all plugin parameters).
-
 ### Sharing Presets
-
-To share presets with other users:
 
 1. Navigate to `Documents\Ambience\Presets\`
 2. Copy the desired `.ambpreset` file(s)
-3. Send the file(s) to the recipient
-
-Recipients simply place the `.ambpreset` files into their own `Documents\Ambience\Presets\` folder. The presets will appear automatically in the Ambience preset browser on the next plugin load.
-
-> **Tip:** You can also ZIP the entire `Presets` folder to share your complete preset library at once.
-
-### Preset Compatibility
-
-Presets use JUCE's standard state serialization. Future versions of Ambience will remain forward-compatible 窶・unknown parameters in older presets are silently ignored, and missing parameters fall back to their default values.
-
+3. Share with any Ambience 2.0.0 user — presets load instantly via the User category.
 
 ## Parameter Reference
 
-### Normal Mode
+### Main Knobs
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
-| PRE-DELAY | 0 窶・500 ms | 10 ms | Pre-delay before reverb onset |
-| ROOM SIZE | 0.3 窶・2.0 | 1.0 | Scales FDN delay times (room volume) |
-| DECAY | 0.1 窶・20.0 s | 1.5 s | Mid-band RT60 target |
-| HF DAMP | 0.0 窶・1.0 | 0.0 | High-frequency absorption (reduces high RT60) |
-| LF ABSORB | 0.0 窶・1.0 | 0.0 | Low-frequency absorption (reduces low RT60) |
-| DIFFUSION | 0.0 窶・1.0 | 0.7 | Controls Input Diffuser and Nested Allpass gain |
-| MOD AMT | 0.0 窶・1.0 | 0.25 | LFO modulation depth |
-| MOD RATE | 0.05 窶・2.0 Hz | 0.5 Hz | LFO base frequency |
-| WIDTH | 0.0 窶・1.0 | 0.8 | Stereo width (L/R decorrelation) |
-| ER LEVEL | 0.0 窶・1.0 | 0.6 | Early reflections level |
-| SATURATE | 0.0 窶・1.0 | 0.0 | Wet path saturation amount |
-| WET | -60 窶・0 dB | -4 dB | Wet signal level (-1 dB internal offset applied) |
-| DRY | -60 窶・0 dB | 0 dB | Dry signal level (unprocessed) |
-| LO CUT | 20 窶・500 Hz | 20 Hz | Wet-path high-pass filter (bypass at 20 Hz) |
-| HI CUT | 1k 窶・20k Hz | 20 kHz | Wet-path low-pass filter (bypass at 20 kHz) |
-| AMOUNT | 0 窶・20 dB | 0 dB | Ducking reduction amount |
-| THRESH | -60 窶・0 dB | -20 dB | Ducking threshold |
-| ATTACK | 0.5 窶・100 ms | 10 ms | Ducking envelope attack |
-| RELEASE | 10 窶・2000 ms | 200 ms | Ducking envelope release |
+| PRE-DELAY | 0 – 500 ms | 10 ms | Pre-delay before early reflection & reverb onset |
+| ROOM SIZE | 0.3 – 2.0 | 1.0 | Scales FDN delay line lengths (apparent physical volume) |
+| DECAY | 0.1 – 120.0 s | 1.5 s | Mid-band reverberation time RT60 |
+| HF DAMP | 0.0 – 1.0 | 0.0 | High-frequency damping ratio (air molecular & surface absorption) |
+| LF ABSORB | 0.0 – 1.0 | 0.0 | Low-frequency boundary absorption ratio |
+| DIFFUSION | 0.0 – 1.0 | 0.7 | Input diffuser and nested allpass scattering coefficient |
+| MOD AMT | 0.0 – 1.0 | 0.25 | Stochastic Ornstein-Uhlenbeck modulation depth |
+| MOD RATE | 0.05 – 2.0 Hz | 0.5 Hz | Modulation cycle rate |
+| WIDTH | 0.0 – 1.0 | 0.8 | Stereo field width (0.0 = bit-exact mono, 1.0 = wide stereo) |
+| ER LEVEL | 0.0 – 1.0 | 0.6 | Early reflections level with graceful bypass |
+| SATURATE | 0.0 – 1.0 | 0.0 | Wet-path ADAA saturation amount |
+| SAT TYPE | Warm/Tape/Tube/Hard | Warm | Saturation nonlinear curve character |
+| DRY | -60 – 0 dB | 0 dB | Dry signal level |
+| WET | -60 – 0 dB | -12 dB | Wet reverberation signal level |
+| DUCKING AMOUNT | 0 – 20 dB | 0 dB | Sidechain ducking reduction amount |
+| DUCKING THRESH | -60 – 0 dB | -20 dB | Sidechain ducking threshold |
+| DUCKING ATTACK | 0.5 – 100 ms | 10 ms | Ducking envelope attack time |
+| DUCKING RELEASE | 10 – 2000 ms | 200 ms | Ducking envelope release time |
 
-### Pro Mode (additional)
+### PRO Acoustic Controls
 
 | Parameter | Range | Default | Description |
 |---|---|---|---|
-| RT 31窶・6k Hz | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| Per-band RT60 multiplier (10 bands) |
-| TILT LOW | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| RT60 multiplier for low bands (31窶・25 Hz) |
-| TILT MID | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| RT60 multiplier for mid bands (250 Hz窶・ kHz) |
-| TILT HIGH | 0.5 窶・2.0ﾃ・| 1.0ﾃ・| RT60 multiplier for high bands (4窶・6 kHz) |
-| SAT TYPE | Warm/Tape/Tube/Hard | Warm | Saturation character |
+| SCATTERING | 0.0 – 1.0 | 0.5 | Wall boundary diffusion vs. specular reflection |
+| ER CROSSOVER | 10 – 100 ms | 40 ms | Transition boundary time between ER and late reverberation |
+| LATE DENSITY | 0.0 – 1.0 | 0.7 | Late echo modal density buildup speed |
+| ASYMMETRY | 0.0 – 1.0 | 0.3 | Geometric room non-parallelism and skew factor |
+| CLARITY | -6.0 – +6.0 dB | 0.0 dB | Direct sound clarity (C80/C50) contrast balance |
+| AIR ABSORB | 0.2 – 2.5 x | 1.0 x | Atmospheric high-frequency absorption scale multiplier |
 
-### Special Controls
+### Pro Mode Multipliers & Output EQ
 
-| Control | Description |
-|---|---|
-| PRO | Toggle Pro Mode panel (RT60 bands + Tilt EQ) |
-| ER SOLO | Solo the Early Reflections path (Late = silent) |
-| Algorithm Buttons | Select reverb topology: ROOM1/2, HALL1/2, PLATE, SPRING, GOLDFOIL |
-
+| Parameter | Range | Default | Description |
+|---|---|---|---|
+| RT 31Hz – 16kHz | 0.5 – 2.0× | 1.0× | Octave-band RT60 multiplier (10 independent bands) |
+| TILT LOW/MID/HIGH | 0.5 – 2.0× | 1.0× | Macro spectral RT60 multipliers for Low, Mid, and High regions |
+| LO FREQ / GAIN | 20–1000 Hz / ±12 dB | 20 Hz / 0 dB | Low cut / shelf filter on wet output |
+| HI FREQ / GAIN | 1k–20k Hz / ±12 dB | 20 kHz / 0 dB | High cut / shelf filter on wet output |
 
 ## Installation
 
-1. Download the latest `Ambience.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience1.0.1/releases/latest) page.
-2. Copy the `.vst3` folder to your VST3 plugin directory:
+1. Download the latest `Ambience2.0.0.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience1.0.1/releases/latest) page.
+2. Place the `.vst3` file into your system VST3 directory:
    ```
    C:\Program Files\Common Files\VST3\
    ```
-3. (Optional) Download the factory preset pack and extract to:
-   ```
-   C:\Users\<YourName>\Documents\Ambience\Presets\
-   ```
-4. Rescan your plugins in Ableton Live (or your DAW of choice).
+3. Rescan plugins in Ableton Live or your preferred DAW.
 
-## 答 User Guide
+## 📖 User Guide
 
-A comprehensive manual covering detailed technical specifications and operational guidelines is included with this repository.
+Comprehensive documentation covering detailed acoustic theory and operational guidelines is included in the repository:
 
 [ ![Manual PDF (JP)](https://img.shields.io/badge/Manual-PDF_(JP)-red?style=for-the-badge&logo=adobe-acrobat-reader) ](Source/Assets/Ambience_UserManual_JP.pdf)
-
 [ ![Manual PDF (EN)](https://img.shields.io/badge/Manual-PDF_(EN)-red?style=for-the-badge&logo=adobe-acrobat-reader) ](Source/Assets/Ambience_UserManual_EN.pdf)
-
-### Requirements
-
-* **JUCE** 8.0.x 窶・place at `C:/JUCE` or update the path in `CMakeLists.txt`
-* **CMake** 3.22 or higher
-* **Visual Studio** 2022 (MSVC, C++20)
-* **AVX2-capable CPU** (required for SIMD optimizations)
-
 
 ## System Requirements
 
 * **OS:** Windows 10 / Windows 11 (64-bit)
-* **Format:** VST3 / Standalone
-* **CPU:** AVX2 support required
-* **Tested Host:** Ableton Live 11 / 12
-
-> 笞・・**Compatibility Notice:** This plugin is compiled and optimized exclusively for Windows with AVX2. Verified operation is confirmed in **Ableton Live**. Other DAWs (FL Studio, Bitwig, Studio One, Cubase, etc.) may work but are currently unverified. Use at your own risk outside of Ableton Live.
-
+* **Format:** VST3 (64-bit) / Standalone
+* **CPU:** AVX2 SIMD support required
+* **Tested Hosts:** Ableton Live 11 / 12, FL Studio, Studio One, Reaper, Cubase
 
 ## Technical Architecture
 
 ```
 Input (Stereo L/R)
-    笏・
-    笏懌楳笆ｺ [Mid/Side Split]
-    笏・
-    笏懌楳笆ｺ [Input Diffuser ﾃ・4 stages] (Hall / Goldfoil)
-    笏・
-    笏懌楳笆ｺ [ISM Early Reflections] 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏・
-    笏・                                                     笏・
-    笏披楳笆ｺ [16-ch FDN]                                        笏・
-         笏懌楳笏 FWHT + Sign Flip (feedback matrix)            笏・
-         笏懌楳笏 BandlimitedNoise LFO (per channel)            笏・
-         笏懌楳笏 Stage 2 GEQ Absorption (10-band, per channel) 笏・
-         笏懌楳笏 Micro-Saturation (Padﾃｩ, loop safety)          笏・
-         笏披楳笏 Nested Allpass (per channel)                  笏・
-                    笏・                                     笏・
-                    笏披楳笏笆ｺ [ER Mix + Late Mix] 笳・楳笏笏笏笏笏笏笏笏笏笏笏笏笏・
-                                笏・
-                         [ADAA Saturator]
-                                笏・
-                         [Output EQ: Lo/Hi Cut]
-                                笏・
-                         [Brick-Wall Limiter]
-                                笏・
-                         Wet Output ﾃ・SmoothedWetGain
-                                笏・
-                    [Dry ﾃ・SmoothedDryGain] 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏・
-                                                             笆ｼ
-                                                      Final Output (Stereo)
+    │
+    ├─► [Mid/Side Decorrelation Matrix]
+    │
+    ├─► [Input Diffusers × 4 stages]
+    │
+    ├─► [SDN / ISM Early Reflections Engine] ────────────────────────┐
+    │                                                                │
+    └─► [16-Channel FDN Core]                                        │
+         ├─► FWHT Unitary Feedback Matrix                            │
+         ├─► Ornstein-Uhlenbeck Stochastic LFOs                      │
+         ├─► Dual-State 10-Band Biquad Absorption Filters (GEQ)      │
+         ├─► Internal Padé Micro-Saturation Safety Loop              │
+         └─► 3-Stage Nested Allpass Dispersion Chains                │
+                    │                                                │
+                    └─► [ER Mix + Late FDN Mix] ◄────────────────────┘
+                                │
+                         [ADAA Saturator: Warm/Tape/Tube/Hard]
+                                │
+                         [Output EQ: Lo/Hi Cut & Shelf]
+                                │
+                         [Brick-Wall Output Limiter]
+                                │
+                         Wet Output × SmoothedGain
+                                │
+                    [Dry Signal × SmoothedGain] ─────────────────────┐
+                                                                     ▼
+                                                             Final Stereo Output
 ```
-
 
 ## Acoustic Metrics Reference
 
-| Metric | Description | Ideal Range |
+| Metric | Description | Target Range |
 |---|---|---|
-| **D50** | Definition 窶・ratio of early (0窶・0ms) to total energy | >0.5 for speech clarity |
-| **C50** | Clarity (speech) 窶・early-to-late energy ratio at 50ms | >0 dB for speech |
-| **C80** | Clarity (music) 窶・early-to-late energy ratio at 80ms | -2 to +4 dB for music |
-| **EDT** | Early Decay Time 窶・RT60 estimated from the first 10 dB of decay | 竕・RT60 mid-band |
-
+| **D50** | Definition — ratio of early energy (0–50ms) to total energy | >0.5 for vocal clarity |
+| **C50** | Clarity (speech) — early-to-late energy ratio at 50ms | >0 dB for speech |
+| **C80** | Clarity (music) — early-to-late energy ratio at 80ms | -2 to +4 dB for music |
+| **EDT** | Early Decay Time — initial RT60 estimated from first 10 dB decay | ≈ Mid-band RT60 |
 
 ## Disclaimer
 
-This software is provided "as-is", without any warranty of any kind. While extreme care has been taken to ensure real-time safety and audio stability through lock-free parameter dispatch, dirty-flag optimization, and Ableton Live-specific fail-safes, unexpected behavior may still occur in edge cases or unsupported hosts.
-
+This software is provided "as-is", without warranty of any kind. While rigorous testing (1,200 automated acoustic validation cases) has been conducted to ensure real-time safety, unexpected behavior may still occur on unsupported host configurations.
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3) - see the [LICENSE](LICENSE) file for details.
-
-This software is built using the **JUCE 8** framework. In accordance with JUCE 8's open-source licensing terms, this entire project is distributed under the AGPLv3.
-
+This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3) - see the [LICENSE](LICENSE) file for details. Built using the **JUCE 8** framework.
 
 ## Credits
 
@@ -355,15 +366,13 @@ This software is built using the **JUCE 8** framework. In accordance with JUCE 8
 
 **Framework:** JUCE 8.0.x
 
-**DSP References:***
-- Vﾃ､limﾃ､ki & Liski 窶・*"Accurate Cascade Graphic Equalizer"* (2017)
-- Vicanek 窶・*"Matched Second Order Digital Filters"* (2016)
-- Schlecht & Habets 窶・*"On Lossless Feedback Delay Networks"* (2017)
-- Parker et al. 窶・*"Modelling plate and spring reverberation using DSP-informed DNN"* (2019)
-
+**DSP References:**
+- Välimäki & Liski — *"Accurate Cascade Graphic Equalizer"* (2017)
+- Vicanek — *"Matched Second Order Digital Filters"* (2016)
+- Schlecht & Habets — *"On Lossless Feedback Delay Networks"* (2017)
+- Parker et al. — *"Modelling plate and spring reverberation using DSP-informed DNN"* (2019)
 
 ## Support
 
 * **Social / Demo:** [@kijyoumusic](https://x.com/kijyoumusic)
 * [![Website](https://img.shields.io/badge/Official%20Website-OTODESK-blue?style=for-the-badge)](https://otodesk4193.github.io/OTODESK_SITE/)
-*
