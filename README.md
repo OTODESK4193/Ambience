@@ -4,7 +4,7 @@
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
-![Downloads](https://img.shields.io/github/downloads/OTODESK4193/Ambience1.0.1/total.svg)
+![Downloads](https://img.shields.io/github/downloads/OTODESK4193/Ambience/total.svg)
 
 <p align="center">
   <img src="Source/Assets/Screenshot_main.jpg" width="720" alt="Ambience 2.0.0 Main Interface">
@@ -285,7 +285,7 @@ Windows: C:\Users\<YourName>\Documents\Ambience\Presets\
 
 ## Installation
 
-1. Download the latest `Ambience2.0.0.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience1.0.1/releases/latest) page.
+1. Download the latest `Ambience2.0.0.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience/releases/latest) page.
 2. Place the `.vst3` file into your system VST3 directory:
    ```
    C:\Program Files\Common Files\VST3\
