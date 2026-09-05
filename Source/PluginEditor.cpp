@@ -297,20 +297,23 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
     presetCombo.setLookAndFeel(&laf);
     presetCombo.setTextWhenNothingSelected("Select Preset...");
+    presetCombo.setInterceptsMouseClicks(false, false);
     content.addAndMakeVisible(presetCombo);
 
     presetOverlayButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
     presetOverlayButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::transparentBlack);
     presetOverlayButton.setButtonText("");
-    presetOverlayButton.setAlpha(0.0f);
     presetOverlayButton.setTooltip("Click to open Preset Browser");
     presetOverlayButton.onClick = [this] {
         if (presetBrowser) {
             bool willShow = !presetBrowser->isVisible();
-            presetBrowser->setVisible(willShow);
             if (willShow) {
+                presetBrowser->setBounds(PAD, Y_VIZ, W - PAD * 2, H - Y_VIZ - PAD);
                 presetBrowser->setCurrentPreset(currentBasePresetName);
+                presetBrowser->setVisible(true);
                 presetBrowser->toFront(true);
+            } else {
+                presetBrowser->setVisible(false);
             }
         }
     };
@@ -992,6 +995,7 @@ void FDNReverbEditor::layoutContent() {
         presetPrevButton.setBounds(px + 8, 222, 26, btnH);
         presetCombo.setBounds(px + 38, 222, 226, btnH);
         presetOverlayButton.setBounds(px + 38, 222, 226, btnH);
+        presetOverlayButton.toFront(false);
         presetNextButton.setBounds(px + 268, 222, 26, btnH);
 
         // Bottom line: 3 Action Buttons (各幅 92px, gap 8px)
