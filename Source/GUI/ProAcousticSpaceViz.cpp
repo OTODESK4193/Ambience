@@ -130,16 +130,16 @@ void ProAcousticSpaceViz::computeRoomGeometry(float width, float height)
 
     const float cx = width * 0.5f;
     const float cy = height * 0.5f;
-    const float vpY = cy - 7.0f; // 俯瞰視点（Vanishing Point Y）
+    const float vpY = cy + 1.0f; // 視点を安定させ、天井と床のバランスを最適化
 
-    // 基本直方体スケール（Bounds: 302 x 110 に最適化）
-    const float frontW = 126.0f;
-    const float frontTopH = 34.0f;
-    const float frontBotH = 44.0f;
+    // 直方体スケール（カード内 Bounds: 302 x 110 の枠線・マージン内に完全収束）
+    const float frontW = 108.0f;
+    const float frontTopH = 26.0f;
+    const float frontBotH = 36.0f;
 
-    const float backW = 62.0f;
-    const float backTopH = 18.0f;
-    const float backBotH = 22.0f;
+    const float backW = 50.0f;
+    const float backTopH = 14.0f;
+    const float backBotH = 16.0f;
 
     const float alpha = cachedAsymmetry;
 
@@ -151,19 +151,19 @@ void ProAcousticSpaceViz::computeRoomGeometry(float width, float height)
     roomVertices[7] = { cx - backW,  vpY + backBotH };  // 奥・左下
 
     // 右側頂点群（非平行スタジオ傾斜シアー）
-    const float shiftBackX = 20.0f * std::pow(alpha, 1.2f);
-    const float shiftBackY = -5.0f * std::sin(alpha * juce::MathConstants<float>::halfPi);
-    const float shiftFrontX = -16.0f * alpha;
-    const float shiftFrontY = -6.0f * std::pow(alpha, 1.4f);
+    const float shiftBackX = 16.0f * std::pow(alpha, 1.2f);
+    const float shiftBackY = -4.0f * std::sin(alpha * juce::MathConstants<float>::halfPi);
+    const float shiftFrontX = -12.0f * alpha;
+    const float shiftFrontY = -5.0f * std::pow(alpha, 1.4f);
 
     roomVertices[5] = { cx + backW + shiftBackX,  vpY - backTopH + shiftBackY }; // 奥・右上
     roomVertices[6] = { cx + backW + shiftBackX * 0.8f, vpY + backBotH - shiftBackY * 0.5f }; // 奥・右下
-    roomVertices[1] = { cx + frontW + shiftFrontX, vpY - frontTopH + 3.0f * alpha }; // 手前・右上
+    roomVertices[1] = { cx + frontW + shiftFrontX, vpY - frontTopH + 2.5f * alpha }; // 手前・右上
     roomVertices[2] = { cx + frontW + shiftFrontX * 1.1f, vpY + frontBotH + shiftFrontY }; // 手前・右下
 
     // 床面中央の音源位置（右壁の傾斜変形に有機的に追従）
     soundSourcePos.x = (roomVertices[3].x + roomVertices[2].x + roomVertices[7].x + roomVertices[6].x) * 0.25f;
-    soundSourcePos.y = (roomVertices[3].y + roomVertices[2].y + roomVertices[7].y + roomVertices[6].y) * 0.25f + 2.0f;
+    soundSourcePos.y = (roomVertices[3].y + roomVertices[2].y + roomVertices[7].y + roomVertices[6].y) * 0.25f + 1.5f;
 }
 
 void ProAcousticSpaceViz::paint(juce::Graphics& g)
@@ -175,8 +175,10 @@ void ProAcousticSpaceViz::paint(juce::Graphics& g)
     auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
     const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[AmbienceColors::activeThemeIndex];
 
-    // 空間背景（Void Panel）
-    g.fillAll(theme.surface.darker(0.35f));
+    // カード枠線（角丸6px）の内側に美しく収める微細な暗色バッキング（上端バッジを一切塗りつぶさない）
+    auto innerRect = bounds.reduced(1.0f);
+    g.setColour(theme.surface.darker(0.35f).withAlpha(0.60f));
+    g.fillRoundedRectangle(innerRect, 5.0f);
 
     // レンダリング・パイプライン
     drawRoomWireframeAndSurfaces(g, theme);
@@ -331,8 +333,8 @@ void ProAcousticSpaceViz::drawWavefronts(juce::Graphics& g, const AmbienceTheme&
 {
     // ③ ER CROSSOVER 波面楕円
     const float tau = (cachedERCrossover - 10.0f) / 90.0f; // [0, 1]
-    const float rx = 18.0f + 72.0f * tau;
-    const float ry = rx * 0.36f; // パースペクティブ床面扁平率
+    const float rx = 14.0f + 56.0f * tau;
+    const float ry = rx * 0.35f; // パースペクティブ床面扁平率
 
     // 内側波面（直接音ゾーン）
     pathWaveSolid.clear();
@@ -424,9 +426,9 @@ void ProAcousticSpaceViz::drawHUDOverlay(juce::Graphics& g, const AmbienceTheme&
 {
     auto b = getLocalBounds().toFloat();
 
-    // 四隅のマイクロ・レティクル（コーナーブラケット L字 4px）
+    // 四隅のマイクロ・レティクル（コーナーブラケット L字 5px, カード枠角丸の内側に配置）
     g.setColour(theme.textSecondary.withAlpha(0.35f));
-    const float m = 5.0f;
+    const float m = 8.0f;
     const float len = 5.0f;
     // 左上
     g.drawLine(m, m, m + len, m, 1.0f);
@@ -441,14 +443,14 @@ void ProAcousticSpaceViz::drawHUDOverlay(juce::Graphics& g, const AmbienceTheme&
     g.drawLine(b.getRight() - m, b.getBottom() - m, b.getRight() - m - len, b.getBottom() - m, 1.0f);
     g.drawLine(b.getRight() - m, b.getBottom() - m, b.getRight() - m, b.getBottom() - m - len, 1.0f);
 
-    // タイトル & ステータスインジケータ
-    g.setFont(juce::FontOptions("Helvetica Neue", 9.0f, juce::Font::bold));
-    g.setColour(theme.textSecondary.withAlpha(0.70f));
-    g.drawText("PRO ACOUSTIC SPACE", 10, 6, 140, 12, juce::Justification::left);
+    // 左上ミニタグ（カードバッジと重複しない控えめなステータス）
+    g.setFont(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::plain));
+    g.setColour(theme.textSecondary.withAlpha(0.55f));
+    g.drawText("LIVE 3D SIM", juce::Rectangle<float>(14.0f, 8.0f, 80.0f, 12.0f), juce::Justification::left);
 
-    // 空間モードバッジ
-    juce::String modeStr = (cachedAsymmetry < 0.15f) ? "SHOEBOX" : "NON-PARALLEL";
-    g.setFont(juce::FontOptions("Helvetica Neue", 8.5f, juce::Font::plain));
+    // 空間モードバッジ（右上にすっきりと表示）
+    juce::String modeStr = (cachedAsymmetry < 0.15f) ? "MODE: SHOEBOX" : "MODE: ASYMMETRIC";
+    g.setFont(juce::FontOptions("Helvetica Neue", 8.0f, juce::Font::bold));
     g.setColour(theme.secondary.withAlpha(0.85f));
-    g.drawText(modeStr, juce::Rectangle<float>(b.getWidth() - 110.0f, 6.0f, 100.0f, 12.0f), juce::Justification::right);
+    g.drawText(modeStr, juce::Rectangle<float>(b.getWidth() - 130.0f, 8.0f, 118.0f, 12.0f), juce::Justification::right);
 }

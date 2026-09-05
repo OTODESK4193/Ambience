@@ -1066,7 +1066,7 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         drawCard(384.0f, cardY2, 200.0f, cardH2, "THEME");
     } else if (isProTab) {
         drawCard(8.0f,   cardY1, 576.0f, cardH1, "PRO ACOUSTIC MATRIX (6 PARAMETERS)");
-        drawCard(590.0f, cardY1, 302.0f, cardH1, "ACOUSTIC SPACE VIZ");
+        drawCard(590.0f, cardY1, 302.0f, cardH1, "PRO ACOUSTIC SPACE");
         drawCard(8.0f,   cardY2, 576.0f, cardH2, "PARAMETRIC OUT EQ");
     }
 
