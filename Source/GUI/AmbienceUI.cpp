@@ -608,33 +608,11 @@ AlgorithmSelector::AlgorithmSelector(juce::AudioProcessorValueTreeState& a)
             if (idx == currentAlgo) return;
 
             bool isLocked = isLockedCallback ? isLockedCallback() : false;
-            if (isLocked) {
-                if (onUserAlgorithmSelected)
-                    onUserAlgorithmSelected(idx, false);
-                if (auto* param = apvts.getParameter("algorithm"))
-                    param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(idx)));
-            } else {
-                auto* dialog = new juce::AlertWindow(
-                    "Reset Knob Parameters?",
-                    "Switching Room Type with LOCK OFF will reset all knobs to preset defaults.\nDo you want to continue?",
-                    juce::MessageBoxIconType::QuestionIcon);
-                dialog->addButton("Yes (Reset Knobs)", 1, juce::KeyPress(juce::KeyPress::returnKey));
-                dialog->addButton("No (Cancel)", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+            if (onUserAlgorithmSelected)
+                onUserAlgorithmSelected(idx, !isLocked);
 
-                juce::Component::SafePointer<AlgorithmSelector> safeThis(this);
-                dialog->enterModalState(
-                    true,
-                    juce::ModalCallbackFunction::create([safeThis, idx](int result) {
-                        if (safeThis != nullptr && result == 1) {
-                            if (safeThis->onUserAlgorithmSelected)
-                                safeThis->onUserAlgorithmSelected(idx, true);
-                            if (auto* param = safeThis->apvts.getParameter("algorithm"))
-                                param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(idx)));
-                        }
-                    }),
-                    true
-                );
-            }
+            if (auto* param = apvts.getParameter("algorithm"))
+                param->setValueNotifyingHost(param->convertTo0to1(static_cast<float>(idx)));
         };
     }
     apvts.addParameterListener("algorithm", this);

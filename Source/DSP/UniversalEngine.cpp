@@ -414,15 +414,14 @@ namespace FDNReverb {
         float ratio8 = 0.75f;
         float ratio9 = 0.60f;
 
-        if (std::abs(safeAirScale - 1.0f) > 1e-5f) {
-            ratio7 = std::pow(0.90f, safeAirScale);
-            ratio8 = std::pow(0.75f, safeAirScale);
-            ratio9 = std::pow(0.60f, safeAirScale);
+        if (std::abs(safeAirScale - 1.0f) > 1e-4f) {
+            float ratio7 = std::pow(0.90f, safeAirScale);
+            float ratio8 = std::pow(0.75f, safeAirScale);
+            float ratio9 = std::pow(0.60f, safeAirScale);
+            scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
+            scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
+            scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
         }
-
-        scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
-        scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
-        scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
 
         // ★ GUI 表示用に物理減衰を反映した実効 RT60 を計算
         std::array<float, NUM_BANDS> displayRT60 = scaledRT60;
