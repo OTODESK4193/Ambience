@@ -8,6 +8,7 @@
 #include "GUI/SpectrumAnalyzer.h"
 #include "GUI/DecayCurveViz.h"
 #include "GUI/PresetBrowser.h"
+#include "GUI/ProAcousticSpaceViz.h"
 
 class FDNReverbEditor : public juce::AudioProcessorEditor,
     private juce::Timer,
@@ -115,6 +116,7 @@ private:
     ArcKnob        kHiGainPro;
 
     OutEQVisualizer outEQViz;
+    ProAcousticSpaceViz proSpaceViz;
 
     juce::Label    themeLabel;
     juce::ComboBox themeCombo;
@@ -134,7 +136,6 @@ private:
     juce::TextButton presetRevertButton;
     juce::TextButton presetNextButton;
     juce::TextButton presetSaveButton;
-    juce::TextButton presetLoadButton;
     juce::TextButton presetDeleteButton;
 
     juce::String currentBasePresetName;

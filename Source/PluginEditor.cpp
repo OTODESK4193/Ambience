@@ -259,6 +259,9 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
     content.addAndMakeVisible(outEQViz);
 
+    proSpaceViz.setProcessor(&audioProcessor);
+    content.addAndMakeVisible(proSpaceViz);
+
     // ── PRO Tab Knobs ──
     kScattering.build(a, "scattering", "SCATTERING", &content, laf);
     kERCrossover.build(a, "ercrossover", "ER CROSSOVER", &content, laf);
@@ -347,31 +350,6 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         }
     };
     content.addAndMakeVisible(presetRevertButton);
-
-    presetLoadButton.setButtonText("LOAD");
-    presetLoadButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
-    presetLoadButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
-    presetLoadButton.onClick = [this] {
-        if (presetManager && presetCombo.getSelectedId() > 0) {
-            auto name = presetCombo.getText();
-            if (name.endsWith(" *")) name = name.dropLastCharacters(2);
-            ++loadingPresetCounter;
-            presetManager->loadPreset(name);
-            currentBasePresetName = name;
-            setPresetModified(false);
-            refreshPresetCombo();
-            applySavedTheme();
-            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
-            juce::Timer::callAfterDelay(50, [safeThis] {
-                if (safeThis != nullptr) {
-                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
-                    safeThis->setPresetModified(false);
-                    safeThis->applySavedTheme();
-                }
-            });
-        }
-    };
-    content.addAndMakeVisible(presetLoadButton);
 
     presetDeleteButton.setButtonText("DELETE");
     presetDeleteButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
@@ -671,6 +649,7 @@ void FDNReverbEditor::updatePanelVisibility() {
     kHiGainPro.slider.setVisible(isProTab); kHiGainPro.label.setVisible(isProTab);
 
     outEQViz.setVisible(isProTab);
+    proSpaceViz.setVisible(isProTab);
 }
 
 void FDNReverbEditor::refreshPresetCombo() {
@@ -719,7 +698,6 @@ void FDNReverbEditor::refreshPresetCombo() {
     }
 
     presetDeleteButton.setEnabled(foundInUserList);
-    presetLoadButton.setEnabled(true);
     presetPrevButton.setEnabled(true);
     presetNextButton.setEnabled(true);
     presetRevertButton.setEnabled(isPresetModified);
@@ -934,14 +912,17 @@ void FDNReverbEditor::layoutContent() {
         themeLabel.setBounds(392 + slide, 218, 184, 14);
         themeCombo.setBounds(392 + slide, 238, 184, 26);
     } else if (isProTab) {
-        // ── PRO Tab: Row 1 (6 Parameters Evenly Distributed across 884px) ──
-        // Card: x=8, w=884
-        placeKnob(kScattering,  54,  yRow1);
-        placeKnob(kERCrossover, 199, yRow1);
-        placeKnob(kLateDensity, 344, yRow1);
-        placeKnob(kAsymmetry,   489, yRow1);
-        placeKnob(kClarity,     634, yRow1);
-        placeKnob(kAirAbsorb,   779, yRow1);
+        // ── PRO Tab: Row 1 (6 Parameters on Left Card x=8, w=576, Space Viz on Right Card x=590, w=302) ──
+        placeKnob(kScattering,   24, yRow1);
+        placeKnob(kERCrossover, 120, yRow1);
+        placeKnob(kLateDensity, 216, yRow1);
+        placeKnob(kAsymmetry,   312, yRow1);
+        placeKnob(kClarity,     408, yRow1);
+        placeKnob(kAirAbsorb,   504, yRow1);
+
+        // Right Card: PRO ACOUSTIC SPACE VIZ (x=590, y=86, w=302, h=110)
+        // 下段の PRESET カード (x=590, w=302) と完全垂直整列
+        proSpaceViz.setBounds(590 + slide, 86, 302, 110);
 
         // ── PRO Tab: Row 2 ──
         // PARAMETRIC OUT EQ (Card: x=8, w=576)
@@ -972,13 +953,12 @@ void FDNReverbEditor::layoutContent() {
         presetOverlayButton.setBounds(px + 38, 222, 226, btnH);
         presetNextButton.setBounds(px + 268, 222, 26, btnH);
 
-        // Bottom line: 4 Action Buttons
-        const int btnW = 68;
-        const int gap = 6;
+        // Bottom line: 3 Action Buttons (各幅 92px, gap 8px)
+        const int btnW = 92;
+        const int gap = 8;
         presetSaveButton.setBounds(px + 7, 258, btnW, btnH);
         presetRevertButton.setBounds(px + 7 + (btnW + gap) * 1, 258, btnW, btnH);
-        presetLoadButton.setBounds(px + 7 + (btnW + gap) * 2, 258, btnW, btnH);
-        presetDeleteButton.setBounds(px + 7 + (btnW + gap) * 3, 258, btnW, btnH);
+        presetDeleteButton.setBounds(px + 7 + (btnW + gap) * 2, 258, btnW, btnH);
     }
 
     // ── Visualizers: RT60 グラフ 135px、ER/LATE 64px ──
@@ -1085,8 +1065,9 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         drawCard(158.0f, cardY2, 220.0f, cardH2, "TILT EQ");
         drawCard(384.0f, cardY2, 200.0f, cardH2, "THEME");
     } else if (isProTab) {
-        drawCard(8.0f, cardY1, 884.0f, cardH1, "PRO ACOUSTIC & SPATIAL MATRIX (6 PARAMETERS)");
-        drawCard(8.0f, cardY2, 576.0f, cardH2, "PARAMETRIC OUT EQ");
+        drawCard(8.0f,   cardY1, 576.0f, cardH1, "PRO ACOUSTIC MATRIX (6 PARAMETERS)");
+        drawCard(590.0f, cardY1, 302.0f, cardH1, "ACOUSTIC SPACE VIZ");
+        drawCard(8.0f,   cardY2, 576.0f, cardH2, "PARAMETRIC OUT EQ");
     }
 
     // PRESET Card (共通: x=590, w=302 で 1行目カードと完全整列！)
@@ -1123,6 +1104,7 @@ void FDNReverbEditor::updateTheme(int idx) {
     rt60Viz.repaint();
     decayCurveViz.repaint();
     outEQViz.repaint();
+    proSpaceViz.repaint();
     if (presetBrowser)
         presetBrowser->repaint();
 }
