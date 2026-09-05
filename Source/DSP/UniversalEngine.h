@@ -180,7 +180,7 @@ namespace FDNReverb {
         std::array<LinearDelayLine, 4>               inputDiffusersM;
         std::array<LinearDelayLine, 4>               inputDiffusersS;
         std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;
-        std::array<std::array<ThiranDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
+        std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
         int                            currentERTapCount{ 0 };
         std::array<float, MAX_ER_TAPS> currentERDelaySamples;

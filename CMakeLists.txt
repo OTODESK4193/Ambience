@@ -116,3 +116,19 @@ target_link_libraries(ValidationRunner PRIVATE juce::juce_core juce::juce_audio_
 if(MSVC)
     target_compile_options(ValidationRunner PRIVATE /arch:AVX2 /utf-8 /W3 /wd4819 $<$<CONFIG:Release>:/O2 /fp:fast>)
 endif()
+
+juce_add_console_app(NoiseInvestigator PRODUCT_NAME "NoiseInvestigator")
+juce_generate_juce_header(NoiseInvestigator)
+target_sources(NoiseInvestigator PRIVATE
+    ValidationTools/test_noise.cpp
+    Source/DSP/UniversalEngine.cpp
+    Source/DSP/BiquadFilters.cpp
+    Source/DSP/MagnitudeResponseFitter.cpp
+    Source/DSP/AcousticMetrics.cpp
+    Source/DSP/EarlyReflectionsISM.cpp
+)
+target_include_directories(NoiseInvestigator PRIVATE Source Source/DSP Source/GUI)
+target_link_libraries(NoiseInvestigator PRIVATE juce::juce_core juce::juce_audio_basics juce::juce_audio_processors juce::juce_dsp)
+if(MSVC)
+    target_compile_options(NoiseInvestigator PRIVATE /arch:AVX2 /utf-8 /W3 /wd4819 $<$<CONFIG:Release>:/O2 /fp:fast>)
+endif()

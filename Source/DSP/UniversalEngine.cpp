@@ -806,7 +806,8 @@ namespace FDNReverb {
                 
                 // ★ FDNベースディレイの 1-pole スムージング & Fractional リード
                 const float asymOffset = (i % 2 == 0 ? 1.0f : -1.0f) * (activeParams.asymmetry - 0.3f) * 10.0f;
-                const float targetSmp = fdnBaseDelaySamples[i] + asymOffset;
+                const float fdnMicroMod = chorusVal * 1.2f * modAmtCurved;
+                const float targetSmp = fdnBaseDelaySamples[i] + asymOffset + fdnMicroMod;
                 
                 if (currentFdnDelaySamples[i] == 0.0f) [[unlikely]] {
                     currentFdnDelaySamples[i] = targetSmp;
@@ -870,7 +871,7 @@ namespace FDNReverb {
                 if (apfGainStage > 0.001f) {
                     for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                         const float baseDelay = cachedApfBaseDelaySmp[i][s];
-                        const float maxSafeMod = baseDelay * 0.40f;
+                        const float maxSafeMod = baseDelay * 0.15f;
                         const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
                         
                         const float knee = maxSafeMod * 0.75f;
