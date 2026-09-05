@@ -97,13 +97,22 @@ def measure_mod_pitch(ir_mono, sr, wave, freq):
         if np.max(np.abs(frame)) < 1e-8: continue
         corr = np.correlate(frame, frame, mode='full')[len(frame)-1:]
         corr_n = corr / (corr[0] + 1e-30)
-        min_lag = int(sr / 20000); max_lag = int(sr / 30)
-        if max_lag >= len(corr_n): max_lag = len(corr_n) - 1
-        if min_lag >= max_lag: continue
-        search = corr_n[min_lag:max_lag]
-        if len(search) == 0: continue
-        peak_idx = np.argmax(search) + min_lag
-        if corr_n[peak_idx] > 0.3: pitches.append(sr / peak_idx)
+        
+        # ★ 正しい自己相関ピーク検出: 原点メインローブの極小値（谷）を脱出
+        d = np.diff(corr_n)
+        valleys = np.where((d[:-1] < 0) & (d[1:] >= 0))[0] + 1
+        if len(valleys) == 0: continue
+        first_valley = valleys[0]
+        
+        # 谷以降の真の極大値ピークを探索
+        peaks = np.where((d[:-1] > 0) & (d[1:] <= 0))[0] + 1
+        valid_peaks = [p for p in peaks if p > first_valley and corr_n[p] > 0.20]
+        if not valid_peaks: continue
+        
+        # 基本波周波数に最も整合する真のピークを選択
+        best_peak = min(valid_peaks, key=lambda p: abs(np.log((sr / p) / freq)))
+        pitches.append(sr / best_peak)
+        
     if len(pitches) < 3: return 0.0
     pm = np.median(pitches)
     if pm < 1.0 or freq < 1.0: return 0.0

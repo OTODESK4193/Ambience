@@ -247,6 +247,7 @@ namespace FDNReverb {
         std::array<float, NUM_BANDS> effectiveRT60;
         std::array<float, NUM_BANDS> targetRT60;
         float theoreticalEDT{ 0.0f };
+        float currentRT60Mid{ 1.5f };
 
         AcousticMetrics acousticMetrics;
         Saturator saturatorL;

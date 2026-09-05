@@ -453,6 +453,7 @@ namespace FDNReverb {
         for (int b = 2; b <= 7; ++b)
             rt60Mid += effectiveRT60[b];
         rt60Mid = std::max(0.1f, rt60Mid / 6.0f);
+        currentRT60Mid = rt60Mid;
 
         modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
 
@@ -806,8 +807,7 @@ namespace FDNReverb {
                 
                 // ★ FDNベースディレイの 1-pole スムージング & Fractional リード
                 const float asymOffset = (i % 2 == 0 ? 1.0f : -1.0f) * (activeParams.asymmetry - 0.3f) * 10.0f;
-                const float fdnMicroMod = chorusVal * 1.2f * modAmtCurved;
-                const float targetSmp = fdnBaseDelaySamples[i] + asymOffset + fdnMicroMod;
+                const float targetSmp = fdnBaseDelaySamples[i] + asymOffset;
                 
                 if (currentFdnDelaySamples[i] == 0.0f) [[unlikely]] {
                     currentFdnDelaySamples[i] = targetSmp;
@@ -866,25 +866,32 @@ namespace FDNReverb {
                     d = dcOut;
                 }
 
-                // Schroeder Modulated Allpass (B023 標準安全変調)
+                // Schroeder Allpass (第1・2段は完全フラットな readInt、第3段のみ選択的 Hermite 変調)
                 float apfOut = d;
                 if (apfGainStage > 0.001f) {
                     for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                         const float baseDelay = cachedApfBaseDelaySmp[i][s];
-                        const float maxSafeMod = baseDelay * 0.15f;
-                        const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
+                        float delayed;
                         
-                        const float knee = maxSafeMod * 0.75f;
-                        float safeMod = targetMod;
-                        if (targetMod > knee) {
-                            const float excess = targetMod - knee;
-                            const float room = maxSafeMod - knee;
-                            safeMod = knee + room * std::tanh(excess / room);
+                        if (s == 2 && depthSamples > 0.01f) {
+                            const float maxSafeMod = baseDelay * 0.15f;
+                            const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
+                            
+                            const float knee = maxSafeMod * 0.75f;
+                            float safeMod = targetMod;
+                            if (targetMod > knee) {
+                                const float excess = targetMod - knee;
+                                const float room = maxSafeMod - knee;
+                                safeMod = knee + room * std::tanh(excess / room);
+                            }
+                            
+                            const float apfDelaySmp = baseDelay + chorusVal * safeMod;
+                            delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
+                        } else {
+                            // 第1・2段は整数サンプルのため通過帯域損失 0.00dB（完全フラット・フィルター感ゼロ）
+                            delayed = nestedAllpassDelays[i][s].readInt(static_cast<int>(std::round(baseDelay)));
                         }
-                        
-                        const float apfDelaySmp = baseDelay + chorusVal * safeMod;
 
-                        const float delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
                         const float v = apfOut - apfGainStage * delayed;
                         nestedAllpassDelays[i][s].write(v);
                         apfOut = delayed + apfGainStage * v;
@@ -944,8 +951,10 @@ namespace FDNReverb {
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
             const float erMixL = bypassER ? 0.0f : erOutL * erSmoothedGain * erMakeupGain * erServo;
             const float erMixR = bypassER ? 0.0f : erOutR * erSmoothedGain * erMakeupGain * erServo;
-            const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel * lateServo;
-            const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel * lateServo;
+            // ★ ModAmt 変調時の Hermite 補間通過損失を動的補正（音量低下ゼロ化）
+            const float modLossComp = 1.0f + (0.08f + 0.08f * std::min(5.0f, currentRT60Mid)) * modAmtCurved;
+            const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel * lateServo * modLossComp;
+            const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel * lateServo * modLossComp;
 
             // ★ Vintage Warmth ADAA Saturator (出力段 L/R 独立 1次 ADAA 処理)
             float satL = saturatorL.processSample(lateMixL);
