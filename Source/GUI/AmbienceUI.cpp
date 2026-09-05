@@ -168,6 +168,38 @@ void AmbienceLookAndFeel::drawGroupComponentOutline(juce::Graphics& g,
         juce::Justification::centredLeft);
 }
 
+void AmbienceLookAndFeel::drawScrollbar(juce::Graphics& g, juce::ScrollBar&,
+    int x, int y, int width, int height,
+    bool isScrollbarVertical,
+    int thumbStartPosition, int thumbSize,
+    bool isMouseOver, bool isMouseDown)
+{
+    // 背景トラック（微細な半透明）
+    g.setColour(currentTheme.surface.withAlpha(0.30f));
+    g.fillRect(x, y, width, height);
+
+    if (thumbSize <= 0) return;
+
+    // サム（つまみ）を角丸ピル形状で描画（幅6px）
+    juce::Rectangle<float> thumbBounds;
+    if (isScrollbarVertical)
+    {
+        float thumbW = juce::jmin(6.0f, (float)width - 2.0f);
+        float thumbX = (float)x + ((float)width - thumbW) * 0.5f;
+        thumbBounds = juce::Rectangle<float>(thumbX, (float)thumbStartPosition, thumbW, (float)thumbSize);
+    }
+    else
+    {
+        float thumbH = juce::jmin(6.0f, (float)height - 2.0f);
+        float thumbY = (float)y + ((float)height - thumbH) * 0.5f;
+        thumbBounds = juce::Rectangle<float>((float)thumbStartPosition, thumbY, (float)thumbSize, thumbH);
+    }
+
+    const float alpha = isMouseDown ? 0.95f : (isMouseOver ? 0.75f : 0.45f);
+    g.setColour(currentTheme.primary.withAlpha(alpha));
+    g.fillRoundedRectangle(thumbBounds, 3.0f);
+}
+
 // ─── RT60Visualizer ──────────────────────────────────────────────────
 RT60Visualizer::RT60Visualizer() {
     displayRT60.fill(1.0f);

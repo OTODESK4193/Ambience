@@ -79,12 +79,19 @@ private:
 
     juce::StringArray categories;
     juce::StringArray subCategories;
+    juce::StringArray tagCategories;
     juce::StringArray favorites;
 
     int selCat{ 0 };
     int selSub{ 0 };
+    int selTag{ 0 };
+    int subCategoryMode{ 0 }; // 0: Room Type, 1: Acoustic Tags
     juce::String currentPresetName;
     juce::Rectangle<int> infoPanelArea;
+    juce::Rectangle<int> modeRoomBtnRect;
+    juce::Rectangle<int> modeTagBtnRect;
+
+    void mouseDown(const juce::MouseEvent& e) override;
 
     // Items
     struct DisplayItem {

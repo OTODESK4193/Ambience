@@ -9,6 +9,7 @@ PresetBrowser::PresetBrowser(PresetManager& pm, AmbienceLookAndFeel& l)
 
     categories = { "Factory", "User", "Favorite" };
     subCategories = { "All", "Room1", "Room2", "Hall1", "Hall2", "Plate", "Spring", "GoldFoil", "InchinDown" };
+    tagCategories = { "All", "Vocal & Speech", "Drums & Snare", "Acoustic & Guitar", "Piano & Keys", "Strings & Orch", "Brass & Horns", "Bass & LowEnd", "Ambient & Pad", "Creative & FX" };
 
     catList.setModel(&catModel);
     subList.setModel(&subModel);
@@ -19,6 +20,7 @@ PresetBrowser::PresetBrowser(PresetManager& pm, AmbienceLookAndFeel& l)
     fileList.setRowHeight(28);
 
     for (auto* list : { &catList, &subList, &fileList }) {
+        list->setLookAndFeel(&laf);
         list->setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
         list->setOutlineThickness(1);
         addAndMakeVisible(*list);
@@ -39,7 +41,11 @@ PresetBrowser::PresetBrowser(PresetManager& pm, AmbienceLookAndFeel& l)
     refresh();
 }
 
-PresetBrowser::~PresetBrowser() {}
+PresetBrowser::~PresetBrowser()
+{
+    for (auto* list : { &catList, &subList, &fileList })
+        list->setLookAndFeel(nullptr);
+}
 
 // ============================================================================
 //  Factory Presets List (104 Presets = 8 Algorithms x 13 Presets)
@@ -257,12 +263,31 @@ void PresetBrowser::updateSubCategories()
     updateFiles();
 }
 
+void PresetBrowser::mouseDown(const juce::MouseEvent& e)
+{
+    if (modeRoomBtnRect.contains(e.getPosition())) {
+        if (subCategoryMode != 0) {
+            subCategoryMode = 0;
+            subList.updateContent();
+            updateFiles();
+            repaint();
+        }
+    }
+    else if (modeTagBtnRect.contains(e.getPosition())) {
+        if (subCategoryMode != 1) {
+            subCategoryMode = 1;
+            subList.updateContent();
+            updateFiles();
+            repaint();
+        }
+    }
+}
+
 void PresetBrowser::updateFiles()
 {
     filteredItems.clear();
 
     const juce::String currentCategory = categories[selCat];
-    const juce::String currentSub = (selSub >= 0 && selSub < subCategories.size()) ? subCategories[selSub] : "All";
     const juce::String query = searchBox.getText().trim().toLowerCase();
 
     static const char* algoNames[] = {
@@ -273,6 +298,43 @@ void PresetBrowser::updateFiles()
         return query.isEmpty() || text.toLowerCase().contains(query);
     };
 
+    auto matchTag = [&](const juce::String& name, const juce::String& desc, int tagIndex) -> bool {
+        if (tagIndex == 0) return true; // "All"
+        juce::String target = (name + " " + desc).toLowerCase();
+        switch (tagIndex) {
+            case 1: // "Vocal & Speech"
+                return target.contains("vocal") || target.contains("speech") || target.contains("voiceover")
+                    || target.contains("choir") || target.contains("choral") || target.contains("opera");
+            case 2: // "Drums & Snare"
+                return target.contains("drum") || target.contains("snare") || target.contains("percussion")
+                    || target.contains("cymbal") || target.contains("clap") || target.contains("rimshot") || target.contains("tom");
+            case 3: // "Acoustic & Guitar"
+                return target.contains("guitar") || target.contains("acoustic") || target.contains("harp")
+                    || target.contains("folk") || target.contains("fingerstyle");
+            case 4: // "Piano & Keys"
+                return target.contains("piano") || target.contains("keys") || target.contains("rhodes")
+                    || target.contains("organ") || target.contains("soundboard");
+            case 5: // "Strings & Orch"
+                return target.contains("string") || target.contains("orchestral") || target.contains("cello")
+                    || target.contains("symphon") || target.contains("chamber") || target.contains("score") || target.contains("scoring");
+            case 6: // "Brass & Horns"
+                return target.contains("brass") || target.contains("horn") || target.contains("fanfare");
+            case 7: // "Bass & LowEnd"
+                return target.contains("bass") || target.contains("upright");
+            case 8: // "Ambient & Pad"
+                return target.contains("ambient") || target.contains("drone") || target.contains("soundscape")
+                    || target.contains("pad") || target.contains("ethereal") || target.contains("cathedral")
+                    || target.contains("abyss") || target.contains("space") || target.contains("infinite") || target.contains("cloud");
+            case 9: // "Creative & FX"
+                return target.contains("creative") || target.contains("fx") || target.contains("distort")
+                    || target.contains("industrial") || target.contains("lo-fi") || target.contains("glitch")
+                    || target.contains("alien") || target.contains("slam") || target.contains("chaos")
+                    || target.contains("tape crushed") || target.contains("concrete closet");
+            default:
+                return true;
+        }
+    };
+
     // ── 1. Factory プリセット ──
     if (currentCategory == "Factory" || currentCategory == "Favorite") {
         for (const auto& fp : factoryPresets) {
@@ -281,8 +343,14 @@ void PresetBrowser::updateFiles()
             if (currentCategory == "Favorite" && !isFavorite(fp.name))
                 continue;
 
-            if (currentSub != "All" && roomName != currentSub)
-                continue;
+            if (subCategoryMode == 0) {
+                const juce::String currentSub = (selSub >= 0 && selSub < subCategories.size()) ? subCategories[selSub] : "All";
+                if (currentSub != "All" && roomName != currentSub)
+                    continue;
+            } else {
+                if (!matchTag(fp.name, fp.description, selTag))
+                    continue;
+            }
 
             if (!matchQuery(fp.name) && !matchQuery(fp.description))
                 continue;
@@ -302,6 +370,12 @@ void PresetBrowser::updateFiles()
         for (const auto& un : userNames) {
             if (currentCategory == "Favorite" && !isFavorite(un))
                 continue;
+
+            if (subCategoryMode == 0) {
+                const juce::String currentSub = (selSub >= 0 && selSub < subCategories.size()) ? subCategories[selSub] : "All";
+                if (currentSub != "All" && currentSub != "User")
+                    continue;
+            }
 
             if (!matchQuery(un))
                 continue;
@@ -324,16 +398,12 @@ void PresetBrowser::paint(juce::Graphics& g)
 {
     const auto& theme = laf.getTheme();
 
-    // ソリッドなパネル背景（背後のグラフが透けない完全不透明）
+    // ソリッドなパネル背景
     g.setColour(theme.panel);
     g.fillRoundedRectangle(getLocalBounds().toFloat(), 6.0f);
 
     g.setColour(theme.border);
     g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 6.0f, 1.0f);
-
-    // カラムヘッダー見出し
-    g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 10.0f, juce::Font::bold)));
-    g.setColour(theme.textSecondary);
 
     const int col1W = 110;
     const int col2W = 135;
@@ -344,9 +414,39 @@ void PresetBrowser::paint(juce::Graphics& g)
     const int x3 = x2 + col2W + 8;
     const int x4 = x3 + listW + 8;
 
+    // カラム1見出し: CATEGORY
+    g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 10.0f, juce::Font::bold)));
+    g.setColour(theme.textSecondary);
     g.drawText("CATEGORY", x1, 6, col1W, 16, juce::Justification::centredLeft);
-    g.drawText("ROOM TYPE", x2, 6, col2W, 16, juce::Justification::centredLeft);
+
+    // カラム2見出し: [ ROOM ] [ TAGS ] ハイブリッド切替ピルトグル
+    modeRoomBtnRect = juce::Rectangle<int>(x2, 4, 62, 18);
+    modeTagBtnRect  = juce::Rectangle<int>(x2 + 66, 4, 62, 18);
+
+    bool isRoom = (subCategoryMode == 0);
+    g.setColour(isRoom ? theme.primary.withAlpha(0.25f) : theme.surface.withAlpha(0.5f));
+    g.fillRoundedRectangle(modeRoomBtnRect.toFloat(), 3.0f);
+    g.setColour(isRoom ? theme.primary : theme.border.withAlpha(0.6f));
+    g.drawRoundedRectangle(modeRoomBtnRect.toFloat().reduced(0.5f), 3.0f, 1.0f);
+    g.setColour(isRoom ? theme.primary : theme.textSecondary);
+    g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.5f, juce::Font::bold)));
+    g.drawText("ROOM", modeRoomBtnRect, juce::Justification::centred);
+
+    bool isTag = (subCategoryMode == 1);
+    g.setColour(isTag ? theme.primary.withAlpha(0.25f) : theme.surface.withAlpha(0.5f));
+    g.fillRoundedRectangle(modeTagBtnRect.toFloat(), 3.0f);
+    g.setColour(isTag ? theme.primary : theme.border.withAlpha(0.6f));
+    g.drawRoundedRectangle(modeTagBtnRect.toFloat().reduced(0.5f), 3.0f, 1.0f);
+    g.setColour(isTag ? theme.primary : theme.textSecondary);
+    g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.5f, juce::Font::bold)));
+    g.drawText("TAGS", modeTagBtnRect, juce::Justification::centred);
+
+    // カラム3見出し: PRESETS
+    g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 10.0f, juce::Font::bold)));
+    g.setColour(theme.textSecondary);
     g.drawText("PRESETS", x3, 6, listW, 16, juce::Justification::centredLeft);
+
+    // カラム4見出し: INFO & ACOUSTIC TAGS
     g.drawText("INFO & ACOUSTIC TAGS", x4, 6, getWidth() - x4 - 12, 16, juce::Justification::centredLeft);
 
     // カラム境界線
@@ -430,7 +530,7 @@ void PresetBrowser::paint(juce::Graphics& g)
 void PresetBrowser::resized()
 {
     auto area = getLocalBounds().reduced(6);
-    area.removeFromTop(22); // ヘッダー見出し領域
+    area.removeFromTop(24); // ヘッダー見出し領域（ROOM/TAGSボタン配置用）
 
     const int col1W = 110;
     const int col2W = 135;
@@ -490,30 +590,35 @@ void PresetBrowser::CatModel::listBoxItemClicked(int row, const juce::MouseEvent
 
 int PresetBrowser::SubModel::getNumRows()
 {
-    return owner ? owner->subCategories.size() : 0;
+    if (!owner) return 0;
+    return (owner->subCategoryMode == 0) ? owner->subCategories.size() : owner->tagCategories.size();
 }
 
 void PresetBrowser::SubModel::paintListBoxItem(int row, juce::Graphics& g, int w, int h, bool)
 {
     if (!owner) return;
     const auto& theme = owner->laf.getTheme();
-    bool isSel = (row == owner->selSub);
+    bool isSel = (owner->subCategoryMode == 0) ? (row == owner->selSub) : (row == owner->selTag);
 
     if (isSel) {
-        g.fillAll(theme.primary.withAlpha(0.15f));
+        g.fillAll(theme.primary.withAlpha(0.18f));
         g.setColour(theme.primary);
         g.fillRect(0, 0, 3, h);
     }
 
+    juce::String text = (owner->subCategoryMode == 0) ? owner->subCategories[row] : owner->tagCategories[row];
     g.setColour(isSel ? theme.textPrimary : theme.textSecondary);
     g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 11.5f, isSel ? juce::Font::bold : juce::Font::plain)));
-    g.drawText(owner->subCategories[row], 10, 0, w - 16, h, juce::Justification::centredLeft);
+    g.drawText(text, 10, 0, w - 16, h, juce::Justification::centredLeft);
 }
 
 void PresetBrowser::SubModel::listBoxItemClicked(int row, const juce::MouseEvent&)
 {
     if (!owner) return;
-    owner->selSub = row;
+    if (owner->subCategoryMode == 0)
+        owner->selSub = row;
+    else
+        owner->selTag = row;
     owner->updateFiles();
     owner->subList.repaint();
     owner->repaint();
