@@ -583,6 +583,8 @@ void ArcKnob::build(juce::AudioProcessorValueTreeState& apvts,
             slider.textFromValue = [](double val) {
                 if (val >= 1000.0)
                     return juce::String(val / 1000.0, 1) + " kHz";
+                if (val < 10.0)
+                    return juce::String(val, 2) + " Hz";
                 return juce::String(juce::roundToInt(val)) + " Hz";
             };
             slider.valueFromText = [](const juce::String& text) {
