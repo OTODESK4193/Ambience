@@ -203,10 +203,6 @@ namespace FDNReverb {
 
         currentFdnDelaySamples.fill(0.0f);
 
-        duckingAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.010f));
-        duckingReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.200f));
-        duckingEnvelope = 0.0f;
-
         dcBlockerCoeff = 1.0f - (6.28318530718f * 5.0f / static_cast<float>(fs));
         dcX1.fill(0.0f); dcY1.fill(0.0f);
 
@@ -221,12 +217,22 @@ namespace FDNReverb {
         useAbsoStateA = true;
         isPreparedFlag = true;
 
+        updateTopologyAndRouting(); // ★ 初期トポロジー・ディレイ長・吸音フィルタの完全同期初期化
         reset();
     }
 
     void UniversalEngine::reset() {
         memoryPool.clear();
         fbVec.fill(0.0f);
+
+        preDelayLineL.resetState();
+        preDelayLineR.resetState();
+        erDelay.resetState();
+        for (auto& dl : inputDiffusersM) dl.resetState();
+        for (auto& dl : inputDiffusersS) dl.resetState();
+        for (auto& dl : fdnDelays) dl.resetState();
+        for (auto& chDelays : nestedAllpassDelays)
+            for (auto& dl : chDelays) dl.resetState();
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         for (auto& lineFilters : absorptionFiltersS2_A)
@@ -244,10 +250,7 @@ namespace FDNReverb {
         dynamicDucker.reset();
         outApL1.reset(); outApL2.reset();
         outApR1.reset(); outApR2.reset();
-        duckingEnvelope = 0.0f;
         loopEnergyEnv = 0.0f;
-        for (auto& chDelays : nestedAllpassDelays)
-            for (auto& dl : chDelays) dl.resetState();
         sdnEngine.reset();
         plateMesh.reset();
         springChain.reset();
@@ -260,34 +263,63 @@ namespace FDNReverb {
         inputTransientEnvSlow = 0.0f;
         currentFdnDelaySamples.fill(0.0f);
         erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
+        smoothedModAmount = activeParams.modAmount;
+        smoothedModRate = activeParams.modRate;
+
+        dcX1.fill(0.0f);
+        dcY1.fill(0.0f);
+
+        // ★ LFO 初期位相の決定論的復元 (再現性 100% 保証)
+        for (int i = 0; i < FDN_ORDER; ++i) {
+            dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
+            dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
+        }
     }
 
     void UniversalEngine::setParams(const DSPParams& p) {
         const bool algoChanged = (activeParams.algorithmIndex != p.algorithmIndex);
+
+        const bool topologyNeedsUpdate = algoChanged
+            || (activeParams.decayScale != p.decayScale)
+            || (activeParams.roomSizeScale != p.roomSizeScale)
+            || (activeParams.hfDamping != p.hfDamping)
+            || (activeParams.lfAbsorption != p.lfAbsorption)
+            || (activeParams.diffusion != p.diffusion)
+            || (activeParams.tiltLow != p.tiltLow)
+            || (activeParams.tiltMid != p.tiltMid)
+            || (activeParams.tiltHigh != p.tiltHigh)
+            || (activeParams.rtBands != p.rtBands)
+            || (activeParams.airAbsorbScale != p.airAbsorbScale)
+            || (activeParams.scattering != p.scattering)
+            || (activeParams.erCrossoverMs != p.erCrossoverMs)
+            || (activeParams.lateDensity != p.lateDensity)
+            || (activeParams.asymmetry != p.asymmetry)
+            || (activeParams.clarityDB != p.clarityDB);
+
         activeParams = p;
 
-        switch (p.algorithmIndex) {
-        case 0: case 1: currentTopology = ReverbTopology::Room;       break;
-        case 2: case 3: currentTopology = ReverbTopology::Hall;       break;
-        case 4:         currentTopology = ReverbTopology::Plate;      break;
-        case 5:         currentTopology = ReverbTopology::Spring;     break;
-        case 6:         currentTopology = ReverbTopology::Goldfoil;   break;
-        case 7:         currentTopology = ReverbTopology::Inchindown; break;
+        if (algoChanged) {
+            switch (p.algorithmIndex) {
+            case 0: case 1: currentTopology = ReverbTopology::Room;       break;
+            case 2: case 3: currentTopology = ReverbTopology::Hall;       break;
+            case 4:         currentTopology = ReverbTopology::Plate;      break;
+            case 5:         currentTopology = ReverbTopology::Spring;     break;
+            case 6:         currentTopology = ReverbTopology::Goldfoil;   break;
+            case 7:         currentTopology = ReverbTopology::Inchindown; break;
+            }
         }
 
-        const float attMs = juce::jmax(0.1f, p.duckingAttackMs);
-        const float relMs = juce::jmax(0.1f, p.duckingRelMs);
-        duckingAttackCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * attMs * 0.001f));
-        duckingReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * relMs * 0.001f));
-
+        // 即時反映パラメータ (トポロジー再計算不要・吸音クロスフェード遮断)
         preDelaySamples = p.preDelayMs * 0.001f * static_cast<float>(fs);
         outputEQ.setLoCutHz(p.loCutHz);
         outputEQ.setHiCutHz(p.hiCutHz);
+        dynamicDucker.setParameters(p.duckingAmount, p.duckingAttackMs, p.duckingRelMs, p.duckingThreshDB);
 
         if (algoChanged) {
             updateTopologyAndRouting();
             topologyUpdateCounter = 0;
-        } else {
+            topologyUpdatePending = false;
+        } else if (topologyNeedsUpdate) {
             topologyUpdatePending = true;
         }
     }
@@ -410,32 +442,38 @@ namespace FDNReverb {
         std::array<float, NUM_BANDS> targetDbAccum;
         targetDbAccum.fill(0.0f);
         
-        const bool nextIsA = !useAbsoStateA;
+        const bool isFirstInit = (absoCrossfadePos >= 1.0f && absorptionCoeffsS2_A[0][0].b0 == 0.0f);
+        const bool nextIsA = isFirstInit ? true : !useAbsoStateA;
 
         for (int i = 0; i < FDN_ORDER; ++i) {
             auto s2 = fitter.designStage2(
                 static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
-                if (nextIsA) {
+                if (isFirstInit) {
+                    absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
+                    absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
+                } else if (nextIsA) {
                     absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
                 } else {
                     absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
                 }
                 targetDbAccum[b] += s2.targetDb[b];
             }
-            // 状態変数の同期: 次にアクティブになる側に、現在の状態変数をコピーして連続性を保つ
-            for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                if (nextIsA) {
-                    absorptionFiltersS2_A[i][s] = absorptionFiltersS2_B[i][s];
-                } else {
-                    absorptionFiltersS2_B[i][s] = absorptionFiltersS2_A[i][s];
+            if (!isFirstInit) {
+                // 状態変数の同期: 次にアクティブになる側に、現在の状態変数をコピーして連続性を保つ
+                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                    if (nextIsA) {
+                        absorptionFiltersS2_A[i][s] = absorptionFiltersS2_B[i][s];
+                    } else {
+                        absorptionFiltersS2_B[i][s] = absorptionFiltersS2_A[i][s];
+                    }
                 }
             }
         }
         
         useAbsoStateA = nextIsA;
-        absoCrossfadePos = 0.0f; // Start crossfade
+        absoCrossfadePos = isFirstInit ? 1.0f : 0.0f;
 
         // ★ 実効 RT60（ユーザー設定に 100% 忠実な物理値）
         effectiveRT60 = targetRT60;

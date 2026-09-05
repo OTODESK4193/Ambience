@@ -45,7 +45,7 @@ namespace FDNReverb {
     // ═══════════════════════════════════════════════════════════════════════════
     class LinearDelayLine {
     public:
-        void resetState() noexcept {}
+        void resetState() noexcept { writeIndex = 0; }
         void init(float* memory, int bitmask) {
             buffer = memory;
             mask = bitmask;

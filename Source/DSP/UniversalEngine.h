@@ -193,24 +193,20 @@ namespace FDNReverb {
         OutputLimiter outputLimiter;
         OutputEQ      outputEQ;
 
-        float duckingEnvelope{ 0.0f };
-        float duckingAttackCoeff{ 0.0f };
-        float duckingReleaseCoeff{ 0.0f };
-
-        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_A;
-        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_B;
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_A;
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_B;
+        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_A{};
+        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_B{};
+        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_A{};
+        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_B{};
         
         float absoCrossfadePos{ 1.0f };
         float absoCrossfadeInc{ 0.0f };
         bool useAbsoStateA{ true };
 
-        std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs;
-        std::array<float, FDN_ORDER>               fdnBaseDelaySamples;
-        std::array<float, FDN_ORDER>               currentFdnDelaySamples;
+        std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs{};
+        std::array<float, FDN_ORDER>               fdnBaseDelaySamples{};
+        std::array<float, FDN_ORDER>               currentFdnDelaySamples{};
         float                                      delaySmoothCoeff{ 0.0f };
-        std::array<float, FDN_ORDER>               fbVec;
+        std::array<float, FDN_ORDER>               fbVec{};
 
         float apfGain{ 0.618f };
         bool  bypassER{ false };
@@ -233,19 +229,19 @@ namespace FDNReverb {
         float loopReleaseCoeff{ 0.0f };
 
         // ★ ループ不変量事前計算キャッシュ (Hot Loop CPU 最適化)
-        std::array<float, FDN_ORDER> cachedFreqModScales;
-        std::array<float, 4> cachedDiffuserDelaySmpM;
-        std::array<float, 4> cachedDiffuserDelaySmpS;
-        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelaySmp;
-        std::array<float, FDN_ORDER> dualLfoIncScale1;
-        std::array<float, FDN_ORDER> dualLfoIncScale2;
+        std::array<float, FDN_ORDER> cachedFreqModScales{};
+        std::array<float, 4> cachedDiffuserDelaySmpM{};
+        std::array<float, 4> cachedDiffuserDelaySmpS{};
+        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelaySmp{};
+        std::array<float, FDN_ORDER> dualLfoIncScale1{};
+        std::array<float, FDN_ORDER> dualLfoIncScale2{};
 
-        std::array<float, FDN_ORDER> dcX1;
-        std::array<float, FDN_ORDER> dcY1;
+        std::array<float, FDN_ORDER> dcX1{};
+        std::array<float, FDN_ORDER> dcY1{};
         float dcBlockerCoeff{ 0.999f };
 
-        std::array<float, NUM_BANDS> effectiveRT60;
-        std::array<float, NUM_BANDS> targetRT60;
+        std::array<float, NUM_BANDS> effectiveRT60{};
+        std::array<float, NUM_BANDS> targetRT60{};
         float theoreticalEDT{ 0.0f };
         float currentRT60Mid{ 1.5f };
 
