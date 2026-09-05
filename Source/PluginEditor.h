@@ -122,6 +122,8 @@ private:
 
     void updateTheme(int idx);
     void updateBypassButtonColor();
+    juce::File getThemeSettingsFile() const;
+    void applySavedTheme();
 
     // ── Preset UI ──
     std::unique_ptr<PresetManager> presetManager;

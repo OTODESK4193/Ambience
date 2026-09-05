@@ -216,8 +216,8 @@ void PresetBrowser::paint(juce::Graphics& g)
 {
     const auto& theme = laf.getTheme();
 
-    // グラスモーフィック背景
-    g.setColour(theme.surface.withAlpha(0.96f));
+    // ソリッドなパネル背景（背後のグラフが透けない完全不透明）
+    g.setColour(theme.panel);
     g.fillRoundedRectangle(getLocalBounds().toFloat(), 6.0f);
 
     g.setColour(theme.border);
