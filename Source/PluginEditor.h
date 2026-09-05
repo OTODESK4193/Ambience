@@ -7,6 +7,7 @@
 #include "GUI/AmbienceUI.h"
 #include "GUI/SpectrumAnalyzer.h"
 #include "GUI/DecayCurveViz.h"
+#include "GUI/PresetBrowser.h"
 
 class FDNReverbEditor : public juce::AudioProcessorEditor,
     private juce::Timer,
@@ -124,8 +125,10 @@ private:
 
     // ── Preset UI ──
     std::unique_ptr<PresetManager> presetManager;
+    std::unique_ptr<PresetBrowser> presetBrowser;
     juce::TextButton presetPrevButton;
     juce::ComboBox   presetCombo;
+    juce::TextButton presetOverlayButton;
     juce::TextButton presetRevertButton;
     juce::TextButton presetNextButton;
     juce::TextButton presetSaveButton;

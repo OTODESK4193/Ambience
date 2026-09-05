@@ -518,6 +518,10 @@ void ArcKnob::build(juce::AudioProcessorValueTreeState& apvts,
         juce::Colours::transparentBlack);
 
     if (auto* p = apvts.getParameter(paramID)) {
+        float normDef = p->getDefaultValue();
+        float realDef = apvts.getParameterRange(paramID).convertFrom0to1(normDef);
+        slider.setDefaultValue(realDef);
+
         const juce::String unit = p->label;
         if (unit == "%") {
             slider.textFromValue = [](double val) {

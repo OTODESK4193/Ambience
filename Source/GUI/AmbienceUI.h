@@ -165,6 +165,20 @@ public:
         setMouseDragSensitivity(250);
     }
 
+    void setDefaultValue(double val) noexcept
+    {
+        defaultValue = val;
+        hasDefaultValue = true;
+    }
+
+    double getDefaultValue() const noexcept { return defaultValue; }
+
+    void resetToDefault()
+    {
+        if (hasDefaultValue)
+            setValue(defaultValue, juce::sendNotificationAsync);
+    }
+
     void mouseDoubleClick(const juce::MouseEvent&) override
     {
         showTextBox();
@@ -172,6 +186,25 @@ public:
 
     void mouseDown(const juce::MouseEvent& e) override
     {
+        // Alt + クリック または Ctrl + クリック（macOS は Cmd + クリック）でデフォルト値に復帰！
+        if (e.mods.isAltDown() || e.mods.isCtrlDown() || e.mods.isCommandDown())
+        {
+            resetToDefault();
+            return;
+        }
+
+        // 右クリックでコンテキストメニュー
+        if (e.mods.isPopupMenu())
+        {
+            juce::PopupMenu m;
+            m.addItem(1, "Reset to Default", hasDefaultValue);
+            m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
+                [this](int result) {
+                    if (result == 1) resetToDefault();
+                });
+            return;
+        }
+
         if (e.mods.isShiftDown())
             setMouseDragSensitivity(1250); // Fine adjust (5x precision)
         else
@@ -181,6 +214,9 @@ public:
 
     void mouseDrag(const juce::MouseEvent& e) override
     {
+        if (e.mods.isAltDown() || e.mods.isCtrlDown() || e.mods.isCommandDown())
+            return;
+
         if (e.mods.isShiftDown())
             setMouseDragSensitivity(1250);
         else
@@ -210,6 +246,10 @@ public:
             return valueFromText(text);
         return juce::Slider::getValueFromText(text);
     }
+
+private:
+    double defaultValue{ 0.0 };
+    bool hasDefaultValue{ false };
 };
 
 // ─── Labelled Arc Knob ───────────────────────────────────────────────

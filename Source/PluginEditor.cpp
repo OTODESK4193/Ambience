@@ -296,6 +296,23 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     presetCombo.setTextWhenNothingSelected("Select Preset...");
     content.addAndMakeVisible(presetCombo);
 
+    presetOverlayButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    presetOverlayButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::transparentBlack);
+    presetOverlayButton.setButtonText("");
+    presetOverlayButton.setAlpha(0.0f);
+    presetOverlayButton.setTooltip("Click to open Preset Browser");
+    presetOverlayButton.onClick = [this] {
+        if (presetBrowser) {
+            bool willShow = !presetBrowser->isVisible();
+            presetBrowser->setVisible(willShow);
+            if (willShow) {
+                presetBrowser->setCurrentPreset(currentBasePresetName);
+                presetBrowser->toFront(true);
+            }
+        }
+    };
+    content.addAndMakeVisible(presetOverlayButton);
+
     presetNextButton.setButtonText(">");
     presetNextButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
     presetNextButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
@@ -364,7 +381,60 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         currentBasePresetName = name;
         setPresetModified(false);
         refreshPresetCombo();
+        if (presetBrowser) presetBrowser->setCurrentPreset(name);
     };
+
+    presetBrowser = std::make_unique<PresetBrowser>(*presetManager, laf);
+    presetBrowser->onLoadFactory = [this](const PresetBrowser::FactoryPresetDef& def) {
+        ++loadingPresetCounter;
+        auto setParamVal = [this](const juce::String& paramId, float value) {
+            if (auto* p = audioProcessor.apvts.getParameter(paramId))
+                p->setValueNotifyingHost(p->convertTo0to1(value));
+        };
+        setParamVal("algorithm", (float)def.algorithmIndex);
+        setParamVal("roomsize", def.roomSize);
+        setParamVal("decaytime", def.decayTime);
+        setParamVal("diffusion", def.diffusion);
+        setParamVal("modamount", def.modAmount);
+        setParamVal("modrate", def.modRate);
+        setParamVal("stereowidth", def.stereoWidth);
+        setParamVal("predelay", def.preDelayMs);
+        setParamVal("erlevel", def.erLevel);
+        setParamVal("hfdamping", def.hfDamp);
+        setParamVal("lfabsorption", def.lfAbsorb);
+        setParamVal("saturation", def.saturation);
+        setParamVal("sattype", (float)def.satType);
+        --loadingPresetCounter;
+        currentBasePresetName = def.name;
+        setPresetModified(false);
+        refreshPresetCombo();
+        if (presetBrowser) presetBrowser->setCurrentPreset(def.name);
+    };
+
+    presetBrowser->onLoadUser = [this](const juce::String& name) {
+        if (presetManager) {
+            ++loadingPresetCounter;
+            presetManager->loadPreset(name);
+            currentBasePresetName = name;
+            setPresetModified(false);
+            refreshPresetCombo();
+            if (presetBrowser) presetBrowser->setCurrentPreset(name);
+            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+            juce::Timer::callAfterDelay(50, [safeThis] {
+                if (safeThis != nullptr) {
+                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                    safeThis->setPresetModified(false);
+                }
+            });
+        }
+    };
+
+    presetBrowser->onClose = [this] {
+        if (presetBrowser)
+            presetBrowser->setVisible(false);
+    };
+
+    content.addChildComponent(*presetBrowser);
 
     presetCombo.onChange = [this] {
         if (loadingPresetCounter > 0) return;
@@ -526,19 +596,19 @@ void FDNReverbEditor::timerCallback() {
         content.repaint();
     }
 
-    // スライディングピルのターゲット位置計算 (カプセルバー内: MAIN: 175, RT60: 227, PRO: 279)
-    if (isRT60Tab)       tabPillTargetX = 227.0f;
-    else if (isProTab)   tabPillTargetX = 279.0f;
-    else                 tabPillTargetX = 175.0f;
+    // スライディングピルのターゲット位置計算 (カプセルバー内: MAIN: 160, RT60: 211, PRO: 262)
+    if (isRT60Tab)       tabPillTargetX = 211.0f;
+    else if (isProTab)   tabPillTargetX = 262.0f;
+    else                 tabPillTargetX = 160.0f;
 
-    // スムーズなピル移動補間 (Ease-Out)
+    // スムーズなピル移動補間 (さらにゆったり上質で落ち着いた Ease-Out)
     const float prevPillX = tabPillCurrentX;
-    tabPillCurrentX += 0.32f * (tabPillTargetX - tabPillCurrentX);
+    tabPillCurrentX += 0.08f * (tabPillTargetX - tabPillCurrentX);
 
-    // スムーズなコンテンツスライド補間 (Ease-Out)
+    // スムーズなコンテンツスライド補間 (さらにゆったり滑らかな Ease-Out)
     bool needRelayout = false;
     if (std::abs(contentSlideOffset) > 0.1f) {
-        contentSlideOffset *= 0.72f;
+        contentSlideOffset *= 0.90f;
         if (std::abs(contentSlideOffset) < 0.1f) contentSlideOffset = 0.0f;
         needRelayout = true;
     }
@@ -547,9 +617,9 @@ void FDNReverbEditor::timerCallback() {
         layoutContent();
     }
 
-    // タブ切替アニメーション (滑らかなフェードトランジション)
+    // タブ切替アニメーション (ゆったり吸い付くようなフェードトランジション)
     if (tabTransitionAlpha < 1.0f) {
-        tabTransitionAlpha = std::min(1.0f, tabTransitionAlpha + 0.14f);
+        tabTransitionAlpha = std::min(1.0f, tabTransitionAlpha + 0.035f);
         content.setAlpha(0.6f + 0.4f * tabTransitionAlpha);
         content.repaint();
     } else if (std::abs(tabPillCurrentX - prevPillX) > 0.1f) {
@@ -662,6 +732,9 @@ void FDNReverbEditor::refreshPresetCombo() {
     presetPrevButton.setEnabled(names.size() > 1);
     presetNextButton.setEnabled(names.size() > 1);
     presetRevertButton.setEnabled(isPresetModified);
+
+    if (presetBrowser)
+        presetBrowser->setCurrentPreset(currentBasePresetName);
 }
 
 void FDNReverbEditor::parameterChanged(const juce::String& paramID, float newValue) {
@@ -706,10 +779,11 @@ void FDNReverbEditor::setPresetModified(bool modified) {
         presetCombo.setText(displayText, juce::dontSendNotification);
     }
     presetRevertButton.setEnabled(modified);
+    const auto& theme = laf.getTheme();
     presetRevertButton.setColour(juce::TextButton::buttonColourId,
-        modified ? AmbienceColors::Accent : AmbienceColors::Surface);
+        modified ? theme.primary : theme.surface);
     presetRevertButton.setColour(juce::TextButton::textColourOffId,
-        modified ? AmbienceColors::Background : AmbienceColors::TextSecondary);
+        modified ? theme.background : theme.textSecondary);
     presetRevertButton.repaint();
 }
 
@@ -780,135 +854,140 @@ void FDNReverbEditor::resized() {
 }
 
 void FDNReverbEditor::layoutContent() {
-    titleLabel.setBounds(PAD, Y_HEADER, 160, 32);
+    titleLabel.setBounds(PAD, Y_HEADER, 145, 32);
 
-    // ── Segmented Pill Tab Bar (カプセルバー: x=173, w=158, h=24) ──
-    mainTabButton.setBounds(175, Y_HEADER + 5, 50, 22);
-    rt60TabButton.setBounds(227, Y_HEADER + 5, 50, 22);
-    proTabButton.setBounds(279, Y_HEADER + 5, 50, 22);
+    // ── Segmented Pill Tab Bar (カプセルバー: x=158, w=156, h=24) ──
+    mainTabButton.setBounds(160, Y_HEADER + 5, 50, 22);
+    rt60TabButton.setBounds(211, Y_HEADER + 5, 50, 22);
+    proTabButton.setBounds(262, Y_HEADER + 5, 50, 22);
 
-    erSoloButton.setBounds(337, Y_HEADER + 5, 62, 22);
-    lockButton.setBounds(403, Y_HEADER + 5, 46, 22);
-    sendModeButton.setBounds(453, Y_HEADER + 5, 46, 22);
-    panicButton.setBounds(503, Y_HEADER + 5, 46, 22);
-    bypassButton.setBounds(553, Y_HEADER + 5, 54, 22);
+    erSoloButton.setBounds(320, Y_HEADER + 5, 58, 22);
+    lockButton.setBounds(381, Y_HEADER + 5, 44, 22);
+    sendModeButton.setBounds(428, Y_HEADER + 5, 44, 22);
+    panicButton.setBounds(475, Y_HEADER + 5, 44, 22);
+    bypassButton.setBounds(522, Y_HEADER + 5, 54, 22);
 
-    vuIn.setBounds(W - 220, Y_HEADER + 2, 96, 28);
-    vuOut.setBounds(W - 120, Y_HEADER + 2, 96, 28);
+    // Bypass の右側 (x=584) から右端 (x=892) までの幅 308px を均等活用！
+    // 2つのメーター幅: (308 - 12) / 2 = 148px
+    vuIn.setBounds(584, Y_HEADER + 2, 148, 28);
+    vuOut.setBounds(744, Y_HEADER + 2, 148, 28);
 
     algoSelector.setBounds(PAD, Y_ALGO, W - PAD * 2, 30);
 
     const int slide = static_cast<int>(contentSlideOffset);
 
-    auto place1 = [&](ArcKnob& k, int& x, int y) {
+    auto placeKnob = [&](ArcKnob& k, int x, int y) {
         k.label.setBounds(x + slide, y, KNOB_W, KNOB_LBL_H);
         k.slider.setBounds(x + slide, y + KNOB_LBL_H, KNOB_W, KNOB_H);
-        x += KNOB_W + ROW1_GAP;
     };
-    auto place2 = [&](ArcKnob& k, int& x, int y) {
-        k.label.setBounds(x + slide, y, KNOB_W, KNOB_LBL_H);
-        k.slider.setBounds(x + slide, y + KNOB_LBL_H, KNOB_W, KNOB_H);
-        x += KNOB_W + PAD;
-    };
+
+    const int yRow1 = 98;  // カード Y=86 内のノブ上端 (label: 98, slider: 112..184, card: 86..196)
+    const int yRow2 = 214; // カード Y=204 内のノブ上端 (label: 214, slider: 228..300, card: 204..316)
 
     if (!isRT60Tab && !isProTab) {
-        // Row 1
-        int kx = PAD;
-        place1(kPreDelay, kx, Y_ROW1);
-        place1(kRoomSize, kx, Y_ROW1);
-        place1(kDecay, kx, Y_ROW1);
-        place1(kHFDamp, kx, Y_ROW1);
-        place1(kLFAbsorb, kx, Y_ROW1);
-        place1(kDiffusion, kx, Y_ROW1);
-        place1(kModAmt, kx, Y_ROW1);
-        place1(kModRate, kx, Y_ROW1);
-        place1(kStereoW, kx, Y_ROW1);
-        place1(kERLevel, kx, Y_ROW1);
-        place1(kSaturation, kx, Y_ROW1);
+        // ── MAIN Tab: Row 1 ──
+        // TIME (Card: x=8, w=210)
+        placeKnob(kPreDelay, 17, yRow1);
+        placeKnob(kRoomSize, 85, yRow1);
+        placeKnob(kDecay,    153, yRow1);
 
-        // Row 2: MIX | OUT EQ | DUCKING
-        kx = PAD;
-        place2(kWet, kx, Y_ROW2);
-        place2(kDry, kx, Y_ROW2);
-        kx += 16;
-        place2(kLoCutNorm, kx, Y_ROW2);
-        place2(kHiCutNorm, kx, Y_ROW2);
-        kx += 16;
-        place2(kDuckAmt, kx, Y_ROW2);
-        place2(kDuckThr, kx, Y_ROW2);
-        place2(kDuckAtt, kx, Y_ROW2);
-        place2(kDuckRel, kx, Y_ROW2);
+        // FREQUENCY (Card: x=224, w=144)
+        placeKnob(kHFDamp,   230, yRow1);
+        placeKnob(kLFAbsorb, 298, yRow1);
+
+        // DIFFUSION & MOD (Card: x=374, w=210)
+        placeKnob(kDiffusion, 381, yRow1);
+        placeKnob(kModAmt,    449, yRow1);
+        placeKnob(kModRate,   517, yRow1);
+
+        // SPATIAL & DYNAMICS (Card: x=590, w=302)
+        placeKnob(kStereoW,    615, yRow1);
+        placeKnob(kERLevel,    709, yRow1);
+        placeKnob(kSaturation, 803, yRow1);
+
+        // ── MAIN Tab: Row 2 ──
+        // MIX (Card: x=8, w=144)
+        placeKnob(kWet, 14, yRow2);
+        placeKnob(kDry, 82, yRow2);
+
+        // OUT EQ (Card: x=158, w=144)
+        placeKnob(kLoCutNorm, 164, yRow2);
+        placeKnob(kHiCutNorm, 232, yRow2);
+
+        // DUCKING (Card: x=308, w=276)
+        placeKnob(kDuckAmt, 312, yRow2);
+        placeKnob(kDuckThr, 380, yRow2);
+        placeKnob(kDuckAtt, 448, yRow2);
+        placeKnob(kDuckRel, 516, yRow2);
     } else if (isRT60Tab) {
-        int kx = PAD;
-        for (int i = 0; i < 10; ++i)
-            place1(kRTBands[i], kx, Y_ROW1);
+        // ── RT60 Tab: Row 1 (10-Band Evenly Centered across 884px) ──
+        // Card: x=8, w=884
+        for (int i = 0; i < 10; ++i) {
+            const int kx = 27 + i * 87;
+            placeKnob(kRTBands[i], kx, yRow1);
+        }
 
-        int kx2 = PAD;
-        satTypeLabel.setBounds(kx2 + slide, Y_SLABEL2, KNOB_W, KNOB_LBL_H);
-        satTypeCombo.setBounds(kx2 + slide, Y_SLABEL2 + KNOB_LBL_H + 2, KNOB_W + PAD, 24);
-        kx2 += KNOB_W + PAD + PAD + 8;
-        place2(kTiltLow, kx2, Y_ROW2);
-        place2(kTiltMid, kx2, Y_ROW2);
-        place2(kTiltHigh, kx2, Y_ROW2);
+        // ── RT60 Tab: Row 2 ──
+        // SATURATION (Card: x=8, w=144)
+        satTypeLabel.setText("TYPE", juce::dontSendNotification);
+        satTypeLabel.setBounds(14 + slide, 218, 132, 14);
+        satTypeCombo.setBounds(14 + slide, 238, 132, 26);
 
-        const int theme_x = kx2 + 24;
-        themeLabel.setBounds(theme_x + slide, Y_SLABEL2, 120, KNOB_LBL_H);
-        themeCombo.setBounds(theme_x + slide, Y_SLABEL2 + KNOB_LBL_H + 2, 120, 24);
+        // TILT EQ (Card: x=158, w=220)
+        placeKnob(kTiltLow,  165, yRow2);
+        placeKnob(kTiltMid,  236, yRow2);
+        placeKnob(kTiltHigh, 307, yRow2);
+
+        // THEME (Card: x=384, w=200)
+        themeLabel.setText("PALETTE", juce::dontSendNotification);
+        themeLabel.setBounds(392 + slide, 218, 184, 14);
+        themeCombo.setBounds(392 + slide, 238, 184, 26);
     } else if (isProTab) {
-        // PRO Tab Row 1: 一行目に Acoustic/Spatial 6ノブを一列に配置
-        const int availableW = PRESET_PANEL_X - PAD;
-        const int totalKnobW = 6 * KNOB_W;
-        const int gap = (availableW - totalKnobW - 16) / 5;
-        int kx = PAD + 8;
+        // ── PRO Tab: Row 1 (6 Parameters Evenly Distributed across 884px) ──
+        // Card: x=8, w=884
+        placeKnob(kScattering,  54,  yRow1);
+        placeKnob(kERCrossover, 199, yRow1);
+        placeKnob(kLateDensity, 344, yRow1);
+        placeKnob(kAsymmetry,   489, yRow1);
+        placeKnob(kClarity,     634, yRow1);
+        placeKnob(kAirAbsorb,   779, yRow1);
 
-        auto placePro1 = [&](ArcKnob& k) {
-            k.label.setBounds(kx + slide, Y_ROW1, KNOB_W, KNOB_LBL_H);
-            k.slider.setBounds(kx + slide, Y_ROW1 + KNOB_LBL_H, KNOB_W, KNOB_H);
-            kx += KNOB_W + gap;
-        };
+        // ── PRO Tab: Row 2 ──
+        // PARAMETRIC OUT EQ (Card: x=8, w=576)
+        // LOW BAND
+        loEQTypeLabel.setBounds(16 + slide, 218, 64, 14);
+        loEQTypeCombo.setBounds(16 + slide, 238, 64, 24);
+        placeKnob(kLoCutPro,  86,  yRow2);
+        placeKnob(kLoGainPro, 154, yRow2);
 
-        placePro1(kScattering);
-        placePro1(kERCrossover);
-        placePro1(kLateDensity);
-        placePro1(kAsymmetry);
-        placePro1(kClarity);
-        placePro1(kAirAbsorb);
+        // HIGH BAND
+        hiEQTypeLabel.setBounds(226 + slide, 218, 64, 14);
+        hiEQTypeCombo.setBounds(226 + slide, 238, 64, 24);
+        placeKnob(kHiCutPro,  296, yRow2);
+        placeKnob(kHiGainPro, 364, yRow2);
 
-        // PRO Tab Row 2: 二行目に Lo / Hi EQ カーブコンボ、Freq ノブ、Gain ノブ、右側に OutEQ カーブ
-        int kx2 = PAD + 4;
-        loEQTypeLabel.setBounds(kx2 + slide, Y_SLABEL2, 60, KNOB_LBL_H);
-        loEQTypeCombo.setBounds(kx2 + slide, Y_SLABEL2 + KNOB_LBL_H + 2, 60, 24);
-        kx2 += 64;
-        place2(kLoCutPro, kx2, Y_ROW2);
-        place2(kLoGainPro, kx2, Y_ROW2);
-
-        kx2 += 8;
-        hiEQTypeLabel.setBounds(kx2 + slide, Y_SLABEL2, 60, KNOB_LBL_H);
-        hiEQTypeCombo.setBounds(kx2 + slide, Y_SLABEL2 + KNOB_LBL_H + 2, 60, 24);
-        kx2 += 64;
-        place2(kHiCutPro, kx2, Y_ROW2);
-        place2(kHiGainPro, kx2, Y_ROW2);
-
-        const int vizX = kx2 + 8;
-        const int vizW = std::max(120, PRESET_PANEL_X - vizX - 12);
-        outEQViz.setBounds(vizX + slide, Y_SLABEL2, vizW, UNIT_H + 6);
+        // OUT EQ RESPONSE GRAPH
+        outEQViz.setBounds(436 + slide, 212, 140, 96);
     }
 
-    // Preset Section (Idea B: Wide Combo Top, 4 Buttons Bottom with zero cut-off)
+    // ── PRESET Section (Card: x=590, w=302, y=204..316) ──
     {
-        const int px = PRESET_PANEL_X;
+        const int px = 590 + slide;
         const int btnH = 26;
 
-        presetPrevButton.setBounds(px, Y_ROW2, 26, btnH);
-        presetCombo.setBounds(px + 30, Y_ROW2, 200, btnH);
-        presetNextButton.setBounds(px + 234, Y_ROW2, 26, btnH);
+        // Top line: Navigation & Preset Combo
+        presetPrevButton.setBounds(px + 8, 222, 26, btnH);
+        presetCombo.setBounds(px + 38, 222, 226, btnH);
+        presetOverlayButton.setBounds(px + 38, 222, 226, btnH);
+        presetNextButton.setBounds(px + 268, 222, 26, btnH);
 
-        const int btnW = 62;
-        const int gap = 4;
-        presetSaveButton.setBounds(px, Y_ROW2 + 34, btnW, btnH);
-        presetRevertButton.setBounds(px + (btnW + gap) * 1, Y_ROW2 + 34, btnW, btnH);
-        presetLoadButton.setBounds(px + (btnW + gap) * 2, Y_ROW2 + 34, btnW, btnH);
-        presetDeleteButton.setBounds(px + (btnW + gap) * 3, Y_ROW2 + 34, btnW, btnH);
+        // Bottom line: 4 Action Buttons
+        const int btnW = 68;
+        const int gap = 6;
+        presetSaveButton.setBounds(px + 7, 258, btnW, btnH);
+        presetRevertButton.setBounds(px + 7 + (btnW + gap) * 1, 258, btnW, btnH);
+        presetLoadButton.setBounds(px + 7 + (btnW + gap) * 2, 258, btnW, btnH);
+        presetDeleteButton.setBounds(px + 7 + (btnW + gap) * 3, 258, btnW, btnH);
     }
 
     // ── Visualizers: RT60 グラフ 135px、ER/LATE 64px ──
@@ -924,6 +1003,13 @@ void FDNReverbEditor::layoutContent() {
     const int dtW = 220;
     const int dtX = W - PAD - dtW - 8;
     labelDecayLine.setBounds(dtX, decayY + 4, dtW, 16);
+
+    // ── Preset Browser Overlay (RT60/ERグラフエリア全体に重ねて表示: 884 x 206) ──
+    if (presetBrowser) {
+        presetBrowser->setBounds(PAD, Y_VIZ, W - PAD * 2, H - Y_VIZ - PAD);
+        if (presetBrowser->isVisible())
+            presetBrowser->toFront(true);
+    }
 }
 
 void FDNReverbEditor::paintContent(juce::Graphics& g) {
@@ -939,7 +1025,7 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
 
     // ── ヘッダー: スライディングピル カプセルバー ──
     {
-        juce::Rectangle<float> barRect(173.0f, (float)(Y_HEADER + 4), 158.0f, 24.0f);
+        juce::Rectangle<float> barRect(158.0f, (float)(Y_HEADER + 4), 156.0f, 24.0f);
         // カプセル背景
         g.setColour(theme.surface.withAlpha(0.70f));
         g.fillRoundedRectangle(barRect, 12.0f);
@@ -966,12 +1052,12 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         g.setColour(theme.border.withAlpha(0.50f));
         g.drawRoundedRectangle(cardRect.reduced(0.5f), 6.0f, 1.0f);
 
-        // アクセントタイトルバッジ
+        // アクセントタイトルバッジ (カード上端にすっきりと浮かび上がる)
         if (title.isNotEmpty()) {
             juce::Font badgeFont(juce::FontOptions("Helvetica Neue", 8.5f, juce::Font::bold));
             g.setFont(badgeFont);
-            const float textW = badgeFont.getStringWidthFloat(title) + 14.0f;
-            juce::Rectangle<float> badgeRect(cx + 8.0f, cy - 6.0f, textW, 14.0f);
+            const float textW = badgeFont.getStringWidthFloat(title) + 16.0f;
+            juce::Rectangle<float> badgeRect(cx + 8.0f, cy - 7.0f, textW, 14.0f);
 
             // バッジ背景
             g.setColour(theme.panel);
@@ -985,39 +1071,35 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         }
     };
 
-    const float cardH1 = (float)(UNIT_H + 16);
-    const float cardH2 = (float)(UNIT_H + 16);
-    const float cardY1 = (float)(Y_SLABEL1 + 3);
-    const float cardY2 = (float)(Y_SLABEL2 + 3);
+    const float cardY1 = 86.0f;
+    const float cardH1 = 110.0f;
+    const float cardY2 = 204.0f;
+    const float cardH2 = 112.0f;
 
     if (!isRT60Tab && !isProTab) {
         // Row 1 Cards
-        drawCard((float)PAD, cardY1, (float)(3 * (KNOB_W + ROW1_GAP) - ROW1_GAP + 8), cardH1, "TIME");
-        drawCard((float)(PAD + 3 * (KNOB_W + ROW1_GAP) + 12), cardY1, (float)(2 * (KNOB_W + ROW1_GAP) - ROW1_GAP + 8), cardH1, "FREQUENCY");
-        drawCard((float)(PAD + 5 * (KNOB_W + ROW1_GAP) + 24), cardY1, (float)(3 * (KNOB_W + ROW1_GAP) - ROW1_GAP + 8), cardH1, "DIFFUSION & MOD");
-        drawCard((float)(PAD + 8 * (KNOB_W + ROW1_GAP) + 36), cardY1, (float)(3 * (KNOB_W + ROW1_GAP) - ROW1_GAP + 8), cardH1, "SPATIAL & DYNAMICS");
+        drawCard(8.0f,   cardY1, 210.0f, cardH1, "TIME");
+        drawCard(224.0f, cardY1, 144.0f, cardH1, "FREQUENCY");
+        drawCard(374.0f, cardY1, 210.0f, cardH1, "DIFFUSION & MOD");
+        drawCard(590.0f, cardY1, 302.0f, cardH1, "SPATIAL & DYNAMICS");
 
         // Row 2 Cards
-        const float outeq_x = (float)(PAD + 2 * (KNOB_W + PAD) + 16);
-        const float duck_x = (float)(outeq_x + 2 * (KNOB_W + PAD) + 16);
-        drawCard((float)PAD, cardY2, (float)(2 * (KNOB_W + PAD) - PAD + 8), cardH2, "MIX");
-        drawCard(outeq_x, cardY2, (float)(2 * (KNOB_W + PAD) - PAD + 8), cardH2, "OUT EQ");
-        drawCard(duck_x, cardY2, (float)(4 * (KNOB_W + PAD) - PAD + 8), cardH2, "DUCKING");
+        drawCard(8.0f,   cardY2, 144.0f, cardH2, "MIX");
+        drawCard(158.0f, cardY2, 144.0f, cardH2, "OUT EQ");
+        drawCard(308.0f, cardY2, 276.0f, cardH2, "DUCKING");
     } else if (isRT60Tab) {
-        drawCard((float)PAD, cardY1, (float)(W - PAD * 2), cardH1, "BAND RT60 MULTIPLIERS (10-BAND GRAPHIC EQ)");
+        drawCard(8.0f,   cardY1, 884.0f, cardH1, "10-BAND GRAPHIC RT60 MULTIPLIERS");
 
-        const float tilt_x = (float)(PAD + KNOB_W + PAD + PAD + 8);
-        const float theme_x = (float)(tilt_x + 3 * (KNOB_W + PAD) + 24);
-        drawCard((float)PAD, cardY2, (float)(KNOB_W + PAD + 12), cardH2, "SAT TYPE");
-        drawCard(tilt_x, cardY2, (float)(3 * (KNOB_W + PAD) - PAD + 8), cardH2, "TILT EQ");
-        drawCard(theme_x, cardY2, (float)(PRESET_PANEL_X - theme_x - 12), cardH2, "THEME");
+        drawCard(8.0f,   cardY2, 144.0f, cardH2, "SATURATION");
+        drawCard(158.0f, cardY2, 220.0f, cardH2, "TILT EQ");
+        drawCard(384.0f, cardY2, 200.0f, cardH2, "THEME");
     } else if (isProTab) {
-        drawCard((float)PAD, cardY1, (float)(W - PAD * 2), cardH1, "PRO ACOUSTIC & SPATIAL MATRIX (6 PARAMETERS)");
-        drawCard((float)PAD, cardY2, (float)(PRESET_PANEL_X - PAD - 12), cardH2, "PARAMETRIC OUT FILTER & RESPONSE");
+        drawCard(8.0f, cardY1, 884.0f, cardH1, "PRO ACOUSTIC & SPATIAL MATRIX (6 PARAMETERS)");
+        drawCard(8.0f, cardY2, 576.0f, cardH2, "PARAMETRIC OUT EQ");
     }
 
-    // PRESET Card (共通)
-    drawCard((float)(PRESET_PANEL_X - 6), cardY2, (float)(W - PRESET_PANEL_X - PAD + 6), cardH2, "PRESET");
+    // PRESET Card (共通: x=590, w=302 で 1行目カードと完全整列！)
+    drawCard(590.0f, cardY2, 302.0f, cardH2, "PRESET");
 }
 
 void FDNReverbEditor::updateTheme(int idx) {
@@ -1045,6 +1127,8 @@ void FDNReverbEditor::updateTheme(int idx) {
     rt60Viz.repaint();
     decayCurveViz.repaint();
     outEQViz.repaint();
+    if (presetBrowser)
+        presetBrowser->repaint();
 }
 
 void FDNReverbEditor::updateBypassButtonColor() {

@@ -48,6 +48,8 @@ target_sources(Ambience PRIVATE
     Source/DSP/AcousticMetrics.cpp
     Source/GUI/DecayCurveViz.h
     Source/GUI/DecayCurveViz.cpp
+    Source/GUI/PresetBrowser.h
+    Source/GUI/PresetBrowser.cpp
     Source/DSP/Saturator.h
     Source/DSP/OutputLimiter.h
     Source/DSP/OutputEQ.h
