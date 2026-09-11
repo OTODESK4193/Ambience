@@ -170,18 +170,35 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     };
     algoSelector.onUserAlgorithmSelected = [this](int newAlgo, bool shouldResetKnobs) {
         if (shouldResetKnobs) {
+            ++loadingPresetCounter;
             audioProcessor.loadPresetDefaults(newAlgo);
-        }
-        if (loadingPresetCounter > 0) return;
-        if (currentBasePresetName.isNotEmpty()) {
-            setPresetModified(true);
+            currentBasePresetName = "Init";
+            audioProcessor.setLastSavedPresetName("Init");
+            audioProcessor.setLastPresetModified(false);
+            setPresetModified(false);
+            refreshPresetCombo();
+            applySavedTheme();
+            if (presetBrowser) presetBrowser->setCurrentPreset("Init");
+
+            juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+            juce::Timer::callAfterDelay(100, [safeThis] {
+                if (safeThis != nullptr) {
+                    if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                    safeThis->setPresetModified(false);
+                    safeThis->audioProcessor.setLastPresetModified(false);
+                    safeThis->refreshPresetCombo();
+                    safeThis->applySavedTheme();
+                    if (safeThis->presetBrowser) safeThis->presetBrowser->setCurrentPreset("Init");
+                }
+            });
+        } else {
+            if (loadingPresetCounter == 0 && currentBasePresetName.isNotEmpty()) {
+                setPresetModified(true);
+            }
         }
     };
     algoSelector.onAlgorithmChangedCallback = [this](int) {
-        if (loadingPresetCounter > 0) return;
-        if (currentBasePresetName.isNotEmpty()) {
-            setPresetModified(true);
-        }
+        // UI更新などのためのコールバック（ロード中やユーザー選択時は無視）
     };
     content.addAndMakeVisible(algoSelector);
 
@@ -441,7 +458,6 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         setParamVal("tiltmid", 1.0f);
         setParamVal("tilthigh", 1.0f);
 
-        --loadingPresetCounter;
         currentBasePresetName = def.name;
         audioProcessor.setLastSavedPresetName(def.name);
         audioProcessor.setLastPresetModified(false);
@@ -449,6 +465,18 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
         refreshPresetCombo();
         applySavedTheme();
         if (presetBrowser) presetBrowser->setCurrentPreset(def.name);
+
+        juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+        juce::Timer::callAfterDelay(100, [safeThis, def] {
+            if (safeThis != nullptr) {
+                if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                safeThis->setPresetModified(false);
+                safeThis->audioProcessor.setLastPresetModified(false);
+                safeThis->refreshPresetCombo();
+                safeThis->applySavedTheme();
+                if (safeThis->presetBrowser) safeThis->presetBrowser->setCurrentPreset(def.name);
+            }
+        });
     };
 
     presetBrowser->onLoadUser = [this](const juce::String& name) {
@@ -463,11 +491,14 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             applySavedTheme();
             if (presetBrowser) presetBrowser->setCurrentPreset(name);
             juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
-            juce::Timer::callAfterDelay(50, [safeThis] {
+            juce::Timer::callAfterDelay(100, [safeThis, name] {
                 if (safeThis != nullptr) {
                     if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
                     safeThis->setPresetModified(false);
+                    safeThis->audioProcessor.setLastPresetModified(false);
+                    safeThis->refreshPresetCombo();
                     safeThis->applySavedTheme();
+                    if (safeThis->presetBrowser) safeThis->presetBrowser->setCurrentPreset(name);
                 }
             });
         }
@@ -494,10 +525,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             refreshPresetCombo();
             applySavedTheme();
             juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
-            juce::Timer::callAfterDelay(50, [safeThis] {
+            juce::Timer::callAfterDelay(100, [safeThis] {
                 if (safeThis != nullptr) {
                     if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
                     safeThis->setPresetModified(false);
+                    safeThis->audioProcessor.setLastPresetModified(false);
+                    safeThis->refreshPresetCombo();
                     safeThis->applySavedTheme();
                 }
             });
@@ -517,10 +550,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             refreshPresetCombo();
             applySavedTheme();
             juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
-            juce::Timer::callAfterDelay(50, [safeThis] {
+            juce::Timer::callAfterDelay(100, [safeThis] {
                 if (safeThis != nullptr) {
                     if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
                     safeThis->setPresetModified(false);
+                    safeThis->audioProcessor.setLastPresetModified(false);
+                    safeThis->refreshPresetCombo();
                     safeThis->applySavedTheme();
                 }
             });
@@ -540,10 +575,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
             refreshPresetCombo();
             applySavedTheme();
             juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
-            juce::Timer::callAfterDelay(50, [safeThis] {
+            juce::Timer::callAfterDelay(100, [safeThis] {
                 if (safeThis != nullptr) {
                     if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
                     safeThis->setPresetModified(false);
+                    safeThis->audioProcessor.setLastPresetModified(false);
+                    safeThis->refreshPresetCombo();
                     safeThis->applySavedTheme();
                 }
             });
@@ -794,7 +831,7 @@ void FDNReverbEditor::parameterChanged(const juce::String& paramID, float newVal
         return;
     }
 
-    if (paramID == "promode" || paramID == "theme") return;
+    if (paramID == "promode" || paramID == "theme" || paramID == "algorithm") return;
     if (currentBasePresetName.isNotEmpty()) {
         juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
         juce::MessageManager::callAsync([safeThis] {
