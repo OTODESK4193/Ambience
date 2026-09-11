@@ -11,6 +11,9 @@ FDNReverbAudioProcessor::FDNReverbAudioProcessor()
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
     apvts(*this, nullptr, "FDNReverbState", ParameterHelper::createLayout())
 {
+    loadPresetDefaults(0);
+    lastSavedPresetName = "Init";
+    lastPresetModified = false;
 }
 
 bool FDNReverbAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const

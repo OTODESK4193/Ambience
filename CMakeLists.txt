@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Ambience VERSION 2.0.0 LANGUAGES C CXX)
+project(Ambience VERSION 2.0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,7 +11,7 @@ juce_add_plugin(Ambience
     PLUGIN_MANUFACTURER_CODE "Otdk"
     PLUGIN_CODE             "Amb4"
     FORMATS                 VST3 Standalone
-    PRODUCT_NAME            "Ambience2.0.0"
+    PRODUCT_NAME            "Ambience2.0.1"
     PLUGIN_DESCRIPTION      "16-channel FDN Algorithmic Reverb"
     VST3_CATEGORIES         "Fx|Reverb"
     IS_SYNTH                FALSE
@@ -21,7 +21,7 @@ juce_add_plugin(Ambience
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     VST3_AUTO_MANIFEST      FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
-    VERSION                 "2.0.0"
+    VERSION                 "2.0.1"
 )
 
 target_sources(Ambience PRIVATE
@@ -90,7 +90,7 @@ target_compile_definitions(Ambience PRIVATE
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
-    AMBIENCE_VERSION="2.0.0B002"
+    AMBIENCE_VERSION="2.0.1B001"
 )
 
 if(MSVC)

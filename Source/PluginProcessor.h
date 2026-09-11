@@ -130,7 +130,7 @@ private:
     double lastSampleRate{ 0.0 };
 
     mutable juce::CriticalSection stateLock;
-    juce::String lastSavedPresetName;
+    juce::String lastSavedPresetName{ "Init" };
     bool lastPresetModified{ false };
     int savedEditorWidth{ 900 };
     int savedEditorHeight{ 540 };

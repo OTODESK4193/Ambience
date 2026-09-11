@@ -31,6 +31,11 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     setLookAndFeel(&laf);
 
     currentBasePresetName = audioProcessor.getLastSavedPresetName();
+    if (currentBasePresetName.isEmpty()) {
+        currentBasePresetName = "Init";
+        audioProcessor.setLastSavedPresetName("Init");
+        audioProcessor.setLastPresetModified(false);
+    }
     isPresetModified = audioProcessor.isLastPresetModified();
 
     // ── Content Component の設定 (80%縮小〜150%拡大) ──
@@ -316,7 +321,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     content.addAndMakeVisible(presetPrevButton);
 
     presetCombo.setLookAndFeel(&laf);
-    presetCombo.setTextWhenNothingSelected("Select Preset...");
+    presetCombo.setTextWhenNothingSelected("Init");
     presetCombo.setInterceptsMouseClicks(false, false);
     content.addAndMakeVisible(presetCombo);
 
@@ -357,6 +362,29 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     presetRevertButton.setEnabled(false);
     presetRevertButton.onClick = [this] {
         if (currentBasePresetName.isNotEmpty()) {
+            if (currentBasePresetName == "Init") {
+                int curAlgo = 0;
+                if (auto* param = audioProcessor.apvts.getRawParameterValue("algorithm"))
+                    curAlgo = juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, juce::roundToInt(param->load()));
+                ++loadingPresetCounter;
+                audioProcessor.loadPresetDefaults(curAlgo);
+                audioProcessor.setLastSavedPresetName("Init");
+                audioProcessor.setLastPresetModified(false);
+                setPresetModified(false);
+                refreshPresetCombo();
+                applySavedTheme();
+                juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
+                juce::Timer::callAfterDelay(100, [safeThis] {
+                    if (safeThis != nullptr) {
+                        if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
+                        safeThis->setPresetModified(false);
+                        safeThis->audioProcessor.setLastPresetModified(false);
+                        safeThis->refreshPresetCombo();
+                        safeThis->applySavedTheme();
+                    }
+                });
+                return;
+            }
             if (presetBrowser && presetBrowser->loadPresetByName(currentBasePresetName)) {
                 audioProcessor.setLastSavedPresetName(currentBasePresetName);
                 audioProcessor.setLastPresetModified(false);
@@ -374,10 +402,12 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
                 refreshPresetCombo();
                 applySavedTheme();
                 juce::Component::SafePointer<FDNReverbEditor> safeThis(this);
-                juce::Timer::callAfterDelay(50, [safeThis] {
+                juce::Timer::callAfterDelay(100, [safeThis] {
                     if (safeThis != nullptr) {
                         if (safeThis->loadingPresetCounter > 0) --safeThis->loadingPresetCounter;
                         safeThis->setPresetModified(false);
+                        safeThis->audioProcessor.setLastPresetModified(false);
+                        safeThis->refreshPresetCombo();
                         safeThis->applySavedTheme();
                     }
                 });
@@ -771,6 +801,10 @@ void FDNReverbEditor::refreshPresetCombo() {
             isPresetModified = audioProcessor.isLastPresetModified();
         } else if (presetManager->getCurrentPresetName().isNotEmpty()) {
             currentBasePresetName = presetManager->getCurrentPresetName();
+        } else {
+            currentBasePresetName = "Init";
+            audioProcessor.setLastSavedPresetName("Init");
+            isPresetModified = false;
         }
     }
 
