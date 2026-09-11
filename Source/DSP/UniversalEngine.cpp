@@ -318,6 +318,21 @@ namespace FDNReverb {
         outputEQ.setHiParams(p.hiEQType, p.hiCutHz, p.hiGainDB);
         dynamicDucker.setParameters(p.duckingAmount, p.duckingAttackMs, p.duckingRelMs, p.duckingThreshDB);
 
+        float satMultiplier = 1.0f;
+        switch (currentTopology) {
+        case ReverbTopology::Room:       satMultiplier = 0.90f; break;
+        case ReverbTopology::Hall:       satMultiplier = 0.93f; break;
+        case ReverbTopology::Plate:      satMultiplier = 1.00f; break;
+        case ReverbTopology::Spring:     satMultiplier = 1.05f; break;
+        case ReverbTopology::Goldfoil:   satMultiplier = 1.02f; break;
+        case ReverbTopology::Inchindown: satMultiplier = 0.90f; break;
+        }
+        const float effectiveSatAmount = juce::jlimit(0.0f, 1.0f, p.saturation * satMultiplier);
+        saturatorL.setAmount(effectiveSatAmount);
+        saturatorR.setAmount(effectiveSatAmount);
+        saturatorL.setMode(p.satTypeIdx);
+        saturatorR.setMode(p.satTypeIdx);
+
         if (algoChanged) {
             updateTopologyAndRouting();
             topologyUpdateCounter = 0;

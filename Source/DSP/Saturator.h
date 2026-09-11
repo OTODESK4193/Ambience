@@ -42,6 +42,7 @@ namespace FDNReverb {
             if (currentMode != mode) {
                 currentMode = mode;
                 reset();
+                setAmount(currentAmount);
             }
         }
 
@@ -51,16 +52,30 @@ namespace FDNReverb {
 
         void setAmount(float amount) noexcept {
             currentAmount = std::clamp(amount, 0.0f, 1.0f);
+            if (currentAmount < 0.001f) {
+                drive = 1.0f;
+                dryMix = 1.0f;
+                wetMix = 0.0f;
+                return;
+            }
             
-            // 音楽的なドライブ範囲: 1.0 〜 2.0 (+6.0dB)
-            // リバーブのウェット成分（0dBFS近傍）が過剰ブーストされてリミッターを潰すのを防ぐ
-            drive = 1.0f + currentAmount * 1.0f;
+            // リバーブテール（-14〜-24 dBFS）に対応する音楽的ドライブ
+            // amount: 0 -> 1.0x (0dB), 1.0 -> 4.5x (+13.1dB)
+            drive = 1.0f + currentAmount * 3.5f;
             
-            // 自動ゲイン補正 (AGC: ドライブ増大に伴うエネルギー上昇を自然に補償)
-            const float compGain = 1.0f / std::sqrt(drive);
+            // 各モードの飽和度に応じたインテリジェント等ラウドネス補正（AGC）
+            float modeComp = 1.0f;
+            switch (currentMode) {
+            case SaturationMode::Warm: modeComp = 0.82f; break;
+            case SaturationMode::Tape: modeComp = 0.90f; break;
+            case SaturationMode::Tube: modeComp = 0.95f; break;
+            case SaturationMode::Hard: modeComp = 0.70f; break;
+            }
+            const float compGain = (1.0f / (1.0f + currentAmount * 2.2f)) * modeComp;
             
-            dryMix = 1.0f - currentAmount * 0.20f;
-            wetMix = currentAmount * 0.85f * compGain;
+            // パラレルブレンド: amount = 1.0 で 100% サチュレーション通過音
+            dryMix = 1.0f - currentAmount;
+            wetMix = currentAmount * compGain;
         }
 
         // ─── 1次 ADAA サチュレーション処理 ───
@@ -134,7 +149,8 @@ namespace FDNReverb {
             }
             case SaturationMode::Hard: {
                 // アナログトランスコア飽和 (ハードクランプ)
-                return std::clamp(1.2f * x, -1.0f, 1.0f);
+                constexpr float kHardGain = 2.5f;
+                return std::clamp(kHardGain * x, -1.0f, 1.0f);
             }
             }
             return x;
@@ -180,8 +196,9 @@ namespace FDNReverb {
                 return term1 + 0.30f * term2;
             }
             case SaturationMode::Hard: {
-                // F(x) = ∫ clamp(1.2x, -1, 1) dx = (1 / 1.2) * ∫ clamp(u, -1, 1) du
-                const float u = 1.2f * x;
+                // F(x) = ∫ clamp(kHardGain * x, -1, 1) dx = (1 / kHardGain) * ∫ clamp(u, -1, 1) du
+                constexpr float kHardGain = 2.5f;
+                const float u = kHardGain * x;
                 const float au = std::abs(u);
                 float f_val;
                 if (au <= 1.0f) {
@@ -189,7 +206,7 @@ namespace FDNReverb {
                 } else {
                     f_val = au - 0.5f;
                 }
-                return (1.0f / 1.2f) * f_val;
+                return (1.0f / kHardGain) * f_val;
             }
             }
             return 0.5f * x * x;
