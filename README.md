@@ -1,6 +1,6 @@
 # Ambience
 
-![Release](https://img.shields.io/badge/release-v2.0.0-blue)
+![Release](https://img.shields.io/badge/release-v2.0.1-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -23,6 +23,12 @@
 </p>
 
 ## Changelog
+
+### v2.0.1 Update
+
+**Bug Fixes & Refinements:**
+- **Preset Browser Bug Fixes**: Fixed preset name recall and persistence when reopening the plugin in a DAW, resolved false edit (`*`) flags upon preset selection, and ensured clean `Room1 / Init` state upon insert.
+- **Saturation Engine Bug Fix**: Fixed an issue where Saturation and Sat Type controls were not dispatched to the DSP engine, and re-engineered drive sensitivity and equal-loudness AGC across all saturation modes (`Warm`, `Tape`, `Tube`, `Hard`).
 
 ### v2.0.0 Major Update!!
 
