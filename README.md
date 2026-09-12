@@ -16,8 +16,8 @@
 
 <p align="center">
   <b>Introduction YouTube Link</b><br>
-  <a href="https://youtu.be/kytVu2M-t30">
-    <img src="Source/Assets/Samnail.jpg"
+  <a href="https://youtu.be/yVb9Fkl8nk0?si=TI1tkdrULh0Gl-1X">
+    <img src="Source/Assets/AMBIENCE2.0.1.jpg"
          alt="Ambience - Introduction YouTube Link" width="640" height="360">
   </a>
 </p>
