@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <algorithm>
+#include <JuceHeader.h>
 
 namespace FDNReverb {
 
@@ -25,24 +26,38 @@ namespace FDNReverb {
         Saturator() = default;
 
         void prepare(double sampleRate) noexcept {
-            const double sr = (sampleRate > 1000.0) ? sampleRate : 48000.0;
-            // 1次 DC ブロッカー (15Hz カットオフ リーキーハイパス)
-            // R = 1.0 - (2π * fc / sr)
-            dcR = static_cast<float>(1.0 - (2.0 * 3.141592653589793 * 15.0 / sr));
+            fs = (sampleRate > 1000.0) ? sampleRate : 48000.0;
+            // 15Hz 1次 DC ブロッカー極配置
+            dcR = static_cast<float>(1.0 - (2.0 * 3.141592653589793 * 15.0 / fs));
+
+            // 20ms のサンプル単位線形ランプ平滑化
+            amountSmoothed.reset(fs, 0.020);
+            amountSmoothed.setCurrentAndTargetValue(0.0f);
+
+            modeCrossfadeInc = 1.0f / static_cast<float>(fs * 0.020); // 20ms モードクロスフェード
             reset();
         }
 
         void reset() noexcept {
-            x1_scalar = 0.0f;
-            dcInPrev = 0.0f;
-            dcOutPrev = 0.0f;
+            stateActive.reset();
+            statePending.reset();
+            isModeCrossfading = false;
+            modeCrossfadePos = 1.0f;
         }
 
         void setMode(SaturationMode mode) noexcept {
-            if (currentMode != mode) {
-                currentMode = mode;
-                reset();
-                setAmount(currentAmount);
+            if (activeMode != mode && pendingMode != mode) {
+                if (isModeCrossfading) {
+                    activeMode = pendingMode;
+                    stateActive = statePending;
+                }
+                pendingMode = mode;
+                // 状態変数の継承: 前のエンジンの x1_scalar を引き継ぎ、ADAA の初期割算ショックをゼロ化
+                statePending.x1_scalar = stateActive.x1_scalar;
+                statePending.dcInPrev = 0.0f;
+                statePending.dcOutPrev = 0.0f;
+                isModeCrossfading = true;
+                modeCrossfadePos = 0.0f;
             }
         }
 
@@ -51,82 +66,121 @@ namespace FDNReverb {
         }
 
         void setAmount(float amount) noexcept {
-            currentAmount = std::clamp(amount, 0.0f, 1.0f);
-            if (currentAmount < 0.001f) {
-                drive = 1.0f;
-                dryMix = 1.0f;
-                wetMix = 0.0f;
-                return;
+            targetAmount = std::clamp(amount, 0.0f, 1.0f);
+            amountSmoothed.setTargetValue(targetAmount);
+        }
+
+        inline float processSample(float in) noexcept {
+            const float curAmount = amountSmoothed.getNextValue();
+
+            // 定常状態ゼロコストバイパス:
+            // ターゲットがゼロであり、スムーザーも完全にゼロに落ちきり、かつクロスフェードも稼働していない時のみ安全に直結
+            if (curAmount < 1e-6f && !amountSmoothed.isSmoothing() && !isModeCrossfading) {
+                stateActive.x1_scalar = in; // 復帰時のショック防止のため状態のみ追従
+                return in;
             }
-            
-            // リバーブテール（-14〜-24 dBFS）に対応する音楽的ドライブ
-            // amount: 0 -> 1.0x (0dB), 1.0 -> 4.5x (+13.1dB)
-            drive = 1.0f + currentAmount * 3.5f;
-            
-            // 各モードの飽和度に応じたインテリジェント等ラウドネス補正（AGC）
+
+            // サンプル単位で滑らかに変化するドライブとパラレルブレンド係数
+            const float drive = 1.0f + curAmount * 3.5f;
+            const float dryMix = 1.0f - curAmount;
+
+            // アクティブモードの計算
+            const float compGainActive = getModeCompGain(activeMode, curAmount);
+            float yActive = processCore(in, drive, activeMode, stateActive);
+
+            float yCombined = yActive;
+            float compGainCombined = compGainActive;
+
+            // モード切り替えイコールパークロスフェード
+            if (isModeCrossfading) {
+                modeCrossfadePos += modeCrossfadeInc;
+                if (modeCrossfadePos >= 1.0f) {
+                    modeCrossfadePos = 1.0f;
+                    isModeCrossfading = false;
+                    activeMode = pendingMode;
+                    stateActive = statePending;
+                } else {
+                    const float compGainPending = getModeCompGain(pendingMode, curAmount);
+                    float yPending = processCore(in, drive, pendingMode, statePending);
+
+                    // 等エネルギー (Equal-Power) コサイン・サインクロスフェード
+                    const float fadeAngle = modeCrossfadePos * 1.5707963268f;
+                    const float wActive  = std::cos(fadeAngle);
+                    const float wPending = std::sin(fadeAngle);
+
+                    yCombined = yActive * wActive + yPending * wPending;
+                    compGainCombined = compGainActive * wActive + compGainPending * wPending;
+                }
+            }
+
+            const float wetMix = curAmount * compGainCombined;
+            return in * dryMix + yCombined * wetMix;
+        }
+
+    private:
+        struct EngineState {
+            float x1_scalar{ 0.0f };
+            float dcInPrev{ 0.0f };
+            float dcOutPrev{ 0.0f };
+            void reset() noexcept {
+                x1_scalar = 0.0f;
+                dcInPrev = 0.0f;
+                dcOutPrev = 0.0f;
+            }
+        };
+
+        double fs{ 48000.0 };
+        float dcR{ 0.998f };
+        float targetAmount{ 0.0f };
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> amountSmoothed;
+
+        SaturationMode activeMode{ SaturationMode::Warm };
+        SaturationMode pendingMode{ SaturationMode::Warm };
+        EngineState stateActive;
+        EngineState statePending;
+
+        bool isModeCrossfading{ false };
+        float modeCrossfadePos{ 1.0f };
+        float modeCrossfadeInc{ 0.001f };
+
+        inline float getModeCompGain(SaturationMode mode, float amt) const noexcept {
             float modeComp = 1.0f;
-            switch (currentMode) {
+            switch (mode) {
             case SaturationMode::Warm: modeComp = 0.82f; break;
             case SaturationMode::Tape: modeComp = 0.90f; break;
             case SaturationMode::Tube: modeComp = 0.95f; break;
             case SaturationMode::Hard: modeComp = 0.70f; break;
             }
-            const float compGain = (1.0f / (1.0f + currentAmount * 2.2f)) * modeComp;
-            
-            // パラレルブレンド: amount = 1.0 で 100% サチュレーション通過音
-            dryMix = 1.0f - currentAmount;
-            wetMix = currentAmount * compGain;
+            return (1.0f / (1.0f + amt * 2.2f)) * modeComp;
         }
 
-        // ─── 1次 ADAA サチュレーション処理 ───
-        inline float processSample(float in) noexcept {
-            // ゼロコスト完全バイパス (IEEE 754 1ビットも改変しない)
-            if (currentAmount < 0.001f) return in;
-
+        inline float processCore(float in, float drive, SaturationMode mode, EngineState& st) noexcept {
             const float x = in * drive;
             float y;
+            const float diff = x - st.x1_scalar;
 
-            const float diff = x - x1_scalar;
             if (std::abs(diff) < 1e-5f) {
-                // 特異点回避: 中点での関数値 (ロピタルの定理フォールバック)
-                // F'(x) ≡ f(x) が厳密に成立するため、境界段差は 1e-11 以下 (クリックゼロ)
-                const float xMid = (x + x1_scalar) * 0.5f;
-                y = applyNL(xMid);
+                const float xMid = (x + st.x1_scalar) * 0.5f;
+                y = applyNL(xMid, mode);
             } else {
-                // 1次 ADAA: y = (F(x) - F(x1)) / (x - x1)
-                y = (applyAD(x) - applyAD(x1_scalar)) / diff;
+                y = (applyAD(x, mode) - applyAD(st.x1_scalar, mode)) / diff;
             }
-            x1_scalar = x;
+            st.x1_scalar = x;
 
-            // DC ブロッカー (Tube 非対称モードでのみ直流を完全カット)
-            if (currentMode == SaturationMode::Tube) {
-                const float hp = y - dcInPrev + dcR * dcOutPrev;
-                dcInPrev = y;
-                dcOutPrev = hp;
+            if (mode == SaturationMode::Tube) {
+                const float hp = y - st.dcInPrev + dcR * st.dcOutPrev;
+                st.dcInPrev = y;
+                st.dcOutPrev = hp;
                 y = hp;
             }
-
-            // パラレルブレンド
-            return in * dryMix + y * wetMix;
+            return y;
         }
-
-    private:
-        SaturationMode currentMode{ SaturationMode::Warm };
-        float currentAmount{ 0.0f };
-        float drive{ 1.0f };
-        float dryMix{ 1.0f };
-        float wetMix{ 0.0f };
-        float x1_scalar{ 0.0f };
-
-        float dcInPrev{ 0.0f };
-        float dcOutPrev{ 0.0f };
-        float dcR{ 0.998f };
 
         // ════════════════════════════════════════════════════════════════════════
         //  非線形伝達関数 f(x) (特異点フォールバック用: F'(x) と厳密に完全一致)
         // ════════════════════════════════════════════════════════════════════════
-        inline float applyNL(float x) const noexcept {
-            switch (currentMode) {
+        inline float applyNL(float x, SaturationMode mode) const noexcept {
+            switch (mode) {
             case SaturationMode::Warm: {
                 // ソフトクリップ + 2次偶数倍音
                 // f(x) = tanh(x) + c * x * sech^2(x), c = 0.35
@@ -159,8 +213,8 @@ namespace FDNReverb {
         // ════════════════════════════════════════════════════════════════════════
         //  ADAA 原始関数 F(x) = ∫ f(x) dx (完全解析解)
         // ════════════════════════════════════════════════════════════════════════
-        inline float applyAD(float x) const noexcept {
-            switch (currentMode) {
+        inline float applyAD(float x, SaturationMode mode) const noexcept {
+            switch (mode) {
             case SaturationMode::Warm: {
                 // F(x) = (1 - c) ln(cosh(x)) + c * x * tanh(x)
                 // F'(x) = (1 - c) tanh(x) + c [tanh(x) + x sech^2(x)] = tanh(x) + c x sech^2(x) = f(x)

@@ -211,10 +211,34 @@ namespace FDNReverb {
         loopReleaseCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.100f));
         loopEnergyEnv = 0.0f;
 
+        lateMakeupGainSmoothed.reset(sampleRate, 0.030); // 30ms sample-accurate linear smoothing
+        preDelaySmoothed.reset(sampleRate, 0.025);
+        roomSizeSmoothed.reset(sampleRate, 0.040);
+        diffuserGainSmoothed.reset(sampleRate, 0.025);
+        apfGainStageSmoothed.reset(sampleRate, 0.025);
+        stereoWidthSmoothed.reset(sampleRate, 0.025);
+
+        preDelaySmoothed.setCurrentAndTargetValue(0.0f);
+        roomSizeSmoothed.setCurrentAndTargetValue(1.0f);
+        diffuserGainSmoothed.setCurrentAndTargetValue(0.0f);
+        apfGainStageSmoothed.setCurrentAndTargetValue(0.0f);
+        stereoWidthSmoothed.setCurrentAndTargetValue(1.0f);
+
+        transitionSamplesTotal = std::max(64, static_cast<int>(0.008 * sampleRate)); // 8ms fade
+        transitionState = TransitionState::Normal;
+        transitionGain = 1.0f;
+        transitionSampleCount = 0;
+
         fitter.precomputeInteractionMatrix(fs);
-        absoCrossfadeInc = 1.0f / (fsf * 0.040f); // 40ms crossfade
-        absoCrossfadePos = 1.0f;
-        useAbsoStateA = true;
+        
+        // ★ サンプルベース・レート制御 (15ms 判定間隔, 30ms クロスフェード)
+        absorptionRateLimitIntervalSamples = std::max(32, static_cast<int>(fs * 0.015)); // 15ms
+        samplesSinceLastAbsorptionUpdate = 0;
+        absorptionUpdatePending = false;
+        absoCrossfadeInc = 1.0f / (fsf * 0.030f); // 30ms crossfade
+        absoCrossfadePos = 0.0f; // 初期状態: Bank A が 100%
+        absoFadeState = AbsoFadeState::IdleAtA;
+
         isPreparedFlag = true;
 
         updateTopologyAndRouting(); // ★ 初期トポロジー・ディレイ長・吸音フィルタの完全同期初期化
@@ -223,6 +247,30 @@ namespace FDNReverb {
 
     void UniversalEngine::reset() {
         memoryPool.clear();
+        panicReset();
+
+        currentFdnDelaySamples.fill(0.0f);
+        erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
+        smoothedModAmount = activeParams.modAmount;
+        smoothedModRate = activeParams.modRate;
+
+        transitionState = TransitionState::Normal;
+        transitionGain = 1.0f;
+        transitionSampleCount = 0;
+
+        absoCrossfadePos = 0.0f;
+        absoFadeState = AbsoFadeState::IdleAtA;
+        samplesSinceLastAbsorptionUpdate = 0;
+        absorptionUpdatePending = false;
+
+        // ★ LFO 初期位相の決定論的復元 (再現性 100% 保証)
+        for (int i = 0; i < FDN_ORDER; ++i) {
+            dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
+            dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
+        }
+    }
+
+    void UniversalEngine::panicReset() noexcept {
         fbVec.fill(0.0f);
 
         preDelayLineL.resetState();
@@ -239,7 +287,8 @@ namespace FDNReverb {
             for (auto& f : lineFilters) f.reset();
         for (auto& lineFilters : absorptionFiltersS2_B)
             for (auto& f : lineFilters) f.reset();
-        absoCrossfadePos = 1.0f;
+        absoCrossfadePos = 0.0f;
+        absoFadeState = AbsoFadeState::IdleAtA;
 #else
         for (auto& f : absorptionFilters) f.reset();
 #endif
@@ -264,30 +313,21 @@ namespace FDNReverb {
         inLpfStateR = 0.0f;
         inputTransientEnvFast = 0.0f;
         inputTransientEnvSlow = 0.0f;
-        currentFdnDelaySamples.fill(0.0f);
-        erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
-        smoothedModAmount = activeParams.modAmount;
-        smoothedModRate = activeParams.modRate;
-
         dcX1.fill(0.0f);
         dcY1.fill(0.0f);
-
-        // ★ LFO 初期位相の決定論的復元 (再現性 100% 保証)
-        for (int i = 0; i < FDN_ORDER; ++i) {
-            dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
-            dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
-        }
     }
 
     void UniversalEngine::setParams(const DSPParams& p) {
         const bool algoChanged = (activeParams.algorithmIndex != p.algorithmIndex);
 
-        const bool topologyNeedsUpdate = algoChanged
-            || (activeParams.decayScale != p.decayScale)
-            || (activeParams.roomSizeScale != p.roomSizeScale)
+        // ディレイ長の再計算を要するパラメータ（RoomSize のみ）
+        const bool topologyNeedsUpdate = (activeParams.roomSizeScale != p.roomSizeScale);
+
+        // 吸音フィルタ再設計を要するパラメータ（17ノブ）
+        const bool absorptionNeedsUpdate = 
+               (activeParams.decayScale != p.decayScale)
             || (activeParams.hfDamping != p.hfDamping)
             || (activeParams.lfAbsorption != p.lfAbsorption)
-            || (activeParams.diffusion != p.diffusion)
             || (activeParams.tiltLow != p.tiltLow)
             || (activeParams.tiltMid != p.tiltMid)
             || (activeParams.tiltHigh != p.tiltHigh)
@@ -299,21 +339,52 @@ namespace FDNReverb {
             || (activeParams.asymmetry != p.asymmetry)
             || (activeParams.clarityDB != p.clarityDB);
 
-        activeParams = p;
-
         if (algoChanged) {
+            ReverbTopology newTop = currentTopology;
             switch (p.algorithmIndex) {
-            case 0: case 1: currentTopology = ReverbTopology::Room;       break;
-            case 2: case 3: currentTopology = ReverbTopology::Hall;       break;
-            case 4:         currentTopology = ReverbTopology::Plate;      break;
-            case 5:         currentTopology = ReverbTopology::Spring;     break;
-            case 6:         currentTopology = ReverbTopology::Goldfoil;   break;
-            case 7:         currentTopology = ReverbTopology::Inchindown; break;
+            case 0: case 1: newTop = ReverbTopology::Room;       break;
+            case 2: case 3: newTop = ReverbTopology::Hall;       break;
+            case 4:         newTop = ReverbTopology::Plate;      break;
+            case 5:         newTop = ReverbTopology::Spring;     break;
+            case 6:         newTop = ReverbTopology::Goldfoil;   break;
+            case 7:         newTop = ReverbTopology::Inchindown; break;
+            }
+            // ★ 全8アルゴリズムの切り替え時（同トポロジー間やLock点灯時含む）に100%例外なく Graceful Mute を実行
+            pendingTopology = newTop;
+            pendingParams = p;
+            transitionState = TransitionState::FadingOut;
+            transitionSampleCount = 0;
+            topologyUpdatePending = false;
+        } else {
+            if (topologyNeedsUpdate) {
+                topologyUpdatePending = true;
+            }
+            if (absorptionNeedsUpdate) {
+                // サンプルベース・レート制御用フラグ
+                absorptionUpdatePending = true;
             }
         }
 
-        // 即時反映パラメータ (トポロジー再計算不要・吸音クロスフェード遮断)
+        activeParams = p;
+
+        // ★ スムーザーへの目標値設定 (サンプル単位で滑らかに追従)
+        preDelaySmoothed.setTargetValue(p.preDelayMs * 0.001f * static_cast<float>(fs));
         preDelaySamples = p.preDelayMs * 0.001f * static_cast<float>(fs);
+        roomSizeSmoothed.setTargetValue(p.roomSizeScale);
+        stereoWidthSmoothed.setTargetValue(std::clamp(p.stereoWidth, 0.0f, 1.0f));
+
+        const float diff = std::clamp(p.diffusion * diffusionSensitivity, 0.0f, 1.0f);
+        const float rawDiffuserGain = diff * 0.70f;
+        const float targetDiffuserGain = std::clamp(rawDiffuserGain, 0.0f, 0.7071f);
+        diffuserGainSmoothed.setTargetValue(targetDiffuserGain);
+
+        const float effectiveApfGain = apfGain * std::pow(diff, 0.75f);
+        const float lateDensityScale = std::clamp(p.lateDensity / 0.7f, 0.1f, 1.4286f);
+        const float rawApfGainStage = effectiveApfGain * 0.76f * lateDensityScale;
+        const float targetApfGainStage = std::clamp(rawApfGainStage, 0.0f, 0.7071f);
+        apfGainStageSmoothed.setTargetValue(targetApfGainStage);
+
+        // 即時反映パラメータ (OutputEQ, DynamicDucker, Saturator)
         outputEQ.setLoParams(p.loEQType, p.loCutHz, p.loGainDB);
         outputEQ.setHiParams(p.hiEQType, p.hiCutHz, p.hiGainDB);
         dynamicDucker.setParameters(p.duckingAmount, p.duckingAttackMs, p.duckingRelMs, p.duckingThreshDB);
@@ -332,14 +403,6 @@ namespace FDNReverb {
         saturatorR.setAmount(effectiveSatAmount);
         saturatorL.setMode(p.satTypeIdx);
         saturatorR.setMode(p.satTypeIdx);
-
-        if (algoChanged) {
-            updateTopologyAndRouting();
-            topologyUpdateCounter = 0;
-            topologyUpdatePending = false;
-        } else if (topologyNeedsUpdate) {
-            topologyUpdatePending = true;
-        }
     }
 
     void UniversalEngine::calculatePrimePowerDelays() {
@@ -388,139 +451,13 @@ namespace FDNReverb {
             }
         }
 
-        const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
-        auto& preset = *ALL_PRESETS[safeAlgo];
-
-        std::array<float, NUM_BANDS> scaledRT60 = preset.acoustics.rt60;
-        for (auto& v : scaledRT60) v *= activeParams.decayScale;
-
-        // ★ TiltEq: 対数周波数軸上の滑らかな 2次多項式補間チルティング (WLS のギブズ現象・リップルを解消)
-        if (std::abs(activeParams.tiltLow - 1.0f) > 1e-4f ||
-            std::abs(activeParams.tiltMid - 1.0f) > 1e-4f ||
-            std::abs(activeParams.tiltHigh - 1.0f) > 1e-4f)
-        {
-            const float x0 = std::log2(BAND_FREQ[1]);    // Low 制御点 (62.5Hz, Band 1)
-            const float x1 = std::log2(BAND_FREQ[5]);    // Mid 制御点 (1000Hz, Band 5)
-            const float x2 = std::log2(BAND_FREQ[8]);    // High 制御点 (8000Hz, Band 8)
-            const float d01 = x0 - x1;
-            const float d02 = x0 - x2;
-            const float d12 = x1 - x2;
-            const float denom0 = d01 * d02;
-            const float denom1 = -d01 * d12;
-            const float denom2 = -d02 * -d12;
-
-            for (int b = 0; b < NUM_BANDS; ++b) {
-                const float x = std::log2(BAND_FREQ[b]);
-                const float L0 = ((x - x1) * (x - x2)) / denom0;
-                const float L1 = ((x - x0) * (x - x2)) / denom1;
-                const float L2 = ((x - x0) * (x - x1)) / denom2;
-                float tiltFactor = activeParams.tiltLow * L0 + activeParams.tiltMid * L1 + activeParams.tiltHigh * L2;
-                tiltFactor = std::clamp(tiltFactor, 0.1f, 10.0f);
-                scaledRT60[b] *= tiltFactor;
-            }
-        }
-        for (int b = 0; b < NUM_BANDS; ++b)
-            scaledRT60[b] *= activeParams.rtBands[b];
-
-        // 大気減衰 (ISO 9613-1 指数べき乗モデル: 音波伝播距離と大気分子吸音率比例則)
-        // 線形減衰 1.0 - (1.0 - R)*s のゼロ割れ・負値突入バグを完全解消し、R(s) = R^s に移行。
-        const float safeAirScale = std::clamp(activeParams.airAbsorbScale, 0.0f, 5.0f);
-        float ratio7 = 0.90f;
-        float ratio8 = 0.75f;
-        float ratio9 = 0.60f;
-
-        if (std::abs(safeAirScale - 1.0f) > 1e-4f) {
-            float ratio7 = std::pow(0.90f, safeAirScale);
-            float ratio8 = std::pow(0.75f, safeAirScale);
-            float ratio9 = std::pow(0.60f, safeAirScale);
-            scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
-            scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
-            scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
-        }
-
-        // ★ GUI 表示用に物理減衰を反映した実効 RT60 を計算
-        std::array<float, NUM_BANDS> displayRT60 = scaledRT60;
-        for (int b = 0; b < NUM_BANDS; ++b) {
-            float t60 = displayRT60[b];
-            float f = BAND_FREQ[b];
-            float lfWeight = 1.0f / (1.0f + (f / 160.0f) * (f / 160.0f));
-            t60 = std::max(0.01f, t60 * (1.0f - activeParams.lfAbsorption * 0.8f * lfWeight));
-            
-            float hfWeight = std::pow(std::max(0.0f, f - 2000.0f) / 14000.0f, 2.0f);
-            float invT60 = (1.0f / t60) + (activeParams.hfDamping * hfWeight * 2.0f);
-            t60 = 1.0f / std::max(1e-4f, invT60);
-            displayRT60[b] = t60;
-        }
-
-        // ★ 目標 RT60 カーブ（UI 灰色線用）を保存
-        targetRT60 = displayRT60;
-
-#if AMBIENCE_USE_STAGE2_ABSORPTION
-        std::array<float, NUM_BANDS> targetDbAccum;
-        targetDbAccum.fill(0.0f);
-        
-        const bool isFirstInit = (absoCrossfadePos >= 1.0f && absorptionCoeffsS2_A[0][0].b0 == 0.0f);
-        const bool nextIsA = isFirstInit ? true : !useAbsoStateA;
-
+        // 吸音フィルタ初期化（AとBの双方に初期係数を適用）
+        updateAbsorptionFilters(false);
         for (int i = 0; i < FDN_ORDER; ++i) {
-            auto s2 = fitter.designStage2(
-                static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
-                activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
-                if (isFirstInit) {
-                    absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
-                    absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
-                } else if (nextIsA) {
-                    absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
-                } else {
-                    absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
-                }
-                targetDbAccum[b] += s2.targetDb[b];
-            }
-            if (!isFirstInit) {
-                // 状態変数の同期: 次にアクティブになる側に、現在の状態変数をコピーして連続性を保つ
-                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                    if (nextIsA) {
-                        absorptionFiltersS2_A[i][s] = absorptionFiltersS2_B[i][s];
-                    } else {
-                        absorptionFiltersS2_B[i][s] = absorptionFiltersS2_A[i][s];
-                    }
-                }
+                absorptionCoeffsS2_B[i][b] = absorptionCoeffsS2_A[i][b];
             }
         }
-        
-        useAbsoStateA = nextIsA;
-        absoCrossfadePos = isFirstInit ? 1.0f : 0.0f;
-
-        // ★ 実効 RT60（ユーザー設定に 100% 忠実な物理値）
-        effectiveRT60 = targetRT60;
-#else
-        effectiveRT60 = targetRT60;
-        for (int i = 0; i < FDN_ORDER; ++i) {
-            auto absoStages = FilterDesign::designAbsorption(
-                static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
-                activeParams.hfDamping, activeParams.lfAbsorption);
-            currentAbsorptionCoeffs[i] = absoStages[0];
-        }
-#endif
-
-        float rt60Mid = 0.0f;
-        for (int b = 2; b <= 7; ++b)
-            rt60Mid += effectiveRT60[b];
-        rt60Mid = std::max(0.1f, rt60Mid / 6.0f);
-        currentRT60Mid = rt60Mid;
-
-        modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
-
-        constexpr float baseDB = 5.0f;
-        // ★ FDNエネルギー保存：RT60が長くなるほど内部エネルギーが蓄積するため、sqrt(RT60) に反比例させて音量を均一化
-        float decayCompDB = -10.0f * std::log10(std::max(0.1f, rt60Mid));
-        decayCompDB = juce::jlimit(-12.0f, 12.0f, decayCompDB);
-
-        static constexpr std::array<float, 8> algorithmOffsetDB = {
-            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +4.5f
-        };
-        float algoOffset = algorithmOffsetDB[juce::jlimit(0, 7, activeParams.algorithmIndex)];
 
         switch (currentTopology) {
         case ReverbTopology::Room:
@@ -549,39 +486,45 @@ namespace FDNReverb {
             break;
         }
 
-        // ★ 【SDN コア ジオメトリ更新】
+        // ★ 【SDN コア ジオメトリ更新 (Asymmetry 連動)】
         float erSizeScale = 0.5f + activeParams.roomSizeScale;
+        const float asym = activeParams.asymmetry;
         
         switch (currentTopology) {
         case ReverbTopology::Room:
-            sdnEngine.updateGeometry(4.6f * erSizeScale, 7.4f * erSizeScale, 2.89f * erSizeScale, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f);
+            sdnEngine.updateGeometry(4.6f * erSizeScale, 7.4f * erSizeScale, 2.89f * erSizeScale, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f, asym);
             break;
         case ReverbTopology::Hall:
-            sdnEngine.updateGeometry(13.5f * erSizeScale, 27.0f * erSizeScale, 10.8f * erSizeScale, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f);
+            sdnEngine.updateGeometry(13.5f * erSizeScale, 27.0f * erSizeScale, 10.8f * erSizeScale, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f, asym);
             break;
         case ReverbTopology::Plate:
-            sdnEngine.updateGeometry(2.0f * erSizeScale, 1.0f * erSizeScale, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f);
+            sdnEngine.updateGeometry(2.0f * erSizeScale, 1.0f * erSizeScale, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f, asym);
             break;
         case ReverbTopology::Spring:
-            sdnEngine.updateGeometry(0.3f * erSizeScale, 0.3f * erSizeScale, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f);
+            sdnEngine.updateGeometry(0.3f * erSizeScale, 0.3f * erSizeScale, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f, asym);
             break;
         case ReverbTopology::Goldfoil:
-            sdnEngine.updateGeometry(0.27f * erSizeScale, 0.29f * erSizeScale, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f);
+            sdnEngine.updateGeometry(0.27f * erSizeScale, 0.29f * erSizeScale, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f, asym);
             break;
         case ReverbTopology::Inchindown:
-            sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f);
+            sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f, asym);
             break;
         }
-        // ★ SDN 吸音・減衰の適用 (Decayパラメータ連動)
+
+        // ★ SDN 壁面散乱度 (Scattering 連動)
+        sdnEngine.scattering = juce::jlimit(0.0f, 1.0f, activeParams.scattering);
+
+        // ★ SDN 吸音・減衰の適用 (erCrossoverMs 連動: 幾何反射から後期残響への物理移行)
         const float fsf = static_cast<float>(fs);
-        // 平均遅延時間を約20msと仮定し、対象のRT60(mid)から減衰係数を逆算
         const float sdnAvgDelaySmp = 0.02f * fsf * erSizeScale;
-        const float sdnRt60 = 0.05f + erSizeScale * 0.15f; // ERは独立して極めて早く減衰させる (50ms〜200ms)
+        const float crossoverSec = std::clamp(activeParams.erCrossoverMs * 0.001f, 0.010f, 0.100f);
+        const float sdnRt60 = std::clamp((crossoverSec * 2.0f) * erSizeScale, 0.03f, 0.5f);
         const float sdnDbPerSample = -60.0f / (sdnRt60 * fsf);
         sdnEngine.damping = juce::jlimit(0.1f, 0.999f, juce::Decibels::decibelsToGain(sdnDbPerSample * sdnAvgDelaySmp));
         
-        // 高域の壁面吸収 (10kHzを基準に、Dampingパラメータで調整)
-        const float hfCutoff = 10000.0f * (1.1f - activeParams.hfDamping);
+        // 高域の壁面吸収 ＆ 大気分子吸音 (ISO 9613-1 / airAbsorbScale 連動)
+        const float effectiveAirAbsorb = std::clamp(activeParams.airAbsorbScale, 0.2f, 2.5f);
+        const float hfCutoff = std::clamp((10000.0f * (1.1f - activeParams.hfDamping)) / (0.6f + 0.4f * effectiveAirAbsorb), 800.0f, 20000.0f);
         sdnEngine.lpfCoeff = 1.0f - std::exp(-6.2831853f * hfCutoff / fsf);
 
         if (currentTopology == ReverbTopology::Plate) {
@@ -594,8 +537,6 @@ namespace FDNReverb {
             inchindownEngine.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.0f);
         }
         
-        // bypassER = (activeParams.erLevel < 0.01f); // ★ 削除: ハードスイッチングを廃止し、プロセスブロックでの動的スムージングに移行
-
         // ★ 【ER ビジュアライザー用動的タップ抽出ブリッジ】
         const auto& erPattern = PRESET_ER_PATTERNS[juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex)];
         currentERTapCount = erPattern.numTaps;
@@ -615,7 +556,7 @@ namespace FDNReverb {
         case ReverbTopology::Goldfoil:   edtCoeff = 0.85f; break;
         case ReverbTopology::Inchindown: edtCoeff = 1.00f; break;
         }
-        theoreticalEDT = rt60Mid * edtCoeff;
+        theoreticalEDT = currentRT60Mid * edtCoeff;
 
         float satMultiplier = 1.0f;
         switch (currentTopology) {
@@ -636,8 +577,119 @@ namespace FDNReverb {
         dynamicDucker.setParameters(activeParams.duckingAmount, activeParams.duckingAttackMs, activeParams.duckingRelMs, activeParams.duckingThreshDB);
         ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale, activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption);
 
+    }
+
+    void UniversalEngine::updateAbsorptionFilters(bool targetIsB) {
+        const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+        auto& preset = *ALL_PRESETS[safeAlgo];
+
+        std::array<float, NUM_BANDS> scaledRT60 = preset.acoustics.rt60;
+        for (auto& v : scaledRT60) v *= activeParams.decayScale;
+
+        // ★ TiltEq: 対数周波数軸上の滑らかな 2次多項式補間チルティング
+        if (std::abs(activeParams.tiltLow - 1.0f) > 1e-4f ||
+            std::abs(activeParams.tiltMid - 1.0f) > 1e-4f ||
+            std::abs(activeParams.tiltHigh - 1.0f) > 1e-4f)
+        {
+            const float x0 = std::log2(BAND_FREQ[1]);
+            const float x1 = std::log2(BAND_FREQ[5]);
+            const float x2 = std::log2(BAND_FREQ[8]);
+            const float d01 = x0 - x1;
+            const float d02 = x0 - x2;
+            const float d12 = x1 - x2;
+            const float denom0 = d01 * d02;
+            const float denom1 = -d01 * d12;
+            const float denom2 = -d02 * -d12;
+
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                const float x = std::log2(BAND_FREQ[b]);
+                const float L0 = ((x - x1) * (x - x2)) / denom0;
+                const float L1 = ((x - x0) * (x - x2)) / denom1;
+                const float L2 = ((x - x0) * (x - x1)) / denom2;
+                float tiltFactor = activeParams.tiltLow * L0 + activeParams.tiltMid * L1 + activeParams.tiltHigh * L2;
+                tiltFactor = std::clamp(tiltFactor, 0.1f, 10.0f);
+                scaledRT60[b] *= tiltFactor;
+            }
+        }
+        for (int b = 0; b < NUM_BANDS; ++b)
+            scaledRT60[b] *= activeParams.rtBands[b];
+
+        // 大気減衰 (ISO 9613-1 指数べき乗モデル)
+        const float safeAirScale = std::clamp(activeParams.airAbsorbScale, 0.0f, 5.0f);
+        if (std::abs(safeAirScale - 1.0f) > 1e-4f) {
+            float ratio7 = std::pow(0.90f, safeAirScale);
+            float ratio8 = std::pow(0.75f, safeAirScale);
+            float ratio9 = std::pow(0.60f, safeAirScale);
+            scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
+            scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
+            scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
+        }
+
+        // GUI 表示用に物理減衰を反映した実効 RT60
+        std::array<float, NUM_BANDS> displayRT60 = scaledRT60;
+        for (int b = 0; b < NUM_BANDS; ++b) {
+            float t60 = displayRT60[b];
+            float f = BAND_FREQ[b];
+            float lfWeight = 1.0f / (1.0f + (f / 160.0f) * (f / 160.0f));
+            t60 = std::max(0.01f, t60 * (1.0f - activeParams.lfAbsorption * 0.8f * lfWeight));
+            
+            float hfWeight = std::pow(std::max(0.0f, f - 2000.0f) / 14000.0f, 2.0f);
+            float invT60 = (1.0f / t60) + (activeParams.hfDamping * hfWeight * 2.0f);
+            t60 = 1.0f / std::max(1e-4f, invT60);
+            displayRT60[b] = t60;
+        }
+        targetRT60 = displayRT60;
+        effectiveRT60 = targetRT60;
+
+#if AMBIENCE_USE_STAGE2_ABSORPTION
+        // ★ 状態変数（s1, s2）のコピーは完全に排除！新係数のみを非アクティブ側（targetIsB）に書き込む
+        for (int i = 0; i < FDN_ORDER; ++i) {
+            auto s2 = fitter.designStage2(
+                static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
+                activeParams.hfDamping, activeParams.lfAbsorption);
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                if (targetIsB) {
+                    absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
+                } else {
+                    absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
+                }
+            }
+        }
+#endif
+
+        float rt60Mid = 0.0f;
+        for (int b = 2; b <= 7; ++b)
+            rt60Mid += effectiveRT60[b];
+        rt60Mid = std::max(0.1f, rt60Mid / 6.0f);
+        currentRT60Mid = rt60Mid;
+
+        modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
+
+        constexpr float baseDB = 5.0f;
+        float decayCompDB = -10.0f * std::log10(std::max(0.1f, rt60Mid));
+        decayCompDB = juce::jlimit(-12.0f, 12.0f, decayCompDB);
+
+        static constexpr std::array<float, 8> algorithmOffsetDB = {
+            +0.8f, +0.9f, +0.5f, +0.5f, +1.5f, +0.6f, +0.6f, +4.5f
+        };
+        float algoOffset = algorithmOffsetDB[juce::jlimit(0, 7, activeParams.algorithmIndex)];
         const float totalMakeupDB = juce::jlimit(-6.0f, 12.0f, baseDB + decayCompDB + algoOffset);
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
+        lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+
+        // SDN 吸音の更新
+        const float fsf = static_cast<float>(fs);
+        const float erSizeScale = 0.5f + activeParams.roomSizeScale;
+        const float sdnAvgDelaySmp = 0.02f * fsf * erSizeScale;
+        const float crossoverSec = std::clamp(activeParams.erCrossoverMs * 0.001f, 0.010f, 0.100f);
+        const float sdnRt60 = std::clamp((crossoverSec * 2.0f) * erSizeScale, 0.03f, 0.5f);
+        const float sdnDbPerSample = -60.0f / (sdnRt60 * fsf);
+        sdnEngine.damping = juce::jlimit(0.1f, 0.999f, juce::Decibels::decibelsToGain(sdnDbPerSample * sdnAvgDelaySmp));
+
+        const float effectiveAirAbsorb = std::clamp(activeParams.airAbsorbScale, 0.2f, 2.5f);
+        const float hfCutoff = std::clamp((10000.0f * (1.1f - activeParams.hfDamping)) / (0.6f + 0.4f * effectiveAirAbsorb), 800.0f, 20000.0f);
+        sdnEngine.lpfCoeff = 1.0f - std::exp(-6.2831853f * hfCutoff / fsf);
+        sdnEngine.scattering = juce::jlimit(0.0f, 1.0f, activeParams.scattering);
     }
 
     inline void UniversalEngine::fastWalshHadamardTransform(std::array<float, 16>& a) noexcept {
@@ -673,42 +725,32 @@ namespace FDNReverb {
         }
 
         if (topologyUpdatePending) {
-            if (++topologyUpdateCounter >= TOPOLOGY_UPDATE_INTERVAL) {
-                updateTopologyAndRouting();
-                topologyUpdatePending = false;
-                topologyUpdateCounter = 0;
-            }
+            updateTopologyAndRouting();
+            topologyUpdatePending = false;
         }
-        const float fsf = static_cast<float>(fs);
 
+        // ★ サンプルベース・レート制御 ＆ ビジー保護トリガー (15ms間隔 / アイドル時のみ遷移)
+        samplesSinceLastAbsorptionUpdate += numSamples;
+        const bool isCrossfadeIdle = (absoFadeState == AbsoFadeState::IdleAtA || absoFadeState == AbsoFadeState::IdleAtB);
+        if (absorptionUpdatePending && isCrossfadeIdle && (samplesSinceLastAbsorptionUpdate >= absorptionRateLimitIntervalSamples)) {
+            const bool targetIsB = (absoFadeState == AbsoFadeState::IdleAtA);
+            updateAbsorptionFilters(targetIsB);
+            absoFadeState = targetIsB ? AbsoFadeState::FadingToB : AbsoFadeState::FadingToA;
+            samplesSinceLastAbsorptionUpdate = 0;
+            absorptionUpdatePending = false;
+        }
+
+        const float fsf = static_cast<float>(fs);
         const float stereoWidth = activeParams.stereoWidth;
         
-        // ★ ERLevel の二乗カーブ (0.0 で完全無音、0.5 で自然、1.0 で明瞭な部屋鳴り)
+        // ★ ERLevel の二乗カーブ
         const float erGainCurved = activeParams.erLevel * activeParams.erLevel;
         const float lateLevel = activeParams.lateLevel;
         const bool  erSolo = activeParams.erSolo;
 
-        // ★ Graceful Bypass: CPU 負荷最適化（完全バイパスへの移行）
-        // ターゲットが十分に低く、かつスムーザーも減衰しきった定常状態でのみバイパス
+        // ★ 定常状態完全バイパス
         bypassER = (erGainCurved < 1e-4f && erSmoothedGain < 1e-4f);
 
-        // (ダッキング変数は dynamicDucker に集約)
-
-        // ★ 入力 diffusion の安全クランプ [0.0, 1.0]
-        const float diff = std::clamp(activeParams.diffusion * diffusionSensitivity, 0.0f, 1.0f);
-        const float scatteringScale = std::clamp(activeParams.scattering / 0.5f, 0.0f, 2.0f);
-        const float rawDiffuserGain = diff * 0.70f * scatteringScale;
-        // ★ Schroeder オールパス受動性（極が単位円内 |g| < 1.0）および過渡ピーク爆発防止の安全上限 (0.7071f)
-        const float diffuserGain = std::clamp(rawDiffuserGain, 0.0f, 0.7071f);
-
-        const float effectiveApfGain = apfGain * std::pow(diff, 0.75f);
-        const float lateDensityScale = std::clamp(activeParams.lateDensity / 0.7f, 0.0f, 1.4286f);
-        const float rawApfGainStage = effectiveApfGain * 0.76f * lateDensityScale;
-        // ★ FDN ループ内 3段 Modulated Allpass のパラメトリック過渡サージを防ぐ安全上限 (0.7071f)
-        const float apfGainStage = std::clamp(rawApfGainStage, 0.0f, 0.7071f);
-        const bool  skipInputDiffusers = (diff < 0.05f);
-
-        const float sideBoost = stereoWidth * 1.5f;
         constexpr float apfModFrac[SERIAL_APF_STAGES] = { 0.25f, 0.20f, 0.15f };
 
         // ★ C80 自動調整サーボ (Clarity)
@@ -731,21 +773,66 @@ namespace FDNReverb {
         }
 
         for (int n = 0; n < numSamples; ++n) {
+            // ★ Wet-Only Graceful Mute State Machine (全8アルゴリズム対応・Panic連動)
+            if (transitionState == TransitionState::FadingOut) {
+                transitionSampleCount++;
+                const float progress = static_cast<float>(transitionSampleCount) / static_cast<float>(transitionSamplesTotal);
+                if (progress >= 1.0f) {
+                    transitionGain = 0.0f;
+                    panicReset();
+                    currentTopology = pendingTopology;
+                    activeParams = pendingParams;
+                    updateTopologyAndRouting();
+                    transitionState = TransitionState::FadingIn;
+                    transitionSampleCount = 0;
+                } else {
+                    transitionGain = std::cos(progress * 1.5707963268f);
+                }
+            } else if (transitionState == TransitionState::FadingIn) {
+                transitionSampleCount++;
+                const float progress = static_cast<float>(transitionSampleCount) / static_cast<float>(transitionSamplesTotal);
+                if (progress >= 1.0f) {
+                    transitionGain = 1.0f;
+                    transitionState = TransitionState::Normal;
+                    transitionSampleCount = 0;
+                } else {
+                    transitionGain = std::sin(progress * 1.5707963268f);
+                }
+            } else {
+                transitionGain = 1.0f;
+            }
+
             smoothedModAmount += (activeParams.modAmount - smoothedModAmount) * 0.005f;
             smoothedModRate   += (activeParams.modRate - smoothedModRate)     * 0.005f;
             erSmoothedGain    += erSmoothCoeff * (erGainCurved - erSmoothedGain);
 
             
-            if (absoCrossfadePos < 1.0f) {
+            // ★【ビジー保護ステートマシンによるクロスフェード進行】
+            if (absoFadeState == AbsoFadeState::FadingToB) {
                 absoCrossfadePos += absoCrossfadeInc;
-                if (absoCrossfadePos > 1.0f) absoCrossfadePos = 1.0f;
+                if (absoCrossfadePos >= 1.0f) {
+                    absoCrossfadePos = 1.0f;
+                    absoFadeState = AbsoFadeState::IdleAtB; // フェード完走
+                }
+            } else if (absoFadeState == AbsoFadeState::FadingToA) {
+                absoCrossfadePos -= absoCrossfadeInc;
+                if (absoCrossfadePos <= 0.0f) {
+                    absoCrossfadePos = 0.0f;
+                    absoFadeState = AbsoFadeState::IdleAtA; // フェード完走
+                }
             }
-            const bool isAbsoCrossfading = (absoCrossfadePos < 1.0f);
-            float absoFadeNew = 1.0f, absoFadeOld = 0.0f;
-            if (isAbsoCrossfading) {
-                absoFadeNew = std::sin(absoCrossfadePos * 1.5707963268f);
-                absoFadeOld = std::cos(absoCrossfadePos * 1.5707963268f);
-            }
+
+            // ★ 等パワーゲイン計算（サンプルごとに 1 回のみ）
+            const float fadeRad = absoCrossfadePos * 1.5707963268f;
+            const float absoGainA = std::cos(fadeRad);
+            const float absoGainB = std::sin(fadeRad);
+
+            // ★ スムーザーからサンプル値を取得
+            const float curPreDelay = preDelaySmoothed.getNextValue();
+            const float curDiffuserGain = diffuserGainSmoothed.getNextValue();
+            const float curApfGainStage = apfGainStageSmoothed.getNextValue();
+            const float curWidth = stereoWidthSmoothed.getNextValue();
+            const float sideBoost = curWidth * 1.5f;
 
             // ★ デュアル黄金比 LFO レート設定 (除算完全排除・事前計算スケール乗算)
             for (int i = 0; i < FDN_ORDER; ++i) {
@@ -758,8 +845,8 @@ namespace FDNReverb {
 
             preDelayLineL.write(inL[n]);
             preDelayLineR.write(inR[n]);
-            float delayedL = (preDelaySamples > 0.5f) ? preDelayLineL.read(preDelaySamples) : inL[n];
-            float delayedR = (preDelaySamples > 0.5f) ? preDelayLineR.read(preDelaySamples) : inR[n];
+            float delayedL = (curPreDelay > 0.5f) ? preDelayLineL.read(curPreDelay) : inL[n];
+            float delayedR = (curPreDelay > 0.5f) ? preDelayLineR.read(curPreDelay) : inR[n];
             if (!std::isfinite(delayedL)) [[unlikely]] delayedL = 0.0f;
             if (!std::isfinite(delayedR)) [[unlikely]] delayedR = 0.0f;
 
@@ -781,24 +868,22 @@ namespace FDNReverb {
 
             float erOutL = 0.0f, erOutR = 0.0f;
 
-            // (旧来のブロードバンドダッキングは dynamicDucker に刷新)
-
-            // ★ Mid / Side 双方を 4段ディフューザーで完全拡散 (左右のアタックの角を溶かす)
+            // ★ Mid / Side 双方を 4段ディフューザーで完全拡散 (ハードバイパス撤廃・サンプル線形平滑化)
             float fdnInputMid = midIn;
             float fdnInputSide = sideIn;
-            if (!skipInputDiffusers && !bypassInputDiffusers) {
+            if (!bypassInputDiffusers) {
                 for (int i = 0; i < 4; ++i) {
                     float dm = inputDiffusersM[i].read(cachedDiffuserDelaySmpM[i]);
-                    float wm = fdnInputMid + diffuserGain * dm;
+                    float wm = fdnInputMid + curDiffuserGain * dm;
                     if (!std::isfinite(wm)) [[unlikely]] wm = 0.0f;
                     inputDiffusersM[i].write(wm);
-                    fdnInputMid = dm - diffuserGain * wm;
+                    fdnInputMid = dm - curDiffuserGain * wm;
 
                     float ds = inputDiffusersS[i].read(cachedDiffuserDelaySmpS[i]);
-                    float ws = fdnInputSide + diffuserGain * ds;
+                    float ws = fdnInputSide + curDiffuserGain * ds;
                     if (!std::isfinite(ws)) [[unlikely]] ws = 0.0f;
                     inputDiffusersS[i].write(ws);
-                    fdnInputSide = ds - diffuserGain * ws;
+                    fdnInputSide = ds - curDiffuserGain * ws;
                 }
             }
 
@@ -839,9 +924,11 @@ namespace FDNReverb {
             }
 
             if (!bypassER) {
-                // SDN / 2D Mesh 散乱出力をFDNへ注入 (ハイブリッド結合、エネルギー保存: 1/sqrt(2) = 0.7071f)
-                fdnInputMid += (erOutL + erOutR) * 0.7071f;
-                fdnInputSide += (erOutL - erOutR) * 0.7071f;
+                // SDN / 2D Mesh 散乱出力をFDNへ注入 (LateDensity 連動ハイブリッド結合)
+                const float densityScale = std::clamp(activeParams.lateDensity, 0.1f, 1.0f);
+                const float injectGain = 0.7071f * std::sqrt(densityScale / 0.7f);
+                fdnInputMid += (erOutL + erOutR) * injectGain;
+                fdnInputSide += (erOutL - erOutR) * injectGain;
             }
 
             // ★ 空間相関の対称性破壊 (Asymmetric Injection / Extraction)
@@ -861,8 +948,7 @@ namespace FDNReverb {
                 const float chorusVal = dualLFOs[i].tick();
                 
                 // ★ FDNベースディレイの 1-pole スムージング & Fractional リード
-                const float asymOffset = (i % 2 == 0 ? 1.0f : -1.0f) * (activeParams.asymmetry - 0.3f) * 10.0f;
-                const float targetSmp = fdnBaseDelaySamples[i] + asymOffset;
+                const float targetSmp = fdnBaseDelaySamples[i];
                 
                 if (currentFdnDelaySamples[i] == 0.0f) [[unlikely]] {
                     currentFdnDelaySamples[i] = targetSmp;
@@ -881,32 +967,20 @@ namespace FDNReverb {
                 }
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-                if (isAbsoCrossfading) {
-                    float dOld = d;
-                    float dNew = d;
-                    if (useAbsoStateA) {
-                        // Fading to A (New=A, Old=B)
-                        for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                            dOld = absorptionFiltersS2_B[i][s].tick(dOld, absorptionCoeffsS2_B[i][s]);
-                            dNew = absorptionFiltersS2_A[i][s].tick(dNew, absorptionCoeffsS2_A[i][s]);
-                        }
-                    } else {
-                        // Fading to B (New=B, Old=A)
-                        for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                            dOld = absorptionFiltersS2_A[i][s].tick(dOld, absorptionCoeffsS2_A[i][s]);
-                            dNew = absorptionFiltersS2_B[i][s].tick(dNew, absorptionCoeffsS2_B[i][s]);
-                        }
-                    }
-                    d = dOld * absoFadeOld + dNew * absoFadeNew;
-                } else {
-                    if (useAbsoStateA) {
-                        for (int s = 0; s < ABSO_STAGES_S2; ++s)
-                            d = absorptionFiltersS2_A[i][s].tick(d, absorptionCoeffsS2_A[i][s]);
-                    } else {
-                        for (int s = 0; s < ABSO_STAGES_S2; ++s)
-                            d = absorptionFiltersS2_B[i][s].tick(d, absorptionCoeffsS2_B[i][s]);
-                    }
+                // ★★★【常時デュアル駆動・状態変数完全保持の神髄】★★★
+                // 分岐条件は一切なし！Bank A と Bank B の両方を常に tick して内部状態を同期
+                float outA = d;
+                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                    outA = absorptionFiltersS2_A[i][s].tick(outA, absorptionCoeffsS2_A[i][s]);
                 }
+
+                float outB = d;
+                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                    outB = absorptionFiltersS2_B[i][s].tick(outB, absorptionCoeffsS2_B[i][s]);
+                }
+
+                // 等パワー合成（過渡ショックゼロ、振幅段差ゼロ、クリックゼロ）
+                d = outA * absoGainA + outB * absoGainB;
 #else
                 d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
 #endif
@@ -921,36 +995,33 @@ namespace FDNReverb {
                     d = dcOut;
                 }
 
-                // Schroeder Allpass (第1・2段は完全フラットな readInt、第3段のみ選択的 Hermite 変調)
+                // Schroeder Allpass (ハードバイパス撤廃・curApfGainStage による連続平滑遷移)
                 float apfOut = d;
-                if (apfGainStage > 0.001f) {
-                    for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
-                        const float baseDelay = cachedApfBaseDelaySmp[i][s];
-                        float delayed;
+                for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                    const float baseDelay = cachedApfBaseDelaySmp[i][s];
+                    float delayed;
+                    
+                    if (s == 2 && depthSamples > 0.01f) {
+                        const float maxSafeMod = baseDelay * 0.15f;
+                        const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
                         
-                        if (s == 2 && depthSamples > 0.01f) {
-                            const float maxSafeMod = baseDelay * 0.15f;
-                            const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
-                            
-                            const float knee = maxSafeMod * 0.75f;
-                            float safeMod = targetMod;
-                            if (targetMod > knee) {
-                                const float excess = targetMod - knee;
-                                const float room = maxSafeMod - knee;
-                                safeMod = knee + room * std::tanh(excess / room);
-                            }
-                            
-                            const float apfDelaySmp = baseDelay + chorusVal * safeMod;
-                            delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
-                        } else {
-                            // 第1・2段は整数サンプルのため通過帯域損失 0.00dB（完全フラット・フィルター感ゼロ）
-                            delayed = nestedAllpassDelays[i][s].readInt(static_cast<int>(std::round(baseDelay)));
+                        const float knee = maxSafeMod * 0.75f;
+                        float safeMod = targetMod;
+                        if (targetMod > knee) {
+                            const float excess = targetMod - knee;
+                            const float room = maxSafeMod - knee;
+                            safeMod = knee + room * std::tanh(excess / room);
                         }
-
-                        const float v = apfOut - apfGainStage * delayed;
-                        nestedAllpassDelays[i][s].write(v);
-                        apfOut = delayed + apfGainStage * v;
+                        
+                        const float apfDelaySmp = baseDelay + chorusVal * safeMod;
+                        delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
+                    } else {
+                        delayed = nestedAllpassDelays[i][s].readInt(static_cast<int>(std::round(baseDelay)));
                     }
+
+                    const float v = apfOut - curApfGainStage * delayed;
+                    nestedAllpassDelays[i][s].write(v);
+                    apfOut = delayed + curApfGainStage * v;
                 }
 
                 apfOutVec[i] = apfOut;
@@ -997,22 +1068,27 @@ namespace FDNReverb {
                 else              oddSum  += extractedOut;
             }
 
-            const float crossLeak = 1.0f - stereoWidth;
+            const float curCrossLeak = 1.0f - curWidth;
             // 16ch FDNのL/R出力 (各8chの非相関サミング: 1/sqrt(8) = 0.3535f)
-            const float fdnOutL = (evenSum + oddSum * crossLeak) * 0.353553f;
-            const float fdnOutR = (oddSum + evenSum * crossLeak) * 0.353553f;
+            const float fdnOutL = (evenSum + oddSum * curCrossLeak) * 0.353553f;
+            const float fdnOutR = (oddSum + evenSum * curCrossLeak) * 0.353553f;
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
-            float erMixL = bypassER ? 0.0f : erOutL * erSmoothedGain * erMakeupGain * erServo;
-            float erMixR = bypassER ? 0.0f : erOutR * erSmoothedGain * erMakeupGain * erServo;
+            const float cDb = std::clamp(activeParams.clarityDB, -6.0f, 6.0f);
+            const float clarityShift = cDb * 0.25f; // 最大 ±1.5dB
+            const float gClarityER   = juce::Decibels::decibelsToGain(+clarityShift);
+            const float gClarityLate = juce::Decibels::decibelsToGain(-clarityShift);
+
+            float erMixL = bypassER ? 0.0f : erOutL * erSmoothedGain * erMakeupGain * erServo * gClarityER;
+            float erMixR = bypassER ? 0.0f : erOutR * erSmoothedGain * erMakeupGain * erServo * gClarityER;
 
             // ★ ER Solo / Send Mode 時の 0〜5ms コムフィルター防止オフセット（音響工学的インテリジェント制御）
             const bool isSendOrErSolo = (erSolo || activeParams.dryDB <= -59.0f);
             if (isSendOrErSolo && !bypassER) {
                 const float minAllowedDelaySmp = 0.005f * fsf; // 5ms 下限 (コムフィルター完全防止境界)
-                if (preDelaySamples < minAllowedDelaySmp) {
-                    const int shiftSmp = static_cast<int>(minAllowedDelaySmp - preDelaySamples);
+                if (curPreDelay < minAllowedDelaySmp) {
+                    const int shiftSmp = static_cast<int>(minAllowedDelaySmp - curPreDelay);
                     erOffsetDelayL[erOffsetWriteIdx] = erMixL;
                     erOffsetDelayR[erOffsetWriteIdx] = erMixR;
                     const size_t readIdx = (erOffsetWriteIdx + 2048 - static_cast<size_t>(shiftSmp)) & 2047;
@@ -1023,8 +1099,9 @@ namespace FDNReverb {
             }
             // ★ ModAmt 変調時の Hermite 補間通過損失を動的補正（音量低下ゼロ化）
             const float modLossComp = 1.0f + (0.08f + 0.08f * std::min(5.0f, currentRT60Mid)) * modAmtCurved;
-            const float lateMixL = fdnOutL * lateMakeupGainLinear * lateLevel * lateServo * modLossComp;
-            const float lateMixR = fdnOutR * lateMakeupGainLinear * lateLevel * lateServo * modLossComp;
+            const float curLateMakeupGain = lateMakeupGainSmoothed.getNextValue();
+            const float lateMixL = fdnOutL * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate;
+            const float lateMixR = fdnOutR * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate;
 
             // ★ Vintage Warmth ADAA Saturator (出力段 L/R 独立 1次 ADAA 処理)
             float satL = saturatorL.processSample(lateMixL);
@@ -1035,28 +1112,25 @@ namespace FDNReverb {
             float wetL = erMixL + satL;
             float wetR = erMixR + satR;
 
-            // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・位相直交化による空間広がり・IACC最適化)
-            const float widthClamped = std::clamp(stereoWidth, 0.0f, 1.0f);
-            const float apDiffGain = 0.55f * widthClamped;
-            wetL = outApL2.process(outApL1.process(wetL, apDiffGain), apDiffGain);
-            wetR = outApR2.process(outApR1.process(wetR, -apDiffGain), -apDiffGain);
+            // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・サンプル単位平滑化)
+            const float curApDiffGain = 0.55f * curWidth;
+            wetL = outApL2.process(outApL1.process(wetL, curApDiffGain), curApDiffGain);
+            wetR = outApR2.process(outApR1.process(wetR, -curApDiffGain), -curApDiffGain);
 
             outputEQ.process(wetL, wetR);
 
             // ★ 4バンド・ダイナミックEQダッキング (周波数追従型マスキング解消)
             dynamicDucker.processStereo(inL[n], inR[n], wetL, wetR);
 
-            // ★ 最終出力段 Mid/Side（和差）幅制御 ＆ 完全モノラル保証
-            if (widthClamped <= 1e-6f) {
-                const float mono = 0.5f * (wetL + wetR);
-                wetL = mono;
-                wetR = mono;
-            } else if (widthClamped < 0.9999f) {
-                const float mid = 0.5f * (wetL + wetR);
-                const float side = 0.5f * (wetL - wetR) * widthClamped;
-                wetL = mid + side;
-                wetR = mid - side;
-            }
+            // ★ 最終出力段 Mid/Side（和差）幅制御 (条件分岐完全撤廃・全域 C^∞ 連続平滑化)
+            const float mid  = 0.5f * (wetL + wetR);
+            const float side = 0.5f * (wetL - wetR) * curWidth;
+            wetL = mid + side;
+            wetR = mid - side;
+
+            // ★ Wet-Only Graceful Mute 適用 (アルゴリズム切り替え時の無音化＆フェード)
+            wetL *= transitionGain;
+            wetR *= transitionGain;
 
             outL[n] = wetL;
             outR[n] = wetR;

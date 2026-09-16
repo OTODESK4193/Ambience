@@ -402,6 +402,106 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
     paramsNeedUpdate = true;
 }
 
+std::array<float, FDNReverb::NUM_BANDS> FDNReverbAudioProcessor::calculateInstantRT60() const noexcept {
+    const auto* algoParam = apvts.getRawParameterValue(ParamID::Algorithm);
+    if (algoParam == nullptr) {
+        std::array<float, FDNReverb::NUM_BANDS> defArr;
+        defArr.fill(1.5f);
+        return defArr;
+    }
+    const int algo = juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, static_cast<int>(algoParam->load()));
+    const auto& preset = *FDNReverb::ALL_PRESETS[algo];
+
+    const auto* pDecay = apvts.getRawParameterValue(ParamID::DecayTime);
+    const auto* pHf    = apvts.getRawParameterValue(ParamID::HFDamping);
+    const auto* pLf    = apvts.getRawParameterValue(ParamID::LFAbsorption);
+    const auto* pAir   = apvts.getRawParameterValue(ParamID::AirAbsorb);
+    const auto* pTL    = apvts.getRawParameterValue(ParamID::TiltLow);
+    const auto* pTM    = apvts.getRawParameterValue(ParamID::TiltMid);
+    const auto* pTH    = apvts.getRawParameterValue(ParamID::TiltHigh);
+
+    const float userDecay = pDecay ? pDecay->load() : 1.5f;
+    const float userHf    = pHf    ? pHf->load()    : 0.0f;
+    const float userLf    = pLf    ? pLf->load()    : 0.0f;
+    const float airScale  = pAir   ? pAir->load()   : 1.0f;
+    const float tiltLow   = pTL    ? pTL->load()    : 1.0f;
+    const float tiltMid   = pTM    ? pTM->load()    : 1.0f;
+    const float tiltHigh  = pTH    ? pTH->load()    : 1.0f;
+
+    const float decayScale = userDecay / std::max(0.01f, FDNReverb::PRESET_DEFAULTS[algo].decayTime);
+
+    std::array<float, FDNReverb::NUM_BANDS> scaledRT60 = preset.acoustics.rt60;
+    for (auto& v : scaledRT60) v *= decayScale;
+
+    // Tilt EQ 多項式チルティング
+    if (std::abs(tiltLow - 1.0f) > 1e-4f ||
+        std::abs(tiltMid - 1.0f) > 1e-4f ||
+        std::abs(tiltHigh - 1.0f) > 1e-4f)
+    {
+        const float x0 = std::log2(FDNReverb::BAND_FREQ[1]);
+        const float x1 = std::log2(FDNReverb::BAND_FREQ[5]);
+        const float x2 = std::log2(FDNReverb::BAND_FREQ[8]);
+        const float d01 = x0 - x1;
+        const float d02 = x0 - x2;
+        const float d12 = x1 - x2;
+        const float denom0 = d01 * d02;
+        const float denom1 = -d01 * d12;
+        const float denom2 = -d02 * -d12;
+
+        for (int b = 0; b < FDNReverb::NUM_BANDS; ++b) {
+            const float x = std::log2(FDNReverb::BAND_FREQ[b]);
+            const float L0 = ((x - x1) * (x - x2)) / denom0;
+            const float L1 = ((x - x0) * (x - x2)) / denom1;
+            const float L2 = ((x - x0) * (x - x1)) / denom2;
+            float tiltFactor = tiltLow * L0 + tiltMid * L1 + tiltHigh * L2;
+            tiltFactor = std::clamp(tiltFactor, 0.1f, 10.0f);
+            scaledRT60[b] *= tiltFactor;
+        }
+    }
+
+    static const juce::String rtBandIDs[FDNReverb::NUM_BANDS] = {
+        ParamID::RTBand0, ParamID::RTBand1, ParamID::RTBand2, ParamID::RTBand3, ParamID::RTBand4,
+        ParamID::RTBand5, ParamID::RTBand6, ParamID::RTBand7, ParamID::RTBand8, ParamID::RTBand9
+    };
+
+    for (int b = 0; b < FDNReverb::NUM_BANDS; ++b) {
+        const auto* rawBand = apvts.getRawParameterValue(rtBandIDs[b]);
+        const float bandMult = rawBand ? rawBand->load() : 1.0f;
+        scaledRT60[b] *= bandMult;
+    }
+
+    // 大気減衰 (ISO 9613-1 指数べき乗モデル)
+    const float safeAirScale = std::clamp(airScale, 0.0f, 5.0f);
+    if (std::abs(safeAirScale - 1.0f) > 1e-4f) {
+        const float ratio7 = std::pow(0.90f, safeAirScale);
+        const float ratio8 = std::pow(0.75f, safeAirScale);
+        const float ratio9 = std::pow(0.60f, safeAirScale);
+        scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
+        scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
+        scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
+    }
+
+    std::array<float, FDNReverb::NUM_BANDS> outRT60{};
+    for (int b = 0; b < FDNReverb::NUM_BANDS; ++b) {
+        float t60 = scaledRT60[b];
+        const float f = FDNReverb::BAND_FREQ[b];
+
+        // 低域吸音
+        const float fDiv160 = f / 160.0f;
+        const float lfWeight = 1.0f / (1.0f + fDiv160 * fDiv160);
+        t60 = std::max(0.01f, t60 * (1.0f - userLf * 0.8f * lfWeight));
+
+        // 高域大気分子吸音
+        const float fExcess = std::max(0.0f, f - 2000.0f) / 14000.0f;
+        const float hfWeight = fExcess * fExcess;
+        const float invT60 = (1.0f / t60) + (userHf * hfWeight * 2.0f);
+        t60 = 1.0f / std::max(1e-4f, invT60);
+
+        outRT60[b] = std::clamp(t60, 0.01f, 120.0f);
+    }
+    return outRT60;
+}
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new FDNReverbAudioProcessor();
 }

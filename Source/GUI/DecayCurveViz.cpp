@@ -3,7 +3,7 @@
 DecayCurveViz::DecayCurveViz() {
     cachedERDelayMs.fill(0.0f);
     cachedERGains.fill(0.0f);
-    startTimerHz(30);
+    startTimerHz(60);
 }
 
 DecayCurveViz::~DecayCurveViz() {
@@ -12,9 +12,10 @@ DecayCurveViz::~DecayCurveViz() {
 
 void DecayCurveViz::timerCallback() {
     if (processor != nullptr) {
-        const auto& engine = processor->getEngine();
-        auto rt60 = engine.getEffectiveRT60();
+        auto rt60 = processor->getRT60ForDisplay();
         cachedRT60Mid = std::max(0.1f, rt60[4]);
+
+        const auto& engine = processor->getEngine();
 
         cachedERBypassed = engine.isERBypassed();
         cachedERTapCount = engine.getERTapCount();

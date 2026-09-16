@@ -168,24 +168,47 @@ public:
 
     void updateGeometry(float width, float depth, float height,
                         float srcX, float srcY, float srcZ,
-                        float lisX, float lisY, float lisZ) {
-        float wallX[6] = { 0, width, srcX, srcX, srcX, srcX };
-        float wallY[6] = { srcY, srcY, 0, height, srcY, srcY };
-        float wallZ[6] = { srcZ, srcZ, srcZ, srcZ, 0, depth };
+                        float lisX, float lisY, float lisZ,
+                        float asymmetry = 0.3f) {
+        const float asym = std::clamp(asymmetry, 0.0f, 1.0f);
+        // 非対称度に応じた壁面シアー変形（0.3が基準直方体、0で完全対称、1で最大非平行）
+        const float shearW = 1.0f + 0.25f * (asym - 0.3f);
+        const float shearH = 1.0f + 0.15f * (asym - 0.3f);
+        const float shearD = 1.0f - 0.20f * (asym - 0.3f);
+
+        // 音源・受音点の偏心（フラッターエコー根絶のための黄金比オフセット）
+        constexpr float phi = 0.6180339887f;
+        const float eccX = (asym - 0.3f) * width * 0.15f * phi;
+        const float eccY = (asym - 0.3f) * height * 0.12f * (1.0f - phi);
+        const float eccZ = (asym - 0.3f) * depth * 0.18f * (phi * phi);
+
+        float effSrcX = std::clamp(srcX + eccX, width * 0.05f, width * 0.95f);
+        float effSrcY = std::clamp(srcY + eccY, height * 0.05f, height * 0.95f);
+        float effSrcZ = std::clamp(srcZ + eccZ, depth * 0.05f, depth * 0.95f);
+
+        float effLisX = std::clamp(lisX - eccX * 0.5f, width * 0.05f, width * 0.95f);
+        float effLisY = std::clamp(lisY - eccY * 0.5f, height * 0.05f, height * 0.95f);
+        float effLisZ = std::clamp(lisZ - eccZ * 0.5f, depth * 0.05f, depth * 0.95f);
+
+        float wallX[6] = { 0.0f, width * shearW, effSrcX, effSrcX, effSrcX, effSrcX };
+        float wallY[6] = { effSrcY, effSrcY, 0.0f, height * shearH, effSrcY, effSrcY };
+        float wallZ[6] = { effSrcZ, effSrcZ, effSrcZ, effSrcZ, 0.0f, depth * shearD };
         const float fsf = static_cast<float>(fs);
 
         for (int i = 0; i < NUM_NODES; ++i) {
-            float dx1 = srcX - wallX[i], dy1 = srcY - wallY[i], dz1 = srcZ - wallZ[i];
+            float dx1 = effSrcX - wallX[i], dy1 = effSrcY - wallY[i], dz1 = effSrcZ - wallZ[i];
             float d1 = std::sqrt(dx1*dx1 + dy1*dy1 + dz1*dz1);
-            float dx2 = lisX - wallX[i], dy2 = lisY - wallY[i], dz2 = lisZ - wallZ[i];
+            float dx2 = effLisX - wallX[i], dy2 = effLisY - wallY[i], dz2 = effLisZ - wallZ[i];
             float d2 = std::sqrt(dx2*dx2 + dy2*dy2 + dz2*dz2);
+            nodeDistances[i] = d1 + d2;
 
             float delaySamples = ((d1 + d2) / SOUND_SPEED) * fsf;
+            const float asymJitter = (asym - 0.3f) * 0.02f * (i % 2 == 0 ? 1.0f : -1.0f);
             static constexpr float DITHER[6] = {
                 1.0f, 1.0f + 0.0314159f, 1.0f - 0.0271828f,
                 1.0f + 0.0173205f, 1.0f - 0.0223607f, 1.0f + 0.0141421f
             };
-            delaySamples *= DITHER[i];
+            delaySamples *= (DITHER[i] + asymJitter);
             baseDelaySamples[i] = std::max(3.0f, delaySamples);
         }
         baseDelaySamples[6] = 0.0f;
@@ -221,14 +244,10 @@ public:
         __m256 dm2 = _mm256_sub_ps(vD, vTwo);
         __m256 dp1 = _mm256_add_ps(vD, vOne);
 
-        // ラグランジュ多項式重み (現行スカラーと数学的に完全一致)
-        // hm1 = (-d * dm1 * dm2) * (1/6)
+        // ラグランジュ多項式重み
         __m256 hm1 = _mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_setzero_ps(), vD), dm1), _mm256_mul_ps(dm2, vSixth));
-        // h0 = (dp1 * dm1 * dm2) * 0.5
         __m256 h0  = _mm256_mul_ps(_mm256_mul_ps(dp1, dm1), _mm256_mul_ps(dm2, vHalf));
-        // h1 = (-dp1 * d * dm2) * 0.5
         __m256 h1  = _mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_setzero_ps(), dp1), vD), _mm256_mul_ps(dm2, vHalf));
-        // h2 = (dp1 * d * dm1) * (1/6)
         __m256 h2  = _mm256_mul_ps(_mm256_mul_ps(dp1, vD), _mm256_mul_ps(dm1, vSixth));
 
         __m256 vYm1 = _mm256_load_ps(ym1Array);
@@ -242,12 +261,17 @@ public:
         x = _mm256_fmadd_ps(h1, vY1, x);
         x = _mm256_fmadd_ps(h2, vY2, x);
 
-        // ダミーノード (ch 6, 7) の厳密ゼロマスク (エネルギー漏洩防止)
+        // ダミーノード (ch 6, 7) の厳密ゼロマスク
         static const __m256i activeMask = _mm256_set_epi32(0, 0, -1, -1, -1, -1, -1, -1);
         x = _mm256_and_ps(x, _mm256_castsi256_ps(activeMask));
 
-        // 3. 超低レイテンシ Householder 6x6 散乱 (最速水平加算シーケンス)
-        // x の 8要素中、ch 6, 7 は 0 であるため、8要素総和 = 6ノード総和
+        // 3. 鏡面反射 (Snell則 対向壁置換) vs 完全拡散散乱 (Householder 6x6) の等パワー補間
+        // 対向壁置換: Node 0<->1, Node 2<->3, Node 4<->5 (位相反転付き)
+        __m256 shufX = _mm256_shuffle_ps(x, x, _MM_SHUFFLE(2, 3, 0, 1));
+        __m256 spec = _mm256_sub_ps(_mm256_setzero_ps(), shufX);
+        spec = _mm256_and_ps(spec, _mm256_castsi256_ps(activeMask));
+
+        // Householder 拡散散乱ベクトル
         __m128 lo = _mm256_castps256_ps128(x);
         __m128 hi = _mm256_extractf128_ps(x, 1);
         __m128 sum128 = _mm_add_ps(lo, hi);
@@ -256,12 +280,18 @@ public:
         __m128 shuf2  = _mm_shuffle_ps(sum64, sum64, _MM_SHUFFLE(1, 1, 1, 1));
         __m128 totalSum = _mm_add_ss(sum64, shuf2);
 
-        // N=6 の Householder 係数: 2 / 6 = 1 / 3
-        __m256 factor = _mm256_set1_ps(0.33333334f);
+        __m256 factor = _mm256_set1_ps(0.33333334f); // 2 / 6
         __m256 scaledSum = _mm256_mul_ps(_mm256_broadcastss_ps(totalSum), factor);
+        __m256 diff = _mm256_sub_ps(scaledSum, x);
+        diff = _mm256_and_ps(diff, _mm256_castsi256_ps(activeMask));
 
-        // y = scaledSum - x
-        __m256 scattered = _mm256_sub_ps(scaledSum, x);
+        // ユニタリ等パワー合成: y = sqrt(1-s^2)*spec + s*diff
+        const float s = std::clamp(scattering, 0.0f, 1.0f);
+        const float specW = std::sqrt(std::max(0.0f, 1.0f - s * s));
+        const float diffW = s;
+        __m256 vSpecW = _mm256_set1_ps(specW);
+        __m256 vDiffW = _mm256_set1_ps(diffW);
+        __m256 scattered = _mm256_fmadd_ps(vSpecW, spec, _mm256_mul_ps(vDiffW, diff));
         scattered = _mm256_and_ps(scattered, _mm256_castsi256_ps(activeMask));
 
         // NaN/Inf & デノーマル保護クランプ (-10.0f ~ +10.0f)
@@ -301,6 +331,7 @@ public:
         }
     }
 
+    float scattering{ 0.5f };
     float modDepth{ 0.5f };
     float modRate{ 0.3f };
     float damping{ 0.95f };
@@ -314,6 +345,7 @@ private:
     std::array<double, 6> nodeStates{};
     alignas(32) std::array<float, 8> lpfState{};
     std::array<BrownianModulator, 6> modulators;
+    std::array<float, 6> nodeDistances{};
 };
 
 } // namespace FDNReverb

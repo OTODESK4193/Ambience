@@ -117,6 +117,8 @@ namespace FDNReverb {
         void processBlock(const float* inL, const float* inR,
             float* outL, float* outR, int numSamples) noexcept;
 
+        void panicReset() noexcept;
+
         std::array<float, NUM_BANDS> getEffectiveRT60() const noexcept {
             return effectiveRT60;
         }
@@ -144,6 +146,7 @@ namespace FDNReverb {
     private:
         void updateTopologyAndRouting();
         void calculatePrimePowerDelays();
+        void updateAbsorptionFilters(bool targetIsB);
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
@@ -157,13 +160,19 @@ namespace FDNReverb {
         static constexpr int FDN_ORDER = 16;
         static constexpr int SERIAL_APF_STAGES = 3;
 
-        int topologyUpdateCounter{ 0 };
-        static constexpr int TOPOLOGY_UPDATE_INTERVAL = 64;
         bool topologyUpdatePending{ false };
+        bool absorptionUpdatePending{ false };
+        int  samplesSinceLastAbsorptionUpdate{ 0 };
+        int  absorptionRateLimitIntervalSamples{ 720 };
 
         LinearDelayLine                              preDelayLineL;
         LinearDelayLine                              preDelayLineR;
         float                                        preDelaySamples{ 0.0f };
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> preDelaySmoothed;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> roomSizeSmoothed;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> diffuserGainSmoothed;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> apfGainStageSmoothed;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> stereoWidthSmoothed;
 
         // ★ 入力段 Bandwidth LPF ＆ 過渡平滑化 (アタックの過剰入力を防ぎコムフィルタリングを防止)
         float inLpfStateL{ 0.0f };
@@ -205,9 +214,16 @@ namespace FDNReverb {
         std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_A{};
         std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_B{};
         
-        float absoCrossfadePos{ 1.0f };
-        float absoCrossfadeInc{ 0.0f };
-        bool useAbsoStateA{ true };
+        // ★ 常時デュアル駆動・ビジー保護クロスフェード・ステートマシン
+        enum class AbsoFadeState {
+            IdleAtA,    // Bank A 100% (pos = 0.0)
+            FadingToB,  // Bank A -> Bank B 移動中 (pos: 0.0 -> 1.0)
+            IdleAtB,    // Bank B 100% (pos = 1.0)
+            FadingToA   // Bank B -> Bank A 移動中 (pos: 1.0 -> 0.0)
+        };
+        AbsoFadeState absoFadeState{ AbsoFadeState::IdleAtA };
+        float absoCrossfadePos{ 0.0f }; // 0.0f (100% A) 〜 1.0f (100% B)
+        float absoCrossfadeInc{ 0.0f }; // 30ms クロスフェードの 1 サンプル増分
 
         std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs{};
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples{};
@@ -220,6 +236,21 @@ namespace FDNReverb {
         bool  bypassInputDiffusers{ false };
         float lateMixScale{ 1.0f };
         float lateMakeupGainLinear{ 1.0f };
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> lateMakeupGainSmoothed;
+
+        // ★ Wet-Only Graceful Mute State Machine (アルゴリズム切り替えノイズ根絶 ＆ Panic連動)
+        enum class TransitionState {
+            Normal,
+            FadingOut,
+            MutedAndReinit,
+            FadingIn
+        };
+        TransitionState transitionState{ TransitionState::Normal };
+        ReverbTopology  pendingTopology{ ReverbTopology::Room };
+        DSPParams       pendingParams{};
+        float           transitionGain{ 1.0f };
+        int             transitionSamplesTotal{ 384 }; // 8ms at 48kHz
+        int             transitionSampleCount{ 0 };
 
         // ★ Graceful Bypass: ER スムーズゲイン
         float erSmoothedGain{ 1.0f };

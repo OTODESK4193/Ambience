@@ -203,7 +203,7 @@ void AmbienceLookAndFeel::drawScrollbar(juce::Graphics& g, juce::ScrollBar&,
 // ─── RT60Visualizer ──────────────────────────────────────────────────
 RT60Visualizer::RT60Visualizer() {
     displayRT60.fill(1.0f);
-    startTimerHz(30);
+    startTimerHz(60);
 }
 RT60Visualizer::~RT60Visualizer() { stopTimer(); }
 
@@ -212,18 +212,19 @@ void RT60Visualizer::timerCallback() {
 
     auto live = processor->getRT60ForDisplay();
     for (int i = 0; i < FDNReverb::NUM_BANDS; ++i)
-        displayRT60[i] += 0.25f * (live[i] - displayRT60[i]);
+        displayRT60[i] += 0.85f * (live[i] - displayRT60[i]);
 
-    // ★ 動的 Y 軸上限: 現在の実効値とデフォルト基準値の最大値 × 1.3 に滑らかに追従
+    // ★ 動的 Y 軸上限: 現在の実効値とデフォルト基準値の最大値 × 1.3 に素早く滑らかに追従
     float maxVal = *std::max_element(displayRT60.begin(), displayRT60.end());
-    int algo = (int)*processor->apvts.getRawParameterValue("algorithm");
-    auto& preset = *FDNReverb::ALL_PRESETS[juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, algo)];
+    const auto* pAlgo = processor->apvts.getRawParameterValue(FDNReverb::ParamID::Algorithm);
+    int algo = pAlgo ? juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, static_cast<int>(pAlgo->load())) : 0;
+    auto& preset = *FDNReverb::ALL_PRESETS[algo];
     float presetMax = *std::max_element(preset.acoustics.rt60.begin(), preset.acoustics.rt60.end());
     maxVal = std::max(maxVal, presetMax);
 
     float targetMax = std::max(MAX_RT60_DISPLAY_FLOOR, maxVal * 1.3f);
-    // 指数平滑化（上昇は素早く、下降は緩やか→スケールが頻繁に変わらない）
-    float smoothFactor = (targetMax > dynamicMaxRT60) ? 0.15f : 0.03f;
+    // 指数平滑化（上昇・下降ともに素早く追従）
+    float smoothFactor = (targetMax > dynamicMaxRT60) ? 0.40f : 0.25f;
     dynamicMaxRT60 += smoothFactor * (targetMax - dynamicMaxRT60);
 
     repaint();
