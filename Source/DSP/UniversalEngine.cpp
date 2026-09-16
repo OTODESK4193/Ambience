@@ -175,7 +175,6 @@ namespace FDNReverb {
 
         ismBufferL.resize(static_cast<size_t>(std::max(1024, maxBlockSize)), 0.0f);
         ismBufferR.resize(static_cast<size_t>(std::max(1024, maxBlockSize)), 0.0f);
-        ismSeedBuffer.resize(static_cast<size_t>(std::max(1024, maxBlockSize)), 0.0f);
         ismEngine.prepare(sampleRate, maxBlockSize);
 
         const float fsf = static_cast<float>(fs);
@@ -742,7 +741,6 @@ namespace FDNReverb {
         }
 
         const float fsf = static_cast<float>(fs);
-        const float stereoWidth = activeParams.stereoWidth;
         
         // ★ ERLevel の二乗カーブ
         const float erGainCurved = activeParams.erLevel * activeParams.erLevel;
@@ -759,18 +757,21 @@ namespace FDNReverb {
         const float erServo = acousticMetrics.getERServoGain();
         const float lateServo = acousticMetrics.getLateServoGain();
 
+        // ★ SDN / 2D Mesh 注入ゲインのブロック単位事前計算 (毎サンプルの std::sqrt を完全排除)
+        const float lateDensityScale = std::clamp(activeParams.lateDensity, 0.1f, 1.0f);
+        const float lateInjectGain = 0.7071f * std::sqrt(lateDensityScale / 0.7f);
+
         // ★ ISM (鏡像法) 初期反射エンジンによる並列 AVX2 処理
         if (!bypassER) {
             if (ismBufferL.size() < static_cast<size_t>(numSamples)) {
                 ismBufferL.resize(static_cast<size_t>(numSamples), 0.0f);
                 ismBufferR.resize(static_cast<size_t>(numSamples), 0.0f);
-                ismSeedBuffer.resize(static_cast<size_t>(numSamples), 0.0f);
             }
             std::fill(ismBufferL.begin(), ismBufferL.begin() + numSamples, 0.0f);
             std::fill(ismBufferR.begin(), ismBufferR.begin() + numSamples, 0.0f);
-            std::fill(ismSeedBuffer.begin(), ismSeedBuffer.begin() + numSamples, 0.0f);
 
-            ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), ismSeedBuffer.data(), numSamples, activeParams.erLevel);
+            // 未使用の ismSeedBuffer を排除し nullptr を渡すことで不要なメモリ書き込みをスキップ
+            ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), nullptr, numSamples, activeParams.erLevel);
         }
 
         for (int n = 0; n < numSamples; ++n) {
@@ -823,10 +824,20 @@ namespace FDNReverb {
                 }
             }
 
-            // ★ 等パワーゲイン計算（サンプルごとに 1 回のみ）
-            const float fadeRad = absoCrossfadePos * 1.5707963268f;
-            const float absoGainA = std::cos(fadeRad);
-            const float absoGainB = std::sin(fadeRad);
+            // ★ 等パワーゲイン計算（アイドル時は超越関数完全スキップ、フェード時のみ三角関数計算）
+            float absoGainA = 1.0f;
+            float absoGainB = 0.0f;
+            if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
+                absoGainA = 1.0f;
+                absoGainB = 0.0f;
+            } else if (absoFadeState == AbsoFadeState::IdleAtB) {
+                absoGainA = 0.0f;
+                absoGainB = 1.0f;
+            } else {
+                const float fadeRad = absoCrossfadePos * 1.5707963268f;
+                absoGainA = std::cos(fadeRad);
+                absoGainB = std::sin(fadeRad);
+            }
 
             // ★ スムーザーからサンプル値を取得
             const float curPreDelay = preDelaySmoothed.getNextValue();
@@ -922,14 +933,9 @@ namespace FDNReverb {
             if (!bypassER) {
                 erOutL += ismBufferL[n];
                 erOutR += ismBufferR[n];
-            }
-
-            if (!bypassER) {
-                // SDN / 2D Mesh 散乱出力をFDNへ注入 (LateDensity 連動ハイブリッド結合)
-                const float densityScale = std::clamp(activeParams.lateDensity, 0.1f, 1.0f);
-                const float injectGain = 0.7071f * std::sqrt(densityScale / 0.7f);
-                fdnInputMid += (erOutL + erOutR) * injectGain;
-                fdnInputSide += (erOutL - erOutR) * injectGain;
+                // SDN / 2D Mesh 散乱出力をFDNへ注入 (LateDensity 連動ハイブリッド結合: 事前計算ゲイン適用)
+                fdnInputMid += (erOutL + erOutR) * lateInjectGain;
+                fdnInputSide += (erOutL - erOutR) * lateInjectGain;
             }
 
             // ★ 空間相関の対称性破壊 (Asymmetric Injection / Extraction)

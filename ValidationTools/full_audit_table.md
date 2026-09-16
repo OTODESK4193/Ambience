@@ -27,7 +27,7 @@
 | 25 | Stress | Room1 | Max_Decay | Peak=-4.0dBFS, TailRMS=-37.9dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |
 | 26 | Stress | Room1 | MaxSize_MaxDecay | Peak=-5.9dBFS, TailRMS=-51.1dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |
 | 27 | Stress | Room1 | Max_Nonlinearity | Peak=-1.9dBFS, TailRMS=-47.9dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |
-| 28 | Stress | Room1 | Zero_Diffusion | Peak=-6.2dBFS, TailRMS=-94.2dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |
+| 28 | Stress | Room1 | Zero_Diffusion | Peak=-6.2dBFS, TailRMS=-94.1dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |
 | 29 | Stress | Room2 | Max_Decay | Peak=-6.8dBFS, TailRMS=-26.0dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |
 | 30 | Stress | Room2 | MaxSize_MaxDecay | Peak=-8.4dBFS, TailRMS=-26.0dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |
 | 31 | Stress | Room2 | Max_Nonlinearity | Peak=-5.4dBFS, TailRMS=-23.7dBFS, Blowout=False, NaN=0, Inf=0 | Stress: **PASS** |

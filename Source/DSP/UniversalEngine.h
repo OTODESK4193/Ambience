@@ -290,7 +290,6 @@ namespace FDNReverb {
         EarlyReflectionsISM ismEngine;
         std::vector<float> ismBufferL;
         std::vector<float> ismBufferR;
-        std::vector<float> ismSeedBuffer;
 
         MagnitudeResponseFitter fitter;
         bool isPreparedFlag{ false };

@@ -210,9 +210,13 @@ RT60Visualizer::~RT60Visualizer() { stopTimer(); }
 void RT60Visualizer::timerCallback() {
     if (!processor) return;
 
+    bool needsRepaint = false;
     auto live = processor->getRT60ForDisplay();
-    for (int i = 0; i < FDNReverb::NUM_BANDS; ++i)
+    for (int i = 0; i < FDNReverb::NUM_BANDS; ++i) {
+        const float prev = displayRT60[i];
         displayRT60[i] += 0.85f * (live[i] - displayRT60[i]);
+        if (std::abs(displayRT60[i] - prev) > 1e-3f) needsRepaint = true;
+    }
 
     // ★ 動的 Y 軸上限: 現在の実効値とデフォルト基準値の最大値 × 1.3 に素早く滑らかに追従
     float maxVal = *std::max_element(displayRT60.begin(), displayRT60.end());
@@ -225,9 +229,11 @@ void RT60Visualizer::timerCallback() {
     float targetMax = std::max(MAX_RT60_DISPLAY_FLOOR, maxVal * 1.3f);
     // 指数平滑化（上昇・下降ともに素早く追従）
     float smoothFactor = (targetMax > dynamicMaxRT60) ? 0.40f : 0.25f;
+    const float prevMax = dynamicMaxRT60;
     dynamicMaxRT60 += smoothFactor * (targetMax - dynamicMaxRT60);
+    if (std::abs(dynamicMaxRT60 - prevMax) > 1e-3f) needsRepaint = true;
 
-    repaint();
+    if (needsRepaint) repaint();
 }
 
 void RT60Visualizer::paint(juce::Graphics& g)

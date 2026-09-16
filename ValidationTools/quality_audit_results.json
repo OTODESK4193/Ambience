@@ -336,7 +336,7 @@
     "peak_val": 0.4919,
     "peak_dbfs": -6.16,
     "is_blowing_out": false,
-    "tail_rms_dbfs": -94.21,
+    "tail_rms_dbfs": -94.09,
     "stress_eval": "PASS"
   },
   {

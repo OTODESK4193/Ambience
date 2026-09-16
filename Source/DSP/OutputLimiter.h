@@ -121,15 +121,11 @@ namespace FDNReverb {
         // Phase 2 (+0.50): ハーフサンプル補間
         // Phase 3 (+0.75): 補間タップ
         static inline float computeTruePeak4x(const std::array<float, 16>& h, int idx) noexcept {
-            // 直近 8 サンプルの取得
+            // 直近 4 サンプルの取得 (4点4倍補間)
             const float x0 = h[idx];
             const float x1 = h[(idx + 1) & 15];
             const float x2 = h[(idx + 2) & 15];
             const float x3 = h[(idx + 3) & 15];
-            const float x4 = h[(idx + 4) & 15];
-            const float x5 = h[(idx + 5) & 15];
-            const float x6 = h[(idx + 6) & 15];
-            const float x7 = h[(idx + 7) & 15];
 
             // 4 つのサブサンプルの推定 (Sinc 補間重み)
             // p0: 点サンプルそのもの

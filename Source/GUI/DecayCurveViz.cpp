@@ -12,26 +12,44 @@ DecayCurveViz::~DecayCurveViz() {
 
 void DecayCurveViz::timerCallback() {
     if (processor != nullptr) {
+        bool needsRepaint = false;
         auto rt60 = processor->getRT60ForDisplay();
-        cachedRT60Mid = std::max(0.1f, rt60[4]);
+        float newRT60Mid = std::max(0.1f, rt60[4]);
+        if (std::abs(newRT60Mid - cachedRT60Mid) > 1e-3f) {
+            cachedRT60Mid = newRT60Mid;
+            needsRepaint = true;
+        }
 
         const auto& engine = processor->getEngine();
+        bool newERBypassed = engine.isERBypassed();
+        if (newERBypassed != cachedERBypassed) {
+            cachedERBypassed = newERBypassed;
+            needsRepaint = true;
+        }
 
-        cachedERBypassed = engine.isERBypassed();
-        cachedERTapCount = engine.getERTapCount();
-        if (cachedERTapCount > MAX_DISPLAY_TAPS)
-            cachedERTapCount = MAX_DISPLAY_TAPS;
+        int newTapCount = engine.getERTapCount();
+        if (newTapCount > MAX_DISPLAY_TAPS) newTapCount = MAX_DISPLAY_TAPS;
+        if (newTapCount != cachedERTapCount) {
+            cachedERTapCount = newTapCount;
+            needsRepaint = true;
+        }
 
         double sr = engine.getSampleRate();
         if (sr < 1.0) sr = 48000.0;
 
         for (int i = 0; i < cachedERTapCount; ++i) {
             float delaySamples = engine.getERTapDelaySamples(i);
-            cachedERDelayMs[i] = delaySamples / static_cast<float>(sr) * 1000.0f;
-            cachedERGains[i] = engine.getERTapGain(i);
+            float newDelayMs = delaySamples / static_cast<float>(sr) * 1000.0f;
+            float newGain = engine.getERTapGain(i);
+            if (std::abs(newDelayMs - cachedERDelayMs[i]) > 1e-2f || std::abs(newGain - cachedERGains[i]) > 1e-3f) {
+                cachedERDelayMs[i] = newDelayMs;
+                cachedERGains[i] = newGain;
+                needsRepaint = true;
+            }
         }
+
+        if (needsRepaint) repaint();
     }
-    repaint();
 }
 
 void DecayCurveViz::resized() {}
