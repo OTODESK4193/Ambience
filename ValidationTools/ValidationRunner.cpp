@@ -82,6 +82,12 @@ int main() {
         p.wetDB = 0.0f;
         engine.setParams(p);
         
+        // ★ アルゴリズム切り替え時の Graceful Mute トランジション（16ms）を完走させるウォームアップ
+        std::vector<float> warmZeros(1024, 0.0f);
+        std::vector<float> warmOutL(1024, 0.0f);
+        std::vector<float> warmOutR(1024, 0.0f);
+        engine.processBlock(warmZeros.data(), warmZeros.data(), warmOutL.data(), warmOutR.data(), 1024);
+        
         int totalSamples = static_cast<int>(inL.size());
         std::vector<float> outL(totalSamples, 0.0f);
         std::vector<float> outR(totalSamples, 0.0f);

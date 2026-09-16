@@ -498,7 +498,7 @@ std::array<float, FDNReverb::NUM_BANDS> FDNReverbAudioProcessor::calculateInstan
         const float invT60 = (1.0f / t60) + (userHf * hfWeight * 2.0f);
         t60 = 1.0f / std::max(1e-4f, invT60);
 
-        outRT60[b] = std::clamp(t60, 0.01f, 120.0f);
+        outRT60[b] = std::clamp(t60, 0.01f, 200.0f);
     }
     return outRT60;
 }

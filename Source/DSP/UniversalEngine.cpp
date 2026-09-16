@@ -88,8 +88,8 @@ namespace FDNReverb {
     };
 
     static constexpr std::array<ApfConfig, 6> TOPOLOGY_APF_CONFIGS = { {
-        // Room: 小型〜中型部屋 (227Hz, 357Hz, 588Hz)
-        { { 1.7f, 2.8f, 4.4f }, 0.40f },
+        // Room: 小型〜中型部屋 (196Hz, 303Hz, 476Hz)
+        { { 2.1f, 3.3f, 5.1f }, 0.55f },
         // Hall: ホール (106Hz, 172Hz, 312Hz)
         { { 3.2f, 5.8f, 9.4f }, 0.60f },
         // Plate: 金属板 - 超短ディレイのモジュレーションで高密度エコーを生成
