@@ -1,0 +1,722 @@
+[
+  {
+    "category": "Impulse",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 0
+  },
+  {
+    "category": "Impulse",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 1536000
+  },
+  {
+    "category": "Impulse",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 3072000
+  },
+  {
+    "category": "Impulse",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 4608000
+  },
+  {
+    "category": "Impulse",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 6144000
+  },
+  {
+    "category": "Impulse",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 7680000
+  },
+  {
+    "category": "Impulse",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 9216000
+  },
+  {
+    "category": "Impulse",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Dirac_Impulse",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 10752000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 12288000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 13056000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 13824000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 14592000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 15360000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 16128000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 16896000
+  },
+  {
+    "category": "Silence",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Cold_Silence",
+    "freq": 0,
+    "numSamples": 96000,
+    "byteOffset": 17664000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 18432000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 19968000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 21504000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 23040000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 24576000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 26112000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 27648000
+  },
+  {
+    "category": "PostBurst",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "NoiseBurst_Recovery",
+    "freq": 0,
+    "numSamples": 192000,
+    "byteOffset": 29184000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 30720000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 32640000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 34560000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 36480000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 38400000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 40320000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 42240000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 44160000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 46080000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 48000000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 49920000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 51840000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 53760000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 55680000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 57600000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 59520000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 61440000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 63360000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 65280000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 67200000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 69120000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 71040000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 72960000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 74880000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 76800000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 78720000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 80640000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 82560000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Max_Decay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 84480000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "MaxSize_MaxDecay",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 86400000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Max_Nonlinearity",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 88320000
+  },
+  {
+    "category": "Stress",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Zero_Diffusion",
+    "freq": 0,
+    "numSamples": 240000,
+    "byteOffset": 90240000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 92160000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 93312000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 94464000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 95616000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 96768000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 97920000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 99072000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Pulse_100Hz",
+    "freq": 100,
+    "numSamples": 144000,
+    "byteOffset": 100224000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 101376000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 102528000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 103680000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 104832000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 105984000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 107136000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 108288000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Pulse_1000Hz",
+    "freq": 1000,
+    "numSamples": 144000,
+    "byteOffset": 109440000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 0,
+    "algoName": "Room1",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 110592000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 1,
+    "algoName": "Room2",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 111744000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 2,
+    "algoName": "Hall1",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 112896000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 3,
+    "algoName": "Hall2",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 114048000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 4,
+    "algoName": "Plate",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 115200000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 5,
+    "algoName": "Spring",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 116352000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 6,
+    "algoName": "Goldfoil",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 117504000
+  },
+  {
+    "category": "TonalPulse",
+    "algoIndex": 7,
+    "algoName": "Inchindown",
+    "condition": "Pulse_5000Hz",
+    "freq": 5000,
+    "numSamples": 144000,
+    "byteOffset": 118656000
+  }
+]

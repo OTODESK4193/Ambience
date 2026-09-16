@@ -295,11 +295,13 @@ namespace FDNReverb {
         MagnitudeResponseFitter fitter;
         bool isPreparedFlag{ false };
 
-        // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・素数ディレイ)
-        SimpleAllpass<37>  outApL1;
-        SimpleAllpass<61>  outApL2;
-        SimpleAllpass<71>  outApR1;
-        SimpleAllpass<103> outApR2;
+        // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・素数ディレイ3段カスケード)
+        SimpleAllpass<41>  outApL1;
+        SimpleAllpass<73>  outApL2;
+        SimpleAllpass<109> outApL3;
+        SimpleAllpass<53>  outApR1;
+        SimpleAllpass<89>  outApR2;
+        SimpleAllpass<127> outApR3;
     };
 
 } // namespace FDNReverb

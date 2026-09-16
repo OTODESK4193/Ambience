@@ -3,113 +3,271 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <algorithm>
+#include <memory>
 
-// Include the ACTUAL UniversalEngine header
 #include "../Source/DSP/UniversalEngine.h"
+#include "../Source/AlgorithmPresets.h"
 
 using namespace FDNReverb;
 
 const double SAMPLE_RATE = 48000.0;
-const int IR_SAMPLES = (int)(SAMPLE_RATE * 2.0);
-const double TEST_DUR = 0.1;
 
-struct RoomParam {
-    std::string name;
-    float w, d, h;
-    float sx, sy, sz;
-    float lx, ly, lz;
+struct TestCaseMeta {
+    std::string category;
+    int algoIndex;
+    std::string algoName;
+    std::string condition;
+    float freq;
+    int numSamples;
+    uint64_t byteOffset;
 };
 
-std::vector<RoomParam> ROOMS = {
-    {"Room", 4.6f, 7.4f, 2.89f, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f},
-    {"Hall", 13.5f, 27.0f, 10.8f, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f},
-    {"Plate", 2.0f, 1.0f, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f},
-    {"Spring", 0.3f, 0.3f, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f},
-    {"Goldfoil", 0.27f, 0.29f, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f},
-    {"Inchindown", 9.0f, 237.0f, 13.5f, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f}
+static const std::vector<std::string> ALGO_NAMES = {
+    "Room1", "Room2", "Hall1", "Hall2", "Plate", "Spring", "Goldfoil", "Inchindown"
 };
 
-std::vector<float> FREQS = {40, 80, 160, 320, 640, 1280, 2560, 5120, 10240, 15000};
-std::vector<std::string> WAVES = {"Sine", "Saw", "Square", "Sync", "FM"};
-
-void generate_signal(const std::string& wave, float freq, std::vector<float>& sig) {
-    int n = (int)(SAMPLE_RATE * TEST_DUR);
-    sig.resize(n);
-    for (int i = 0; i < n; ++i) {
-        float t = i / (float)SAMPLE_RATE;
-        float v = 0.0f;
-        if (wave == "Sine") {
-            v = std::sin(2.0f * 3.14159265f * freq * t);
-        } else if (wave == "Saw") {
-            v = 2.0f * std::fmod(freq * t, 1.0f) - 1.0f;
-        } else if (wave == "Square") {
-            v = std::sin(2.0f * 3.14159265f * freq * t) > 0 ? 1.0f : -1.0f;
-        } else if (wave == "Sync") {
-            v = std::sin(2.0f * 3.14159265f * freq * t) * std::sin(2.0f * 3.14159265f * freq * 2.7f * t);
-        } else if (wave == "FM") {
-            v = std::sin(2.0f * 3.14159265f * freq * t + 3.0f * std::sin(2.0f * 3.14159265f * freq * 1.414f * t));
-        }
-        sig[i] = v * 0.5f; // -6dBFS
-    }
+void applyPresetDefaults(DSPParams& p, int algo) {
+    if (algo < 0 || algo >= NUM_ALGORITHMS) return;
+    const auto& def = PRESET_DEFAULTS[algo];
+    p.algorithmIndex = algo;
+    p.roomSizeScale = def.roomSize;
+    p.decayScale = def.decayTime;
+    p.diffusion = def.diffusion;
+    p.modAmount = def.modAmount;
+    p.modRate = def.modRate;
+    p.stereoWidth = def.stereoWidth;
+    p.preDelayMs = def.preDelayMs;
+    p.erLevel = def.erLevel;
+    p.lateLevel = def.lateLevel;
+    p.hfDamping = def.hfDamp;
+    p.lfAbsorption = def.lfAbsorb;
+    p.saturation = def.saturation;
+    p.satTypeIdx = def.satType;
+    p.scattering = def.scattering;
+    p.erCrossoverMs = def.erCrossoverMs;
+    p.lateDensity = def.lateDensity;
+    p.asymmetry = def.asymmetry;
+    p.clarityDB = def.clarityDB;
+    p.airAbsorbScale = def.airAbsorbScale;
+    p.dryDB = -100.0f; // 100% Wet for strict reverb analysis
+    p.wetDB = 0.0f;
 }
 
-// Removed mock DelayMemoryPool since we include UniversalEngine.h
-
 int main() {
-    std::cout << "UniversalEngine (SDN+FDN) C++ Runner started...\n";
+    _mm_setcsr(_mm_getcsr() | 0x8040); // Hardware FTZ & DAZ
+    std::cout << "=== High-Quality Ambience Audio Quality Audit Runner ===\n";
     
     FDNReverb::UniversalEngine engine;
     engine.prepare(SAMPLE_RATE, 256);
     
-    std::ofstream outfile("ValidationTools/processed_audio.bin", std::ios::binary);
+    std::string binPath = "ValidationTools/quality_audit_audio.bin";
+    std::string jsonPath = "ValidationTools/quality_audit_meta.json";
     
-    int count = 0;
-    for (int r_idx = 0; r_idx < 6; ++r_idx) {
-        FDNReverb::DSPParams params;
-        params.algorithmIndex = r_idx;
-        params.roomSizeScale = 1.0f;
-        params.decayScale = 1.0f;
-        params.erLevel = 1.0f;
-        params.lateLevel = 1.0f;
-        params.diffusion = 1.0f;
+    std::ofstream binFile(binPath, std::ios::binary);
+    if (!binFile.is_open()) {
+        std::cerr << "Failed to open " << binPath << "\n";
+        return 1;
+    }
+    
+    std::vector<TestCaseMeta> allCases;
+    uint64_t currentByteOffset = 0;
+    
+    auto runAndRecord = [&](const std::string& cat, int algo, const std::string& cond, float freq,
+                            const std::vector<float>& inL, const std::vector<float>& inR,
+                            const DSPParams& params) {
+        engine.reset();
+        DSPParams p = params;
+        p.dryDB = -100.0f; // 100% Wet
+        p.wetDB = 0.0f;
+        engine.setParams(p);
         
-        engine.setParams(params);
+        int totalSamples = static_cast<int>(inL.size());
+        std::vector<float> outL(totalSamples, 0.0f);
+        std::vector<float> outR(totalSamples, 0.0f);
         
-        for (float freq : FREQS) {
-            for (const auto& wave : WAVES) {
-                engine.reset();
-                
-                std::vector<float> sig;
-                generate_signal(wave, freq, sig);
-                
-                int total_len = sig.size() + IR_SAMPLES;
-                std::vector<float> outL(total_len, 0.0f);
-                std::vector<float> outR(total_len, 0.0f);
-                std::vector<float> inL(total_len, 0.0f);
-                std::vector<float> inR(total_len, 0.0f);
-                
-                for (int i = 0; i < total_len; ++i) {
-                    float inVal = (i < sig.size()) ? sig[i] : 0.0f;
-                    if (i == 0) inVal += 0.5f; 
-                    inL[i] = inVal;
-                    inR[i] = inVal;
-                }
-                
-                int block_size = 256;
-                for (int i = 0; i < total_len; i += block_size) {
-                    int chunk = std::min(block_size, total_len - i);
-                    engine.processBlock(inL.data() + i, inR.data() + i, outL.data() + i, outR.data() + i, chunk);
-                }
-                
-                outfile.write(reinterpret_cast<const char*>(outL.data()), outL.size() * sizeof(float));
-                outfile.write(reinterpret_cast<const char*>(outR.data()), outR.size() * sizeof(float));
-                
-                count++;
-                if (count % 50 == 0) std::cout << "Processed " << count << "/1200\n";
-            }
+        int blockSize = 256;
+        for (int i = 0; i < totalSamples; i += blockSize) {
+            int chunk = std::min(blockSize, totalSamples - i);
+            engine.processBlock(inL.data() + i, inR.data() + i, outL.data() + i, outR.data() + i, chunk);
+        }
+        
+        // Write stereo interleaved (L then R)
+        binFile.write(reinterpret_cast<const char*>(outL.data()), totalSamples * sizeof(float));
+        binFile.write(reinterpret_cast<const char*>(outR.data()), totalSamples * sizeof(float));
+        
+        TestCaseMeta meta;
+        meta.category = cat;
+        meta.algoIndex = algo;
+        meta.algoName = ALGO_NAMES[algo];
+        meta.condition = cond;
+        meta.freq = freq;
+        meta.numSamples = totalSamples;
+        meta.byteOffset = currentByteOffset;
+        allCases.push_back(meta);
+        
+        currentByteOffset += totalSamples * sizeof(float) * 2;
+    };
+    
+    // ---------------------------------------------------------
+    // 1. Group 1: Dirac Impulse Responses (4.0 seconds)
+    // ---------------------------------------------------------
+    std::cout << "[1/5] Generating Dirac Impulse Responses (8 algorithms)...\n";
+    int irSamples = static_cast<int>(SAMPLE_RATE * 4.0);
+    for (int algo = 0; algo < 8; ++algo) {
+        DSPParams p;
+        applyPresetDefaults(p, algo);
+        
+        std::vector<float> inL(irSamples, 0.0f);
+        std::vector<float> inR(irSamples, 0.0f);
+        inL[0] = 1.0f;
+        inR[0] = 1.0f;
+        
+        runAndRecord("Impulse", algo, "Dirac_Impulse", 0.0f, inL, inR, p);
+    }
+    
+    // ---------------------------------------------------------
+    // 2. Group 2: Floor Noise & Denormals (Silence, 2.0 seconds)
+    // ---------------------------------------------------------
+    std::cout << "[2/5] Generating Silence for Floor Noise analysis (8 algorithms)...\n";
+    int silenceSamples = static_cast<int>(SAMPLE_RATE * 2.0);
+    for (int algo = 0; algo < 8; ++algo) {
+        DSPParams p;
+        applyPresetDefaults(p, algo);
+        
+        std::vector<float> inL(silenceSamples, 0.0f);
+        std::vector<float> inR(silenceSamples, 0.0f);
+        
+        runAndRecord("Silence", algo, "Cold_Silence", 0.0f, inL, inR, p);
+    }
+    
+    // ---------------------------------------------------------
+    // 3. Group 3: Post-Burst Decay & Floor Recovery (4.0 seconds)
+    // ---------------------------------------------------------
+    std::cout << "[3/5] Generating Post-Burst Silence Recovery (8 algorithms)...\n";
+    int burstTotal = static_cast<int>(SAMPLE_RATE * 4.0);
+    int burstLen = static_cast<int>(SAMPLE_RATE * 0.1); // 100ms white noise
+    for (int algo = 0; algo < 8; ++algo) {
+        DSPParams p;
+        applyPresetDefaults(p, algo);
+        
+        std::vector<float> inL(burstTotal, 0.0f);
+        std::vector<float> inR(burstTotal, 0.0f);
+        
+        uint32_t seed = 123456789 + algo * 777;
+        for (int i = 0; i < burstLen; ++i) {
+            seed = seed * 1664525u + 1013904223u;
+            float n = static_cast<float>(static_cast<int32_t>(seed)) * (1.0f / 2147483648.0f);
+            inL[i] = n * 0.5f; // -6dBFS
+            inR[i] = n * 0.5f;
+        }
+        
+        runAndRecord("PostBurst", algo, "NoiseBurst_Recovery", 0.0f, inL, inR, p);
+    }
+    
+    // ---------------------------------------------------------
+    // 4. Group 4: Extreme Stress & Blowout Testing (5.0 seconds)
+    // ---------------------------------------------------------
+    std::cout << "[4/5] Running Extreme Stress & Blowout Cases (8 algos x 4 conditions)...\n";
+    int stressTotal = static_cast<int>(SAMPLE_RATE * 5.0);
+    int sigLen = static_cast<int>(SAMPLE_RATE * 0.5); // 500ms heavy input
+    
+    std::vector<float> stressInL(stressTotal, 0.0f);
+    std::vector<float> stressInR(stressTotal, 0.0f);
+    for (int i = 0; i < sigLen; ++i) {
+        float t = i / static_cast<float>(SAMPLE_RATE);
+        float v = 0.35f * std::sin(2.0f * 3.14159265f * 40.0f * t)
+                + 0.35f * std::sin(2.0f * 3.14159265f * 1000.0f * t)
+                + 0.30f * std::sin(2.0f * 3.14159265f * 5000.0f * t);
+        stressInL[i] = v;
+        stressInR[i] = v;
+    }
+    
+    for (int algo = 0; algo < 8; ++algo) {
+        // Stress 1: Max Decay (30s)
+        {
+            DSPParams p;
+            applyPresetDefaults(p, algo);
+            p.decayScale = 30.0f;
+            runAndRecord("Stress", algo, "Max_Decay", 0.0f, stressInL, stressInR, p);
+        }
+        // Stress 2: Max RoomSize + Max Decay
+        {
+            DSPParams p;
+            applyPresetDefaults(p, algo);
+            p.roomSizeScale = 2.0f;
+            p.decayScale = 30.0f;
+            runAndRecord("Stress", algo, "MaxSize_MaxDecay", 0.0f, stressInL, stressInR, p);
+        }
+        // Stress 3: Max Nonlinearity (Max Drive Saturation + Max Size + Max Decay)
+        {
+            DSPParams p;
+            applyPresetDefaults(p, algo);
+            p.roomSizeScale = 2.0f;
+            p.decayScale = 30.0f;
+            p.saturation = 1.0f;
+            p.erLevel = 1.0f;
+            p.lateLevel = 1.0f;
+            runAndRecord("Stress", algo, "Max_Nonlinearity", 0.0f, stressInL, stressInR, p);
+        }
+        // Stress 4: Zero Diffusion Stress
+        {
+            DSPParams p;
+            applyPresetDefaults(p, algo);
+            p.diffusion = 0.0f;
+            p.decayScale = 10.0f;
+            p.roomSizeScale = 1.5f;
+            runAndRecord("Stress", algo, "Zero_Diffusion", 0.0f, stressInL, stressInR, p);
         }
     }
     
-    std::cout << "Done writing 1200 test cases to processed_audio.bin\n";
+    // ---------------------------------------------------------
+    // 5. Group 5: Tonal Pulse Decays (100Hz, 1kHz, 5kHz, 3.0 seconds)
+    // ---------------------------------------------------------
+    std::cout << "[5/5] Generating Tonal Pulses for 100Hz, 1kHz, 5kHz (8 algorithms)...\n";
+    int pulseTotal = static_cast<int>(SAMPLE_RATE * 3.0);
+    int pulseLen = static_cast<int>(SAMPLE_RATE * 0.05); // 50ms sine burst
+    std::vector<float> testFreqs = {100.0f, 1000.0f, 5000.0f};
+    
+    for (float f : testFreqs) {
+        std::vector<float> pInL(pulseTotal, 0.0f);
+        std::vector<float> pInR(pulseTotal, 0.0f);
+        for (int i = 0; i < pulseLen; ++i) {
+            float t = i / static_cast<float>(SAMPLE_RATE);
+            float w = 0.5f * (1.0f - std::cos(2.0f * 3.14159265f * i / pulseLen));
+            float s = std::sin(2.0f * 3.14159265f * f * t) * w * 0.5f;
+            pInL[i] = s;
+            pInR[i] = s;
+        }
+        
+        for (int algo = 0; algo < 8; ++algo) {
+            DSPParams p;
+            applyPresetDefaults(p, algo);
+            runAndRecord("TonalPulse", algo, "Pulse_" + std::to_string(static_cast<int>(f)) + "Hz", f, pInL, pInR, p);
+        }
+    }
+    
+    binFile.close();
+    std::cout << "All audio successfully written to " << binPath << " (" << currentByteOffset / (1024 * 1024) << " MB)\n";
+    
+    // Write JSON metadata
+    std::ofstream jsonFile(jsonPath);
+    jsonFile << "[\n";
+    for (size_t i = 0; i < allCases.size(); ++i) {
+        const auto& c = allCases[i];
+        jsonFile << "  {\n";
+        jsonFile << "    \"category\": \"" << c.category << "\",\n";
+        jsonFile << "    \"algoIndex\": " << c.algoIndex << ",\n";
+        jsonFile << "    \"algoName\": \"" << c.algoName << "\",\n";
+        jsonFile << "    \"condition\": \"" << c.condition << "\",\n";
+        jsonFile << "    \"freq\": " << c.freq << ",\n";
+        jsonFile << "    \"numSamples\": " << c.numSamples << ",\n";
+        jsonFile << "    \"byteOffset\": " << c.byteOffset << "\n";
+        jsonFile << "  }" << (i + 1 < allCases.size() ? "," : "") << "\n";
+    }
+    jsonFile << "]\n";
+    jsonFile.close();
+    std::cout << "Metadata written to " << jsonPath << " (Total " << allCases.size() << " test cases)\n";
+    
     return 0;
 }

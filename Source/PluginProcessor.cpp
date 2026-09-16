@@ -158,6 +158,7 @@ void FDNReverbAudioProcessor::processBlock(
     juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
+    _mm_setcsr(_mm_getcsr() | 0x8040); // Hardware FTZ (bit 15) & DAZ (bit 6)
 
     const int numSamples = buffer.getNumSamples();
     const int numIn = getTotalNumInputChannels();

@@ -297,8 +297,8 @@ namespace FDNReverb {
         saturatorL.reset(); saturatorR.reset();
         outputLimiter.reset(); outputEQ.reset();
         dynamicDucker.reset();
-        outApL1.reset(); outApL2.reset();
-        outApR1.reset(); outApR2.reset();
+        outApL1.reset(); outApL2.reset(); outApL3.reset();
+        outApR1.reset(); outApR2.reset(); outApR3.reset();
         loopEnergyEnv = 0.0f;
         sdnEngine.reset();
         plateMesh.reset();
@@ -717,6 +717,7 @@ namespace FDNReverb {
     void UniversalEngine::processBlock(const float* inL, const float* inR,
         float* outL, float* outR, int numSamples) noexcept {
         juce::ScopedNoDenormals noDenormals;
+        _mm_setcsr(_mm_getcsr() | 0x8040); // Hardware FTZ (bit 15) & DAZ (bit 6)
         
         if (!isPreparedFlag || inL == nullptr || inR == nullptr || outL == nullptr || outR == nullptr) {
             if (outL && numSamples > 0) std::fill(outL, outL + numSamples, 0.0f);
@@ -1112,10 +1113,10 @@ namespace FDNReverb {
             float wetL = erMixL + satL;
             float wetR = erMixR + satR;
 
-            // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・サンプル単位平滑化)
-            const float curApDiffGain = 0.55f * curWidth;
-            wetL = outApL2.process(outApL1.process(wetL, curApDiffGain), curApDiffGain);
-            wetR = outApR2.process(outApR1.process(wetR, -curApDiffGain), -curApDiffGain);
+            // ★ 出力段ステレオ・オールパス・ディフューザー (音色着色ゼロ・3段カスケード素数拡散)
+            const float curApDiffGain = 0.618f * curWidth; // 黄金比ゲインによる最適散乱
+            wetL = outApL3.process(outApL2.process(outApL1.process(wetL, curApDiffGain), curApDiffGain), curApDiffGain);
+            wetR = outApR3.process(outApR2.process(outApR1.process(wetR, -curApDiffGain), -curApDiffGain), -curApDiffGain);
 
             outputEQ.process(wetL, wetR);
 
@@ -1131,6 +1132,10 @@ namespace FDNReverb {
             // ★ Wet-Only Graceful Mute 適用 (アルゴリズム切り替え時の無音化＆フェード)
             wetL *= transitionGain;
             wetR *= transitionGain;
+
+            // ★ ソフトウェア・アンチデノーマル完全遮断
+            if (std::abs(wetL) < 1.0e-15f) [[unlikely]] wetL = 0.0f;
+            if (std::abs(wetR) < 1.0e-15f) [[unlikely]] wetR = 0.0f;
 
             outL[n] = wetL;
             outR[n] = wetR;
