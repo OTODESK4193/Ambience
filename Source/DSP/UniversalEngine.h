@@ -95,7 +95,7 @@ namespace FDNReverb {
             const float delayed = buffer[writeIdx];
             const float v = in - g * delayed;
             buffer[writeIdx] = v;
-            writeIdx = (writeIdx + 1) % DelayLen;
+            if (++writeIdx >= DelayLen) writeIdx = 0;
             return delayed + g * v;
         }
     private:
@@ -178,10 +178,6 @@ namespace FDNReverb {
         float inLpfStateL{ 0.0f };
         float inLpfStateR{ 0.0f };
         float inBandwidthCoeff{ 0.0f };
-        float inputTransientEnvFast{ 0.0f };
-        float inputTransientEnvSlow{ 0.0f };
-
-        LinearDelayLine                              erDelay;
         // ★ ER Solo / Send Mode 0〜5ms コムフィルター防止オフセット用バッファ (192kHz でも 10.6ms をカバー)
         alignas(32) std::array<float, 2048>          erOffsetDelayL{};
         alignas(32) std::array<float, 2048>          erOffsetDelayR{};
@@ -201,10 +197,6 @@ namespace FDNReverb {
         int                            currentERTapCount{ 0 };
         std::array<float, MAX_ER_TAPS> currentERDelaySamples;
         std::array<float, MAX_ER_TAPS> currentERGains;
-        std::array<float, MAX_ER_TAPS> currentERPanL;
-        std::array<float, MAX_ER_TAPS> currentERPanR;
-        std::array<float, MAX_ER_TAPS> currentERLpfCoeff;
-        std::array<float, MAX_ER_TAPS> erLpfState;
 
         OutputLimiter outputLimiter;
         OutputEQ      outputEQ;
@@ -271,6 +263,7 @@ namespace FDNReverb {
         std::array<float, 4> cachedDiffuserDelaySmpM{};
         std::array<float, 4> cachedDiffuserDelaySmpS{};
         std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelaySmp{};
+        std::array<std::array<int, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelayInt{};
         std::array<float, FDN_ORDER> dualLfoIncScale1{};
         std::array<float, FDN_ORDER> dualLfoIncScale2{};
 

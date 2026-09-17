@@ -81,7 +81,6 @@ private:
     static constexpr int RING_BUFFER_SIZE = 16384;
     static constexpr int RING_BUFFER_MASK = RING_BUFFER_SIZE - 1;
     alignas(32) std::array<float, RING_BUFFER_SIZE> ringBufferL{};
-    alignas(32) std::array<float, RING_BUFFER_SIZE> ringBufferR{};
     uint32_t writeIndex{ 0 };
 
     // パラメータダブルバッファリング

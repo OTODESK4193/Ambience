@@ -126,6 +126,7 @@ private:
 
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
     juce::AudioBuffer<float> wetBuffer;
+    juce::AudioBuffer<float> stereoBlockBuffer;
     juce::SmoothedValue<float> smoothWetGain, smoothDryGain;
     std::atomic<float> inputRMS_L{ 0.f }, inputRMS_R{ 0.f };
     std::atomic<float> outputRMS_L{ 0.f }, outputRMS_R{ 0.f };

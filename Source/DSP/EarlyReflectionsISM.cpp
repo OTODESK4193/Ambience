@@ -18,7 +18,6 @@ void EarlyReflectionsISM::prepare(double sr, int /*maxBlockSize*/) {
 
 void EarlyReflectionsISM::reset() {
     ringBufferL.fill(0.0f);
-    ringBufferR.fill(0.0f);
     writeIndex = 0;
     smoothedErLevel = 0.0f;
     lastAlgorithmIndex = -1;

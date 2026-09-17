@@ -51,11 +51,8 @@ namespace FDNReverb {
             dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
             dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
-        erLpfState.fill(0.0f);
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
-        inputTransientEnvFast = 0.0f;
-        inputTransientEnvSlow = 0.0f;
     }
 
     struct DelayBounds {
@@ -114,7 +111,6 @@ namespace FDNReverb {
 
         size_t totalMemoryNeeded = 0;
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5)) * 2;
-        totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 1.0)); // ER Dummy
         for (int i = 0; i < 4; ++i)
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05)) * 2; // Mid & Side
         for (int i = 0; i < FDN_ORDER; ++i) {
@@ -133,8 +129,6 @@ namespace FDNReverb {
         preDelayLineL.init(ptr, mask);
         ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.5), mask);
         preDelayLineR.init(ptr, mask);
-
-        ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 1.0), mask);
         
         // Initialize SDN Engine
         sdnEngine.prepare(sampleRate, maxBlockSize);
@@ -165,7 +159,6 @@ namespace FDNReverb {
         currentERTapCount = 0;
         currentERDelaySamples.fill(0.0f);
         currentERGains.fill(0.0f);
-        erLpfState.fill(0.0f);
 
         outputLimiter.prepare(sampleRate);
         outputEQ.prepare(sampleRate);
@@ -274,7 +267,6 @@ namespace FDNReverb {
 
         preDelayLineL.resetState();
         preDelayLineR.resetState();
-        erDelay.resetState();
         for (auto& dl : inputDiffusersM) dl.resetState();
         for (auto& dl : inputDiffusersS) dl.resetState();
         for (auto& dl : fdnDelays) dl.resetState();
@@ -310,8 +302,6 @@ namespace FDNReverb {
 
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
-        inputTransientEnvFast = 0.0f;
-        inputTransientEnvSlow = 0.0f;
         dcX1.fill(0.0f);
         dcY1.fill(0.0f);
     }
@@ -447,6 +437,7 @@ namespace FDNReverb {
             for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                 const float spreadMs = (s + 1) * apfCfg.spreadCoeff * chFrac;
                 cachedApfBaseDelaySmp[i][s] = (apfCfg.baseMs[s] + spreadMs) * msToSmp;
+                cachedApfBaseDelayInt[i][s] = static_cast<int>(std::round(cachedApfBaseDelaySmp[i][s]));
             }
         }
 
@@ -757,6 +748,40 @@ namespace FDNReverb {
         const float erServo = acousticMetrics.getERServoGain();
         const float lateServo = acousticMetrics.getLateServoGain();
 
+        // ★ Clarity ゲインのブロック単位事前計算 (毎サンプルの std::pow / decibelsToGain を完全排除)
+        const float cDb = std::clamp(activeParams.clarityDB, -6.0f, 6.0f);
+        const float clarityShift = cDb * 0.25f; // 最大 ±1.5dB
+        const float gClarityER   = juce::Decibels::decibelsToGain(+clarityShift);
+        const float gClarityLate = juce::Decibels::decibelsToGain(-clarityShift);
+
+        // ★ Schroeder APF (s=2) safeMod の定常時事前計算 (毎サンプルの std::tanh を完全排除)
+        const bool modAmountStationary = (std::abs(activeParams.modAmount - smoothedModAmount) < 1e-6f);
+        if (modAmountStationary) {
+            smoothedModAmount = activeParams.modAmount;
+        }
+        std::array<float, FDN_ORDER> cachedApfSafeMod{};
+        bool usePrecomputedSafeMod = false;
+        if (modAmountStationary) {
+            const float modAmtCurvedStat = smoothedModAmount * smoothedModAmount;
+            const float depthSamplesStat = modAmtCurvedStat * 0.0022f * fsf * modDepthScale;
+            if (depthSamplesStat > 0.01f) {
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    const float baseDelay = cachedApfBaseDelaySmp[i][2];
+                    const float maxSafeMod = baseDelay * 0.15f;
+                    const float targetMod = depthSamplesStat * apfModFrac[2] * cachedFreqModScales[i];
+                    const float knee = maxSafeMod * 0.75f;
+                    float safeMod = targetMod;
+                    if (targetMod > knee) {
+                        const float excess = targetMod - knee;
+                        const float room = maxSafeMod - knee;
+                        safeMod = knee + room * std::tanh(excess / room);
+                    }
+                    cachedApfSafeMod[i] = safeMod;
+                }
+            }
+            usePrecomputedSafeMod = true;
+        }
+
         // ★ SDN / 2D Mesh 注入ゲインのブロック単位事前計算 (毎サンプルの std::sqrt を完全排除)
         const float lateDensityScale = std::clamp(activeParams.lateDensity, 0.1f, 1.0f);
         const float lateInjectGain = 0.7071f * std::sqrt(lateDensityScale / 0.7f);
@@ -1009,21 +1034,24 @@ namespace FDNReverb {
                     float delayed;
                     
                     if (s == 2 && depthSamples > 0.01f) {
-                        const float maxSafeMod = baseDelay * 0.15f;
-                        const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
-                        
-                        const float knee = maxSafeMod * 0.75f;
-                        float safeMod = targetMod;
-                        if (targetMod > knee) {
-                            const float excess = targetMod - knee;
-                            const float room = maxSafeMod - knee;
-                            safeMod = knee + room * std::tanh(excess / room);
+                        float safeMod;
+                        if (usePrecomputedSafeMod) [[likely]] {
+                            safeMod = cachedApfSafeMod[i];
+                        } else {
+                            const float maxSafeMod = baseDelay * 0.15f;
+                            const float targetMod = depthSamples * apfModFrac[s] * cachedFreqModScales[i];
+                            const float knee = maxSafeMod * 0.75f;
+                            safeMod = targetMod;
+                            if (targetMod > knee) {
+                                const float excess = targetMod - knee;
+                                const float room = maxSafeMod - knee;
+                                safeMod = knee + room * std::tanh(excess / room);
+                            }
                         }
-                        
                         const float apfDelaySmp = baseDelay + chorusVal * safeMod;
                         delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
                     } else {
-                        delayed = nestedAllpassDelays[i][s].readInt(static_cast<int>(std::round(baseDelay)));
+                        delayed = nestedAllpassDelays[i][s].readInt(cachedApfBaseDelayInt[i][s]);
                     }
 
                     const float v = apfOut - curApfGainStage * delayed;
@@ -1082,10 +1110,6 @@ namespace FDNReverb {
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
-            const float cDb = std::clamp(activeParams.clarityDB, -6.0f, 6.0f);
-            const float clarityShift = cDb * 0.25f; // 最大 ±1.5dB
-            const float gClarityER   = juce::Decibels::decibelsToGain(+clarityShift);
-            const float gClarityLate = juce::Decibels::decibelsToGain(-clarityShift);
 
             float erMixL = bypassER ? 0.0f : erOutL * erSmoothedGain * erMakeupGain * erServo * gClarityER;
             float erMixR = bypassER ? 0.0f : erOutR * erSmoothedGain * erMakeupGain * erServo * gClarityER;

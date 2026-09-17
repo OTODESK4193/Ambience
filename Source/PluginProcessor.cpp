@@ -50,6 +50,7 @@ void FDNReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 
     // 最大ブロックサイズで事前確保（オーディオスレッドでの再確保を根絶）
     wetBuffer.setSize(2, maxBlock);
+    stereoBlockBuffer.setSize(2, maxBlock);
     smoothWetGain.reset(sampleRate, 0.05);
     smoothDryGain.reset(sampleRate, 0.05);
 
@@ -183,8 +184,9 @@ void FDNReverbAudioProcessor::processBlock(
     }
 
     // 入力信号を内部ステレオバッファへ安全に展開 (Mono -> Dual Mono 展開)
-    juce::AudioBuffer<float> stereoBlockBuffer;
-    stereoBlockBuffer.setSize(2, numSamples, false, false, true);
+    if (stereoBlockBuffer.getNumSamples() < numSamples) {
+        stereoBlockBuffer.setSize(2, numSamples, false, false, true);
+    }
 
     if (numIn >= 2) {
         stereoBlockBuffer.copyFrom(0, 0, buffer.getReadPointer(0), numSamples);
@@ -193,10 +195,10 @@ void FDNReverbAudioProcessor::processBlock(
         stereoBlockBuffer.copyFrom(0, 0, buffer.getReadPointer(0), numSamples);
         stereoBlockBuffer.copyFrom(1, 0, buffer.getReadPointer(0), numSamples);
     } else {
-        stereoBlockBuffer.clear();
+        stereoBlockBuffer.clear(0, numSamples);
     }
 
-    juce::dsp::AudioBlock<float> block(stereoBlockBuffer);
+    auto block = juce::dsp::AudioBlock<float>(stereoBlockBuffer).getSubBlock(0, static_cast<size_t>(numSamples));
     auto osBlock = oversampler->processSamplesUp(block);
     const int osNumSamples = static_cast<int>(osBlock.getNumSamples());
 
