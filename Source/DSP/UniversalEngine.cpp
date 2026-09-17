@@ -653,6 +653,17 @@ namespace FDNReverb {
         rt60Mid = std::max(0.1f, rt60Mid / 6.0f);
         currentRT60Mid = rt60Mid;
 
+        float edtCoeff = 0.7f;
+        switch (currentTopology) {
+        case ReverbTopology::Room:       edtCoeff = 0.70f; break;
+        case ReverbTopology::Hall:       edtCoeff = 0.95f; break;
+        case ReverbTopology::Plate:      edtCoeff = 0.60f; break;
+        case ReverbTopology::Spring:     edtCoeff = 0.50f; break;
+        case ReverbTopology::Goldfoil:   edtCoeff = 0.85f; break;
+        case ReverbTopology::Inchindown: edtCoeff = 1.00f; break;
+        }
+        theoreticalEDT = currentRT60Mid * edtCoeff;
+
         modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
 
         constexpr float baseDB = 5.0f;

@@ -690,16 +690,12 @@ void FDNReverbEditor::timerCallback() {
     vuIn.repaint();
     vuOut.repaint();
 
-    static int metricsCounter = 0;
-    if (++metricsCounter >= 2) {
-        metricsCounter = 0;
-        const float edt = audioProcessor.getEDT();
-
-        if (edt < 10.0f) {
-            labelDecayLine.setText("DECAY TIME: " + juce::String(edt, 2) + " s", juce::dontSendNotification);
-        } else {
-            labelDecayLine.setText("DECAY TIME: " + juce::String(edt, 1) + " s", juce::dontSendNotification);
-        }
+    const float edt = audioProcessor.getEDT();
+    const juce::String decayText = (edt < 10.0f)
+        ? "DECAY TIME: " + juce::String(edt, 2) + " s"
+        : "DECAY TIME: " + juce::String(edt, 1) + " s";
+    if (labelDecayLine.getText() != decayText) {
+        labelDecayLine.setText(decayText, juce::dontSendNotification);
     }
 
     if (isProTab) {

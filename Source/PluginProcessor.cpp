@@ -586,6 +586,27 @@ std::array<float, FDNReverb::NUM_BANDS> FDNReverbAudioProcessor::calculateInstan
     return outRT60;
 }
 
+float FDNReverbAudioProcessor::getEDT() const noexcept {
+    const auto rt60 = calculateInstantRT60();
+    float rt60Mid = 0.0f;
+    for (int b = 2; b <= 7; ++b)
+        rt60Mid += rt60[b];
+    rt60Mid = std::max(0.01f, rt60Mid / 6.0f);
+
+    float edtCoeff = 0.70f;
+    const auto* algoParam = apvts.getRawParameterValue(ParamID::Algorithm);
+    const int algo = algoParam ? juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, static_cast<int>(algoParam->load())) : 0;
+    switch (algo) {
+    case 0: case 1: edtCoeff = 0.70f; break; // Room
+    case 2: case 3: edtCoeff = 0.95f; break; // Hall
+    case 4:         edtCoeff = 0.60f; break; // Plate
+    case 5:         edtCoeff = 0.50f; break; // Spring
+    case 6:         edtCoeff = 0.85f; break; // Goldfoil
+    case 7:         edtCoeff = 1.00f; break; // Inchindown
+    }
+    return rt60Mid * edtCoeff;
+}
+
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
     return new FDNReverbAudioProcessor();
 }

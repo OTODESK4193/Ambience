@@ -55,7 +55,7 @@ public:
     float getD50() const noexcept { return engine.getD50(); }
     float getC50() const noexcept { return engine.getC50(); }
     float getC80() const noexcept { return engine.getC80(); }
-    float getEDT() const noexcept { return engine.getEDT(); }
+    float getEDT() const noexcept;
 
     const FDNReverb::UniversalEngine& getEngine() const noexcept { return engine; }
 
