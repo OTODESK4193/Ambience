@@ -1,6 +1,6 @@
 # Ambience
 
-![Release](https://img.shields.io/badge/release-v2.0.1-blue)
+![Release](https://img.shields.io/badge/release-v2.0.2-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
@@ -23,6 +23,11 @@
 </p>
 
 ## Changelog
+
+### v2.0.2 Update
+
+- **CPU Optimization**
+- **Improved Robustness and Stability**
 
 ### v2.0.1 Update
 
