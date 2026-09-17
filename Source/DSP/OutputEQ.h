@@ -164,18 +164,22 @@ namespace FDNReverb {
             const float lambda = smoothingLambda;
 
             // Lo Stage 係数追従
-            g_lo     += lambda * (target_g_lo     - g_lo);
-            denom_lo = 1.0f / ((1.0f + g_lo) * (1.0f + g_lo));
-            cx_lo    += lambda * (target_cx_lo    - cx_lo);
-            chp_lo   += lambda * (target_chp_lo   - chp_lo);
-            clp_lo   += lambda * (target_clp_lo   - clp_lo);
+            if (std::abs(target_g_lo - g_lo) > 1e-6f) [[unlikely]] {
+                g_lo     += lambda * (target_g_lo     - g_lo);
+                denom_lo = 1.0f / ((1.0f + g_lo) * (1.0f + g_lo));
+            }
+            if (std::abs(target_cx_lo - cx_lo) > 1e-6f) [[unlikely]]   cx_lo  += lambda * (target_cx_lo  - cx_lo);
+            if (std::abs(target_chp_lo - chp_lo) > 1e-6f) [[unlikely]] chp_lo += lambda * (target_chp_lo - chp_lo);
+            if (std::abs(target_clp_lo - clp_lo) > 1e-6f) [[unlikely]] clp_lo += lambda * (target_clp_lo - clp_lo);
 
             // Hi Stage 係数追従
-            g_hi     += lambda * (target_g_hi     - g_hi);
-            denom_hi = 1.0f / ((1.0f + g_hi) * (1.0f + g_hi));
-            dx_hi    += lambda * (target_dx_hi    - dx_hi);
-            dhp_hi   += lambda * (target_dhp_hi   - dhp_hi);
-            dlp_hi   += lambda * (target_dlp_hi   - dlp_hi);
+            if (std::abs(target_g_hi - g_hi) > 1e-6f) [[unlikely]] {
+                g_hi     += lambda * (target_g_hi     - g_hi);
+                denom_hi = 1.0f / ((1.0f + g_hi) * (1.0f + g_hi));
+            }
+            if (std::abs(target_dx_hi - dx_hi) > 1e-6f) [[unlikely]]   dx_hi  += lambda * (target_dx_hi  - dx_hi);
+            if (std::abs(target_dhp_hi - dhp_hi) > 1e-6f) [[unlikely]] dhp_hi += lambda * (target_dhp_hi - dhp_hi);
+            if (std::abs(target_dlp_hi - dlp_hi) > 1e-6f) [[unlikely]] dlp_hi += lambda * (target_dlp_hi - dlp_hi);
 
             // ── Lo Stage (Linkwitz-Riley 12dB/oct TPT SVF) ──
             // Left

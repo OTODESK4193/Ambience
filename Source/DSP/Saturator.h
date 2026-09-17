@@ -120,10 +120,14 @@ namespace FDNReverb {
     private:
         struct EngineState {
             float x1_scalar{ 0.0f };
+            float adPrev{ 0.0f };
+            bool hasAdPrev{ false };
             float dcInPrev{ 0.0f };
             float dcOutPrev{ 0.0f };
             void reset() noexcept {
                 x1_scalar = 0.0f;
+                adPrev = 0.0f;
+                hasAdPrev = false;
                 dcInPrev = 0.0f;
                 dcOutPrev = 0.0f;
             }
@@ -158,14 +162,18 @@ namespace FDNReverb {
             const float x = in * drive;
             float y;
             const float diff = x - st.x1_scalar;
+            const float ad_x = applyAD(x, mode);
 
             if (std::abs(diff) < 1e-5f) {
                 const float xMid = (x + st.x1_scalar) * 0.5f;
                 y = applyNL(xMid, mode);
             } else {
-                y = (applyAD(x, mode) - applyAD(st.x1_scalar, mode)) / diff;
+                const float prevAD = st.hasAdPrev ? st.adPrev : applyAD(st.x1_scalar, mode);
+                y = (ad_x - prevAD) / diff;
             }
             st.x1_scalar = x;
+            st.adPrev = ad_x;
+            st.hasAdPrev = true;
 
             if (mode == SaturationMode::Tube) {
                 const float hp = y - st.dcInPrev + dcR * st.dcOutPrev;

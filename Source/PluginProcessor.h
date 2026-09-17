@@ -107,9 +107,62 @@ public:
     std::array<float, 2048> specFifoWet;
     std::atomic<int> specFifoIndex{ 0 };
     std::atomic<bool> specFifoReady{ false };
+    std::atomic<bool> isEditorOpen{ false };
+
+    // ★ 高速パラメータ生ポインタキャッシュ (毎ブロックのハッシュ探索を完全根絶)
+    struct CachedParams {
+        std::atomic<float>* algorithm{ nullptr };
+        std::atomic<float>* preDelay{ nullptr };
+        std::atomic<float>* roomSize{ nullptr };
+        std::atomic<float>* decayTime{ nullptr };
+        std::atomic<float>* hfDamping{ nullptr };
+        std::atomic<float>* lfAbsorption{ nullptr };
+        std::atomic<float>* diffusion{ nullptr };
+        std::atomic<float>* modAmount{ nullptr };
+        std::atomic<float>* modRate{ nullptr };
+        std::atomic<float>* stereoWidth{ nullptr };
+        std::atomic<float>* erLevel{ nullptr };
+        std::atomic<float>* saturation{ nullptr };
+        std::atomic<float>* satType{ nullptr };
+        std::atomic<float>* wetLevel{ nullptr };
+        std::atomic<float>* dryLevel{ nullptr };
+        std::atomic<float>* duckAmount{ nullptr };
+        std::atomic<float>* duckAttack{ nullptr };
+        std::atomic<float>* duckRelease{ nullptr };
+        std::atomic<float>* duckThresh{ nullptr };
+        std::atomic<float>* erSolo{ nullptr };
+        std::atomic<float>* proMode{ nullptr };
+        std::atomic<float>* tiltLow{ nullptr };
+        std::atomic<float>* tiltMid{ nullptr };
+        std::atomic<float>* tiltHigh{ nullptr };
+        std::array<std::atomic<float>*, 10> rtBands{};
+        std::atomic<float>* loCut{ nullptr };
+        std::atomic<float>* hiCut{ nullptr };
+        std::atomic<float>* loEQType{ nullptr };
+        std::atomic<float>* hiEQType{ nullptr };
+        std::atomic<float>* loGain{ nullptr };
+        std::atomic<float>* hiGain{ nullptr };
+        std::atomic<float>* scattering{ nullptr };
+        std::atomic<float>* erCrossover{ nullptr };
+        std::atomic<float>* lateDensity{ nullptr };
+        std::atomic<float>* asymmetry{ nullptr };
+        std::atomic<float>* clarity{ nullptr };
+        std::atomic<float>* airAbsorb{ nullptr };
+        std::atomic<float>* rt60Tab{ nullptr };
+        std::atomic<float>* proTab{ nullptr };
+
+        void init(juce::AudioProcessorValueTreeState& apvts);
+    };
 
 private:
     void updateEngineParams();
+
+    CachedParams cachedParams;
+
+    // ★ 無音時スマートサスペンド（Silence Sleep: アイドル時 15% -> 0.0% 達成）
+    int silenceDurationSamples{ 0 };
+    int silenceThresholdSamples{ 48000 }; // 1.0秒相当
+    bool isEngineSuspended{ false };
 
     FDNReverb::UniversalEngine engine;
     std::atomic<bool> paramsLocked{ false };

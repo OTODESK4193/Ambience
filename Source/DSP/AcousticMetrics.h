@@ -79,6 +79,7 @@ namespace FDNReverb {
         // ── リングバッファ ──
         // エネルギー履歴 (二乗値)
         std::vector<float> energyHistory;
+        int bufferMask{ 0 };
         int historyWritePos{ 0 };
 
         // ── 累積エネルギーの統計値 ──

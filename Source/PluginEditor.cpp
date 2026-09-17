@@ -655,10 +655,13 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
     applySavedTheme();
 
+    audioProcessor.isEditorOpen.store(true, std::memory_order_relaxed);
+
     startTimerHz(60);
 }
 
 FDNReverbEditor::~FDNReverbEditor() {
+    audioProcessor.isEditorOpen.store(false, std::memory_order_relaxed);
     stopTimer();
 
     static const juce::String kMonitoredParams[] = {

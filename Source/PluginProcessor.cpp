@@ -5,12 +5,64 @@ using namespace FDNReverb;
 
 static constexpr float kWetInternalOffsetDB = 0.0f;
 
+void FDNReverbAudioProcessor::CachedParams::init(juce::AudioProcessorValueTreeState& apvts)
+{
+    algorithm     = apvts.getRawParameterValue(ParamID::Algorithm);
+    preDelay      = apvts.getRawParameterValue(ParamID::PreDelay);
+    roomSize      = apvts.getRawParameterValue(ParamID::RoomSize);
+    decayTime     = apvts.getRawParameterValue(ParamID::DecayTime);
+    hfDamping     = apvts.getRawParameterValue(ParamID::HFDamping);
+    lfAbsorption  = apvts.getRawParameterValue(ParamID::LFAbsorption);
+    diffusion     = apvts.getRawParameterValue(ParamID::Diffusion);
+    modAmount     = apvts.getRawParameterValue(ParamID::ModAmount);
+    modRate       = apvts.getRawParameterValue(ParamID::ModRate);
+    stereoWidth   = apvts.getRawParameterValue(ParamID::StereoWidth);
+    erLevel       = apvts.getRawParameterValue(ParamID::ERLevel);
+    saturation    = apvts.getRawParameterValue(ParamID::Saturation);
+    satType       = apvts.getRawParameterValue(ParamID::SatType);
+    wetLevel      = apvts.getRawParameterValue(ParamID::WetLevel);
+    dryLevel      = apvts.getRawParameterValue(ParamID::DryLevel);
+    duckAmount    = apvts.getRawParameterValue(ParamID::DuckAmount);
+    duckAttack    = apvts.getRawParameterValue(ParamID::DuckAttack);
+    duckRelease   = apvts.getRawParameterValue(ParamID::DuckRelease);
+    duckThresh    = apvts.getRawParameterValue(ParamID::DuckThresh);
+    erSolo        = apvts.getRawParameterValue(ParamID::ERSolo);
+    proMode       = apvts.getRawParameterValue(ParamID::ProMode);
+    tiltLow       = apvts.getRawParameterValue(ParamID::TiltLow);
+    tiltMid       = apvts.getRawParameterValue(ParamID::TiltMid);
+    tiltHigh      = apvts.getRawParameterValue(ParamID::TiltHigh);
+
+    const juce::String rtBandIDs[10] = {
+        ParamID::RTBand0, ParamID::RTBand1, ParamID::RTBand2, ParamID::RTBand3, ParamID::RTBand4,
+        ParamID::RTBand5, ParamID::RTBand6, ParamID::RTBand7, ParamID::RTBand8, ParamID::RTBand9
+    };
+    for (int b = 0; b < 10; ++b) {
+        rtBands[b] = apvts.getRawParameterValue(rtBandIDs[b]);
+    }
+
+    loCut         = apvts.getRawParameterValue(ParamID::LoCut);
+    hiCut         = apvts.getRawParameterValue(ParamID::HiCut);
+    loEQType      = apvts.getRawParameterValue(ParamID::LoEQType);
+    hiEQType      = apvts.getRawParameterValue(ParamID::HiEQType);
+    loGain        = apvts.getRawParameterValue(ParamID::LoGain);
+    hiGain        = apvts.getRawParameterValue(ParamID::HiGain);
+    scattering    = apvts.getRawParameterValue(ParamID::Scattering);
+    erCrossover   = apvts.getRawParameterValue(ParamID::ERCrossover);
+    lateDensity   = apvts.getRawParameterValue(ParamID::LateDensity);
+    asymmetry     = apvts.getRawParameterValue(ParamID::Asymmetry);
+    clarity       = apvts.getRawParameterValue(ParamID::Clarity);
+    airAbsorb     = apvts.getRawParameterValue(ParamID::AirAbsorb);
+    rt60Tab       = apvts.getRawParameterValue(ParamID::RT60Tab);
+    proTab        = apvts.getRawParameterValue(ParamID::ProTab);
+}
+
 FDNReverbAudioProcessor::FDNReverbAudioProcessor()
     : AudioProcessor(BusesProperties()
         .withInput("Input", juce::AudioChannelSet::stereo(), true)
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
     apvts(*this, nullptr, "FDNReverbState", ParameterHelper::createLayout())
 {
+    cachedParams.init(apvts);
     loadPresetDefaults(0);
     lastSavedPresetName = "Init";
     lastPresetModified = false;
@@ -54,14 +106,23 @@ void FDNReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
     smoothWetGain.reset(sampleRate, 0.05);
     smoothDryGain.reset(sampleRate, 0.05);
 
+    // ★ 無音時スマートサスペンド初期化（1.2秒無音で休止）
+    silenceThresholdSamples = static_cast<int>(1.2 * sampleRate);
+    silenceDurationSamples = 0;
+    isEngineSuspended = false;
+
     lastSampleRate = sampleRate;
     paramsNeedUpdate = true;
 }
 
 void FDNReverbAudioProcessor::updateEngineParams()
 {
+    auto getVal = [](std::atomic<float>* p, float defVal = 0.0f) noexcept {
+        return p ? p->load(std::memory_order_relaxed) : defVal;
+    };
+
     int currentAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1,
-        (int)*apvts.getRawParameterValue(ParamID::Algorithm));
+        juce::roundToInt(getVal(cachedParams.algorithm, 0.0f)));
     if (currentAlgo != lastAlgorithmIndex) {
         lastAlgorithmIndex = currentAlgo;
         paramsNeedUpdate = true;
@@ -69,69 +130,62 @@ void FDNReverbAudioProcessor::updateEngineParams()
 
     DSPParams p;
     p.algorithmIndex = currentAlgo;
-    float effectivePreDelay = *apvts.getRawParameterValue(ParamID::PreDelay);
+    float effectivePreDelay = getVal(cachedParams.preDelay, 10.0f);
     // ★ Send Mode 時の位相保護: Dry がミュート (-59dB以下) の場合、
     // 原音トラックとのコムフィルタリング・位相干渉を音響工学的に自動防止 (+5.0ms 下限オフセットガード)
-    if (*apvts.getRawParameterValue(ParamID::DryLevel) <= -59.0f) {
+    if (getVal(cachedParams.dryLevel, 0.0f) <= -59.0f) {
         effectivePreDelay = std::max(5.0f, effectivePreDelay);
     }
     p.preDelayMs = effectivePreDelay;
     // ★ RoomSize ノブ値 (0.3 ~ 2.0) をそのままスケール係数として伝達
-    p.roomSizeScale = *apvts.getRawParameterValue(ParamID::RoomSize);
+    p.roomSizeScale = getVal(cachedParams.roomSize, 1.0f);
 
-    p.decayScale = *apvts.getRawParameterValue(ParamID::DecayTime)
+    p.decayScale = getVal(cachedParams.decayTime, 1.5f)
         / ALL_PRESETS[p.algorithmIndex]->acoustics.rt60[5];
 
-    p.hfDamping = *apvts.getRawParameterValue(ParamID::HFDamping);
-    p.lfAbsorption = *apvts.getRawParameterValue(ParamID::LFAbsorption);
-    p.diffusion = *apvts.getRawParameterValue(ParamID::Diffusion);
-    p.modAmount = *apvts.getRawParameterValue(ParamID::ModAmount);
-    p.modRate = *apvts.getRawParameterValue(ParamID::ModRate);
-    p.stereoWidth = *apvts.getRawParameterValue(ParamID::StereoWidth);
-    p.erLevel = *apvts.getRawParameterValue(ParamID::ERLevel);
-    p.saturation = *apvts.getRawParameterValue(ParamID::Saturation);
-    p.satTypeIdx = (int)*apvts.getRawParameterValue(ParamID::SatType);
-    p.wetDB = *apvts.getRawParameterValue(ParamID::WetLevel);
-    p.dryDB = *apvts.getRawParameterValue(ParamID::DryLevel);
+    p.hfDamping = getVal(cachedParams.hfDamping, 0.0f);
+    p.lfAbsorption = getVal(cachedParams.lfAbsorption, 0.0f);
+    p.diffusion = getVal(cachedParams.diffusion, 0.7f);
+    p.modAmount = getVal(cachedParams.modAmount, 0.25f);
+    p.modRate = getVal(cachedParams.modRate, 0.5f);
+    p.stereoWidth = getVal(cachedParams.stereoWidth, 0.95f);
+    p.erLevel = getVal(cachedParams.erLevel, 0.6f);
+    p.saturation = getVal(cachedParams.saturation, 0.0f);
+    p.satTypeIdx = static_cast<int>(getVal(cachedParams.satType, 0.0f));
+    p.wetDB = getVal(cachedParams.wetLevel, -4.0f);
+    p.dryDB = getVal(cachedParams.dryLevel, 0.0f);
 
-    p.duckingAmount = *apvts.getRawParameterValue(ParamID::DuckAmount);
-    p.duckingAttackMs = *apvts.getRawParameterValue(ParamID::DuckAttack);
-    p.duckingRelMs = *apvts.getRawParameterValue(ParamID::DuckRelease);
-    p.duckingThreshDB = *apvts.getRawParameterValue(ParamID::DuckThresh);
+    p.duckingAmount = getVal(cachedParams.duckAmount, 0.0f);
+    p.duckingAttackMs = getVal(cachedParams.duckAttack, 10.0f);
+    p.duckingRelMs = getVal(cachedParams.duckRelease, 200.0f);
+    p.duckingThreshDB = getVal(cachedParams.duckThresh, -20.0f);
 
-    p.erSolo = *apvts.getRawParameterValue(ParamID::ERSolo) > 0.5f;
-    p.proMode = *apvts.getRawParameterValue(ParamID::ProMode) > 0.5f;
+    p.erSolo = getVal(cachedParams.erSolo, 0.0f) > 0.5f;
+    p.proMode = getVal(cachedParams.proMode, 0.0f) > 0.5f;
 
-    p.tiltLow = *apvts.getRawParameterValue(ParamID::TiltLow);
-    p.tiltMid = *apvts.getRawParameterValue(ParamID::TiltMid);
-    p.tiltHigh = *apvts.getRawParameterValue(ParamID::TiltHigh);
+    p.tiltLow = getVal(cachedParams.tiltLow, 1.0f);
+    p.tiltMid = getVal(cachedParams.tiltMid, 1.0f);
+    p.tiltHigh = getVal(cachedParams.tiltHigh, 1.0f);
 
-    p.rtBands[0] = *apvts.getRawParameterValue(ParamID::RTBand0);
-    p.rtBands[1] = *apvts.getRawParameterValue(ParamID::RTBand1);
-    p.rtBands[2] = *apvts.getRawParameterValue(ParamID::RTBand2);
-    p.rtBands[3] = *apvts.getRawParameterValue(ParamID::RTBand3);
-    p.rtBands[4] = *apvts.getRawParameterValue(ParamID::RTBand4);
-    p.rtBands[5] = *apvts.getRawParameterValue(ParamID::RTBand5);
-    p.rtBands[6] = *apvts.getRawParameterValue(ParamID::RTBand6);
-    p.rtBands[7] = *apvts.getRawParameterValue(ParamID::RTBand7);
-    p.rtBands[8] = *apvts.getRawParameterValue(ParamID::RTBand8);
-    p.rtBands[9] = *apvts.getRawParameterValue(ParamID::RTBand9);
+    for (int b = 0; b < 10; ++b) {
+        p.rtBands[b] = getVal(cachedParams.rtBands[b], 1.0f);
+    }
 
-    p.loCutHz = *apvts.getRawParameterValue(ParamID::LoCut);
-    p.hiCutHz = *apvts.getRawParameterValue(ParamID::HiCut);
-    p.loEQType = static_cast<int>(*apvts.getRawParameterValue(ParamID::LoEQType));
-    p.hiEQType = static_cast<int>(*apvts.getRawParameterValue(ParamID::HiEQType));
-    p.loGainDB = *apvts.getRawParameterValue(ParamID::LoGain);
-    p.hiGainDB = *apvts.getRawParameterValue(ParamID::HiGain);
+    p.loCutHz = getVal(cachedParams.loCut, 20.0f);
+    p.hiCutHz = getVal(cachedParams.hiCut, 20000.0f);
+    p.loEQType = static_cast<int>(getVal(cachedParams.loEQType, 0.0f));
+    p.hiEQType = static_cast<int>(getVal(cachedParams.hiEQType, 0.0f));
+    p.loGainDB = getVal(cachedParams.loGain, 0.0f);
+    p.hiGainDB = getVal(cachedParams.hiGain, 0.0f);
 
-    p.scattering = *apvts.getRawParameterValue(ParamID::Scattering);
-    p.erCrossoverMs = *apvts.getRawParameterValue(ParamID::ERCrossover);
-    p.lateDensity = *apvts.getRawParameterValue(ParamID::LateDensity);
-    p.asymmetry = *apvts.getRawParameterValue(ParamID::Asymmetry);
-    p.clarityDB = *apvts.getRawParameterValue(ParamID::Clarity);
-    p.airAbsorbScale = *apvts.getRawParameterValue(ParamID::AirAbsorb);
-    p.rt60Tab = *apvts.getRawParameterValue(ParamID::RT60Tab) > 0.5f;
-    p.proTab = *apvts.getRawParameterValue(ParamID::ProTab) > 0.5f;
+    p.scattering = getVal(cachedParams.scattering, 0.5f);
+    p.erCrossoverMs = getVal(cachedParams.erCrossover, 40.0f);
+    p.lateDensity = getVal(cachedParams.lateDensity, 0.7f);
+    p.asymmetry = getVal(cachedParams.asymmetry, 0.3f);
+    p.clarityDB = getVal(cachedParams.clarity, 0.0f);
+    p.airAbsorbScale = getVal(cachedParams.airAbsorb, 1.0f);
+    p.rt60Tab = getVal(cachedParams.rt60Tab, 0.0f) > 0.5f;
+    p.proTab = getVal(cachedParams.proTab, 0.0f) > 0.5f;
 
     const bool isBypass = bypassEnabled.load(std::memory_order_relaxed);
     if (isBypass) {
@@ -175,8 +229,35 @@ void FDNReverbAudioProcessor::processBlock(
     // 入力 RMS 計測 (Mono 入力時も安全に取得)
     const float inRMSL = (numIn > 0) ? buffer.getRMSLevel(0, 0, numSamples) : 0.0f;
     const float inRMSR = (numIn > 1) ? buffer.getRMSLevel(1, 0, numSamples) : inRMSL;
-    inputRMS_L.store(inRMSL);
-    inputRMS_R.store(inRMSR);
+    const float inRMS = std::max(inRMSL, inRMSR);
+    inputRMS_L.store(inRMSL, std::memory_order_relaxed);
+    inputRMS_R.store(inRMSR, std::memory_order_relaxed);
+
+    // ★★★ 無音時スマートサスペンド（Silence Sleep）★★★
+    // 入力が -100dBFS 以下 かつ 直前のウェット出力が -120dBFS 以下
+    const bool isInputSilent = (inRMS < 1.0e-5f);
+    const float prevOutRMS = std::max(outputRMS_L.load(std::memory_order_relaxed),
+                                      outputRMS_R.load(std::memory_order_relaxed));
+    const bool isOutputSilent = (prevOutRMS < 1.0e-6f);
+
+    if (isInputSilent && isOutputSilent) {
+        silenceDurationSamples += numSamples;
+    } else {
+        silenceDurationSamples = 0;
+        isEngineSuspended = false;
+    }
+
+    // 設定時間（1.2秒）以上完全無音が続いた場合、サスペンド発動
+    if (silenceDurationSamples >= silenceThresholdSamples) {
+        isEngineSuspended = true;
+    }
+
+    if (isEngineSuspended) {
+        buffer.clear();
+        outputRMS_L.store(0.0f, std::memory_order_relaxed);
+        outputRMS_R.store(0.0f, std::memory_order_relaxed);
+        return; // ★ CPU 0.0% 完全スリープ（DSPエンジン計算を完全スキップ）
+    }
 
     // 内部ステレオ処理用バッファの確保（安全マージン）
     if (wetBuffer.getNumSamples() < numSamples) {
@@ -210,7 +291,7 @@ void FDNReverbAudioProcessor::processBlock(
         wetBuffer.getWritePointer(0), wetBuffer.getWritePointer(1),
         osNumSamples);
 
-    const bool editorOpen = (getActiveEditor() != nullptr);
+    const bool editorOpen = isEditorOpen.load(std::memory_order_relaxed);
 
     for (int i = 0; i < osNumSamples; ++i) {
         float dryL = osBlock.getSample(0, i);

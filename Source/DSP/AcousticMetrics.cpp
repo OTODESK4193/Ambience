@@ -13,8 +13,11 @@ namespace FDNReverb {
         samples80ms = static_cast<int>(0.080 * sr);
         analysisWindowSamples = static_cast<int>(windowMs * 0.001 * sr);
 
-        // バッファサイズは解析窓長 + マージン
-        size_t bufferSize = static_cast<size_t>(analysisWindowSamples + samples80ms + 64);
+        // バッファサイズは解析窓長 + マージン（2のべき乗に切り上げ）
+        size_t neededSize = static_cast<size_t>(analysisWindowSamples + samples80ms + 64);
+        size_t bufferSize = 1;
+        while (bufferSize < neededSize) bufferSize *= 2;
+        bufferMask = static_cast<int>(bufferSize - 1);
         energyHistory.assign(bufferSize, 0.0f);
 
         reset();
@@ -40,21 +43,21 @@ namespace FDNReverb {
     }
 
     void AcousticMetrics::processSample(float sample) noexcept {
-        if (energyHistory.empty()) return;
+        if (energyHistory.empty() || bufferMask == 0) return;
 
-        const int bufferSize = static_cast<int>(energyHistory.size());
+        const uint32_t mask = static_cast<uint32_t>(bufferMask);
+        const uint32_t uWrite = static_cast<uint32_t>(historyWritePos);
 
-        // 現在のサンプルのエネルギー (二乗)
-        float currentEnergy = sample * sample;
+        const float currentEnergy = sample * sample;
 
         // リングバッファ書き込み
         energyHistory[historyWritePos] = currentEnergy;
 
         // 累積値の更新（インクリメンタル）
         // 50ms 窓に入る要素を追加、出る要素を引く
-        const int read50Pos = (historyWritePos - samples50ms + bufferSize) % bufferSize;
-        const int read80Pos = (historyWritePos - samples80ms + bufferSize) % bufferSize;
-        const int readWindowPos = (historyWritePos - analysisWindowSamples + bufferSize) % bufferSize;
+        const int read50Pos     = static_cast<int>((uWrite - static_cast<uint32_t>(samples50ms)) & mask);
+        const int read80Pos     = static_cast<int>((uWrite - static_cast<uint32_t>(samples80ms)) & mask);
+        const int readWindowPos = static_cast<int>((uWrite - static_cast<uint32_t>(analysisWindowSamples)) & mask);
 
         recent50msEnergy += currentEnergy - energyHistory[read50Pos];
         recent80msEnergy += currentEnergy - energyHistory[read80Pos];
@@ -67,7 +70,7 @@ namespace FDNReverb {
         }
 
         // 書き込みポジション進める
-        historyWritePos = (historyWritePos + 1) % bufferSize;
+        historyWritePos = static_cast<int>((uWrite + 1) & mask);
 
         // 数値安定化（負の累積値を 0 に）
         if (recent50msEnergy < 0.0) recent50msEnergy = 0.0;

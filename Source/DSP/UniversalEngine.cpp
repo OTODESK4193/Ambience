@@ -683,17 +683,46 @@ namespace FDNReverb {
     }
 
     inline void UniversalEngine::fastWalshHadamardTransform(std::array<float, 16>& a) noexcept {
-        for (int h = 1; h < 16; h *= 2) {
-            for (int i = 0; i < 16; i += h * 2) {
-                for (int j = i; j < i + h; ++j) {
-                    const float x = a[j];
-                    const float y = a[j + h];
-                    a[j]     = x + y;
-                    a[j + h] = x - y;
-                }
-            }
-        }
-        for (int i = 0; i < 16; ++i) a[i] *= 0.25f;
+        // Stage 1: h = 1 (隣接ペアのバタフライ)
+        const float t0  = a[0] + a[1];   const float t1  = a[0] - a[1];
+        const float t2  = a[2] + a[3];   const float t3  = a[2] - a[3];
+        const float t4  = a[4] + a[5];   const float t5  = a[4] - a[5];
+        const float t6  = a[6] + a[7];   const float t7  = a[6] - a[7];
+        const float t8  = a[8] + a[9];   const float t9  = a[8] - a[9];
+        const float t10 = a[10] + a[11]; const float t11 = a[10] - a[11];
+        const float t12 = a[12] + a[13]; const float t13 = a[12] - a[13];
+        const float t14 = a[14] + a[15]; const float t15 = a[14] - a[15];
+
+        // Stage 2: h = 2 (間隔2ペアのバタフライ)
+        const float u0  = t0 + t2;   const float u2  = t0 - t2;
+        const float u1  = t1 + t3;   const float u3  = t1 - t3;
+        const float u4  = t4 + t6;   const float u6  = t4 - t6;
+        const float u5  = t5 + t7;   const float u7  = t5 - t7;
+        const float u8  = t8 + t10;  const float u10 = t8 - t10;
+        const float u9  = t9 + t11;  const float u11 = t9 - t11;
+        const float u12 = t12 + t14; const float u14 = t12 - t14;
+        const float u13 = t13 + t15; const float u15 = t13 - t15;
+
+        // Stage 3: h = 4 (間隔4ペアのバタフライ)
+        const float v0  = u0 + u4;   const float v4  = u0 - u4;
+        const float v1  = u1 + u5;   const float v5  = u1 - u5;
+        const float v2  = u2 + u6;   const float v6  = u2 - u6;
+        const float v3  = u3 + u7;   const float v7  = u3 - u7;
+        const float v8  = u8 + u12;  const float v12 = u8 - u12;
+        const float v9  = u9 + u13;  const float v13 = u9 - u13;
+        const float v10 = u10 + u14; const float v14 = u10 - u14;
+        const float v11 = u11 + u15; const float v15 = u11 - u15;
+
+        // Stage 4: h = 8 (間隔8ペアのバタフライ & 1/sqrt(16) = 0.25f ユニタリ正規化)
+        constexpr float s = 0.25f;
+        a[0]  = (v0 + v8) * s;   a[8]  = (v0 - v8) * s;
+        a[1]  = (v1 + v9) * s;   a[9]  = (v1 - v9) * s;
+        a[2]  = (v2 + v10) * s;  a[10] = (v2 - v10) * s;
+        a[3]  = (v3 + v11) * s;  a[11] = (v3 - v11) * s;
+        a[4]  = (v4 + v12) * s;  a[12] = (v4 - v12) * s;
+        a[5]  = (v5 + v13) * s;  a[13] = (v5 - v13) * s;
+        a[6]  = (v6 + v14) * s;  a[14] = (v6 - v14) * s;
+        a[7]  = (v7 + v15) * s;  a[15] = (v7 - v15) * s;
     }
 
     inline void UniversalEngine::applySignFlipping(std::array<float, 16>& v) noexcept {
@@ -726,6 +755,20 @@ namespace FDNReverb {
         if (absorptionUpdatePending && isCrossfadeIdle && (samplesSinceLastAbsorptionUpdate >= absorptionRateLimitIntervalSamples)) {
             const bool targetIsB = (absoFadeState == AbsoFadeState::IdleAtA);
             updateAbsorptionFilters(targetIsB);
+            // ★ 状態変数ディープコピー（クリックノイズ完全ゼロの状態転送）
+            if (targetIsB) {
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                        absorptionFiltersS2_B[i][s] = absorptionFiltersS2_A[i][s];
+                    }
+                }
+            } else {
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                        absorptionFiltersS2_A[i][s] = absorptionFiltersS2_B[i][s];
+                    }
+                }
+            }
             absoFadeState = targetIsB ? AbsoFadeState::FadingToB : AbsoFadeState::FadingToA;
             samplesSinceLastAbsorptionUpdate = 0;
             absorptionUpdatePending = false;
@@ -999,20 +1042,27 @@ namespace FDNReverb {
                 }
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-                // ★★★【常時デュアル駆動・状態変数完全保持の神髄】★★★
-                // 分岐条件は一切なし！Bank A と Bank B の両方を常に tick して内部状態を同期
-                float outA = d;
-                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                    outA = absorptionFiltersS2_A[i][s].tick(outA, absorptionCoeffsS2_A[i][s]);
+                // ★ 状態転送付きシングルバンク駆動（定常時は160基のみ計算、フェード時のみ両バンク計算）
+                if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
+                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                        d = absorptionFiltersS2_A[i][s].tick(d, absorptionCoeffsS2_A[i][s]);
+                    }
+                } else if (absoFadeState == AbsoFadeState::IdleAtB) {
+                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                        d = absorptionFiltersS2_B[i][s].tick(d, absorptionCoeffsS2_B[i][s]);
+                    }
+                } else {
+                    // クロスフェード中（30ms間）のみ両バンクを計算し、等パワー合成
+                    float outA = d;
+                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                        outA = absorptionFiltersS2_A[i][s].tick(outA, absorptionCoeffsS2_A[i][s]);
+                    }
+                    float outB = d;
+                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+                        outB = absorptionFiltersS2_B[i][s].tick(outB, absorptionCoeffsS2_B[i][s]);
+                    }
+                    d = outA * absoGainA + outB * absoGainB;
                 }
-
-                float outB = d;
-                for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                    outB = absorptionFiltersS2_B[i][s].tick(outB, absorptionCoeffsS2_B[i][s]);
-                }
-
-                // 等パワー合成（過渡ショックゼロ、振幅段差ゼロ、クリックゼロ）
-                d = outA * absoGainA + outB * absoGainB;
 #else
                 d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
 #endif
