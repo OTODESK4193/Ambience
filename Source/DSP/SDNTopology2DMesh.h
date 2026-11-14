@@ -171,12 +171,12 @@ public:
                 const int idx = rowOffset + xOff;
 
                 // 5点ステンシルロード (上下・過去・中心はアライン, 左右はアンアライン)
-                const __m256 curr   = _mm256_load_ps(&u_curr[idx]);
+                const __m256 curr   = _mm256_loadu_ps(&u_curr[idx]);
                 const __m256 u_left  = _mm256_loadu_ps(&u_curr[idx - 1]);
                 const __m256 u_right = _mm256_loadu_ps(&u_curr[idx + 1]);
-                const __m256 u_up    = _mm256_load_ps(&u_curr[upOffset + xOff]);
-                const __m256 u_down  = _mm256_load_ps(&u_curr[downOffset + xOff]);
-                const __m256 past    = _mm256_load_ps(&u_past[idx]);
+                const __m256 u_up    = _mm256_loadu_ps(&u_curr[upOffset + xOff]);
+                const __m256 u_down  = _mm256_loadu_ps(&u_curr[downOffset + xOff]);
+                const __m256 past    = _mm256_loadu_ps(&u_past[idx]);
 
                 // 4近傍の和
                 const __m256 sum_lr  = _mm256_add_ps(u_left, u_right);
@@ -198,7 +198,7 @@ public:
                 // セーフティ2: 局所エネルギー発散防止クランプ [-2.5, 2.5]
                 next_val = _mm256_min_ps(_mm256_max_ps(next_val, vClampMin), vClampMax);
 
-                _mm256_store_ps(&u_next[idx], next_val);
+                _mm256_storeu_ps(&u_next[idx], next_val);
             }
         }
 

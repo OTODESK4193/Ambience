@@ -147,6 +147,7 @@ namespace FDNReverb {
         void updateTopologyAndRouting();
         void calculatePrimePowerDelays();
         void updateAbsorptionFilters(bool targetIsB);
+        void applySdnDerivedParams();
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
@@ -162,6 +163,7 @@ namespace FDNReverb {
 
         bool topologyUpdatePending{ false };
         bool absorptionUpdatePending{ false };
+        bool sdnParamsUpdatePending{ false };
         int  samplesSinceLastAbsorptionUpdate{ 0 };
         int  absorptionRateLimitIntervalSamples{ 720 };
 

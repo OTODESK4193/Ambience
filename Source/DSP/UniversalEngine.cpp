@@ -312,8 +312,13 @@ namespace FDNReverb {
         // ディレイ長の再計算を要するパラメータ（RoomSize のみ）
         const bool topologyNeedsUpdate = (activeParams.roomSizeScale != p.roomSizeScale);
 
-        // 吸音フィルタ再設計を要するパラメータ（17ノブ）
-        const bool absorptionNeedsUpdate = 
+        // 吸音フィルタ再設計を要するパラメータ
+        // [P6] トリガーは designStage2 の実入力のみに限定する。旧実装では
+        // scattering / erCrossoverMs / lateDensity / asymmetry / clarityDB の
+        // 変更でも同一係数の再設計 (約 656 回の pow 他) と 30ms の無意味な
+        // クロスフェードが発生し、フェード中は同一信号の cos+sin 合成で
+        // 最大 +3dB の膨らみまで生じていた。これら 5 つは設計入力ではない。
+        const bool absorptionNeedsUpdate =
                (activeParams.decayScale != p.decayScale)
             || (activeParams.hfDamping != p.hfDamping)
             || (activeParams.lfAbsorption != p.lfAbsorption)
@@ -321,12 +326,12 @@ namespace FDNReverb {
             || (activeParams.tiltMid != p.tiltMid)
             || (activeParams.tiltHigh != p.tiltHigh)
             || (activeParams.rtBands != p.rtBands)
-            || (activeParams.airAbsorbScale != p.airAbsorbScale)
-            || (activeParams.scattering != p.scattering)
-            || (activeParams.erCrossoverMs != p.erCrossoverMs)
-            || (activeParams.lateDensity != p.lateDensity)
-            || (activeParams.asymmetry != p.asymmetry)
-            || (activeParams.clarityDB != p.clarityDB);
+            || (activeParams.airAbsorbScale != p.airAbsorbScale);
+
+        // [P6] GEQ 再設計を伴わず SDN 派生値だけを更新すべきパラメータ
+        const bool sdnDerivedNeedsUpdate =
+               (activeParams.scattering != p.scattering)
+            || (activeParams.erCrossoverMs != p.erCrossoverMs);
 
         if (algoChanged) {
             ReverbTopology newTop = currentTopology;
@@ -351,6 +356,9 @@ namespace FDNReverb {
             if (absorptionNeedsUpdate) {
                 // サンプルベース・レート制御用フラグ
                 absorptionUpdatePending = true;
+            }
+            if (sdnDerivedNeedsUpdate) {
+                sdnParamsUpdatePending = true;
             }
         }
 
@@ -634,8 +642,16 @@ namespace FDNReverb {
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         // ★ 状態変数（s1, s2）のコピーは完全に排除！新係数のみを非アクティブ側（targetIsB）に書き込む
         for (int i = 0; i < FDN_ORDER; ++i) {
+            // Phase2 P2: 実際のループ周期で設計する。帰還路には FDN ディレイ本体に加えて
+            // 直列3段 APF の遅延合計と fbVec の 1 サンプルが含まれる。従来は本体長だけで
+            // 設計していたため、実効 T60 が (本体+APF)/本体 倍に伸びていた（実測で確認）。
+            float apfDelaySum = 0.0f;
+            for (int s = 0; s < SERIAL_APF_STAGES; ++s)
+                apfDelaySum += cachedApfBaseDelaySmp[i][s];
+            const int effectiveLoopSamples = static_cast<int>(std::round(
+                fdnBaseDelaySamples[i] + apfDelaySum + 1.0f));
             auto s2 = fitter.designStage2(
-                static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
+                effectiveLoopSamples, fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
                 if (targetIsB) {
@@ -678,7 +694,14 @@ namespace FDNReverb {
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
         lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
 
-        // SDN 吸音の更新
+        // SDN 吸音の更新 (安価な派生値のみ; [P6] で独立関数化)
+        applySdnDerivedParams();
+    }
+
+    // [P6] SDN 側の派生パラメータ (damping / lpfCoeff / scattering) のみを更新する。
+    // designStage2 の入力ではない erCrossoverMs / scattering の変更は、
+    // GEQ 再設計を経ずにここだけで反映できる (出力はビット同一)。
+    void UniversalEngine::applySdnDerivedParams() {
         const float fsf = static_cast<float>(fs);
         const float erSizeScale = 0.5f + activeParams.roomSizeScale;
         const float sdnAvgDelaySmp = 0.02f * fsf * erSizeScale;
@@ -758,6 +781,12 @@ namespace FDNReverb {
         if (topologyUpdatePending) {
             updateTopologyAndRouting();
             topologyUpdatePending = false;
+        }
+
+        // [P6] GEQ 再設計を伴わない SDN 派生値の即時反映
+        if (sdnParamsUpdatePending) {
+            applySdnDerivedParams();
+            sdnParamsUpdatePending = false;
         }
 
         // ★ サンプルベース・レート制御 ＆ ビジー保護トリガー (15ms間隔 / アイドル時のみ遷移)

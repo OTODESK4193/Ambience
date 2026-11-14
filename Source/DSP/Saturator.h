@@ -29,6 +29,8 @@ namespace FDNReverb {
             fs = (sampleRate > 1000.0) ? sampleRate : 48000.0;
             // 15Hz 1次 DC ブロッカー極配置
             dcR = static_cast<float>(1.0 - (2.0 * 3.141592653589793 * 15.0 / fs));
+            // P3/P4: 非線形差分成分の帯域制限 LPF 係数 (1 次 × 2 段, 各 fc = 4.5 kHz)
+            lpCoeff = static_cast<float>(1.0 - std::exp(-2.0 * 3.141592653589793 * 4500.0 / fs));
 
             // 20ms のサンプル単位線形ランプ平滑化
             amountSmoothed.reset(fs, 0.020);
@@ -39,6 +41,8 @@ namespace FDNReverb {
         }
 
         void reset() noexcept {
+            lpDiffState = 0.0f;
+            lpDiffState2 = 0.0f;
             stateActive.reset();
             statePending.reset();
             isModeCrossfading = false;
@@ -77,6 +81,8 @@ namespace FDNReverb {
             // ターゲットがゼロであり、スムーザーも完全にゼロに落ちきり、かつクロスフェードも稼働していない時のみ安全に直結
             if (curAmount < 1e-6f && !amountSmoothed.isSmoothing() && !isModeCrossfading) {
                 stateActive.x1_scalar = in; // 復帰時のショック防止のため状態のみ追従
+                lpDiffState = 0.0f;
+                lpDiffState2 = 0.0f;
                 return in;
             }
 
@@ -113,8 +119,15 @@ namespace FDNReverb {
                 }
             }
 
-            const float wetMix = curAmount * compGainCombined;
-            return in * dryMix + yCombined * wetMix;
+            // Phase2 P3: 非線形「差分」成分のみを 1 次 LPF (fc≈6.5kHz) で帯域制限する。
+            // ループ後段のメモリレス非線形は、吸収 GEQ の整形を受けない高域の相互変調を
+            // 再生成し続け、8kHz 帯 T30 を実測で最大 38 倍に伸ばしていた (sat=0 で消失を確認)。
+            // 温かみの主体である低・中域の倍音はそのまま残し、高域はループ側の減衰に委ねる。
+            const float diff = (yCombined * compGainCombined - in) * curAmount;
+            lpDiffState += lpCoeff * (diff - lpDiffState);
+            lpDiffState2 += lpCoeff * (lpDiffState - lpDiffState2);
+            (void)dryMix;
+            return in + lpDiffState2;
         }
 
     private:
@@ -135,6 +148,9 @@ namespace FDNReverb {
 
         double fs{ 48000.0 };
         float dcR{ 0.998f };
+        float lpCoeff{ 0.443f };   // 48kHz / 4.5kHz 時の値 (prepare で再計算)
+        float lpDiffState{ 0.0f };
+        float lpDiffState2{ 0.0f };
         float targetAmount{ 0.0f };
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> amountSmoothed;
 
