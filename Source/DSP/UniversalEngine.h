@@ -222,6 +222,15 @@ namespace FDNReverb {
         std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs{};
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples{};
         std::array<float, FDN_ORDER>               currentFdnDelaySamples{};
+        // ★ FDN 読み出し引数キャッシュ: FDN ベース遅延はパラメータ変更時のみ変化し
+        //   定常時は currentFdnDelaySamples == fdnBaseDelaySamples が厳密に成立する。
+        //   目標値に対する readInt / Hermite の引数を事前計算して使い回し、毎サンプルの
+        //   round/clamp/変換を省く。引数の値は従来経路の計算と完全同一（ビット完全）。
+        //   fdnReadCacheTarget が目標値と一致しないチャンネルはキャッシュ無効。
+        std::array<float, FDN_ORDER>               fdnReadCacheTarget{};
+        std::array<int,   FDN_ORDER>               fdnReadCacheId{};    // int時: readInt 引数 / frac時: 整数部 id
+        std::array<float, FDN_ORDER>               fdnReadCacheFrac{};  // frac時: 小数部 frac
+        std::array<char,  FDN_ORDER>               fdnReadCacheIsInt{}; // 1 = readInt 経路
         float                                      delaySmoothCoeff{ 0.0f };
         std::array<float, FDN_ORDER>               fbVec{};
 

@@ -198,6 +198,7 @@ namespace FDNReverb {
         erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
 
         currentFdnDelaySamples.fill(0.0f);
+        fdnReadCacheTarget.fill(-1.0f); // 遅延ライン再初期化に合わせて読み出しキャッシュを無効化
 
         dcBlockerCoeff = 1.0f - (6.28318530718f * 5.0f / static_cast<float>(fs));
         dcX1.fill(0.0f); dcY1.fill(0.0f);
@@ -406,9 +407,40 @@ namespace FDNReverb {
         saturatorR.setMode(p.satTypeIdx);
     }
 
+    // Phase3 Goldfoil redesign (adopted candidate D24): explicit delay set.
+    // The ms-bounds -> log-spaced -> prime-snap generation is a lottery for the
+    // FDN's transmission-zero pattern: both widened sets tried in the metallic
+    // programme (2-30 ms, 2-24 ms) placed a deep steady-state zero on 1 kHz
+    // (fundamental -26.4 / -17.1 dB). This set is designed in samples at
+    // 48 kHz / roomSize 0.90 (the Goldfoil preset default): 16 distinct
+    // primes, sum ~7440 samples = Schroeder modal density ~50% (dev: 28%),
+    // screened with a simplified FDN steady-state model and verified with
+    // the steady-state sweep: on the 1/6-oct grid every point is within 6 dB
+    // of the dev response except one narrow zero at 158.7 Hz (dev has the
+    // same zero at ~160 Hz; see phase3/goldfoil/REDESIGN.md).
+    // Candidate D: fractional delays. Integer loop lengths share a common
+    // lattice with the (integer) serial-APF delays and the sample grid;
+    // golden-ratio fractional offsets make every total loop length
+    // incommensurate, smearing the transmission-zero pattern. The engine's
+    // delay read already interpolates non-integer delays.
+    static constexpr std::array<float, 16> GOLDFOIL_DELAY_SET_48K = { {
+        67.05f, 71.62f, 89.24f, 113.81f, 137.43f, 191.99f, 223.37f, 257.93f,
+        337.55f, 421.12f, 499.68f, 631.30f, 757.87f, 977.49f, 1181.06f, 1481.64f
+    } };
+
     void UniversalEngine::calculatePrimePowerDelays() {
         const float fsf = static_cast<float>(fs);
         const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+
+        if (safeAlgo == 6) { // Goldfoil: explicit set, scaled from the 48k/0.90 reference
+            const float sizeScaleGF = juce::jlimit(0.3f, 2.5f, activeParams.roomSizeScale);
+            const float rel = (fsf / 48000.0f) * (sizeScaleGF / 0.90f);
+            for (int i = 0; i < FDN_ORDER; ++i) {
+                fdnBaseDelaySamples[i] = std::max(11.0f, GOLDFOIL_DELAY_SET_48K[i] * rel + 24.0f * (fsf / 48000.0f));
+            }
+            return;
+        }
+
         const auto& bounds = ALGORITHM_DELAY_BOUNDS[safeAlgo];
 
         // RoomSize ノブ (0.3 ~ 2.0) による線形スケーリング
@@ -1131,11 +1163,31 @@ namespace FDNReverb {
                 }
 
                 float d;
-                const int intDelay = static_cast<int>(std::round(currentFdnDelaySamples[i]));
-                if (std::abs(currentFdnDelaySamples[i] - static_cast<float>(intDelay)) < 1e-5f) {
-                    d = fdnDelays[i].readInt(intDelay);
+                if (currentFdnDelaySamples[i] == targetSmp && fdnReadCacheTarget[i] == targetSmp) [[likely]] {
+                    // ★ 定常時高速経路: 遅延は目標値に一致したまま静止しているため、
+                    //   引数は事前計算済みのものを使う（値は従来経路の計算と完全同一）
+                    d = fdnReadCacheIsInt[i] ? fdnDelays[i].readInt(fdnReadCacheId[i])
+                                             : fdnDelays[i].readPrepared(fdnReadCacheId[i], fdnReadCacheFrac[i]);
                 } else {
-                    d = fdnDelays[i].read(currentFdnDelaySamples[i] - 1.0f);
+                    const int intDelay = static_cast<int>(std::round(currentFdnDelaySamples[i]));
+                    if (std::abs(currentFdnDelaySamples[i] - static_cast<float>(intDelay)) < 1e-5f) {
+                        d = fdnDelays[i].readInt(intDelay);
+                        if (currentFdnDelaySamples[i] == targetSmp) {
+                            fdnReadCacheTarget[i] = targetSmp;
+                            fdnReadCacheIsInt[i] = 1;
+                            fdnReadCacheId[i] = intDelay;
+                        }
+                    } else {
+                        d = fdnDelays[i].read(currentFdnDelaySamples[i] - 1.0f);
+                        if (currentFdnDelaySamples[i] == targetSmp && fdnDelays[i].hasBuffer()) {
+                            int pid; float pfrac;
+                            fdnDelays[i].prepareReadArgs(currentFdnDelaySamples[i] - 1.0f, pid, pfrac);
+                            fdnReadCacheTarget[i] = targetSmp;
+                            fdnReadCacheIsInt[i] = 0;
+                            fdnReadCacheId[i] = pid;
+                            fdnReadCacheFrac[i] = pfrac;
+                        }
+                    }
                 }
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION

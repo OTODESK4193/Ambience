@@ -52,12 +52,21 @@ namespace FDNReverb {
             writeIndex = 0;
         }
 
-        inline float read(float delayInSamples) const noexcept {
-            if (buffer == nullptr || mask < 5) return 0.0f;
-            const float safeDelay = std::clamp(delayInSamples, 1.0f, static_cast<float>(mask - 4));
-            const int id = static_cast<int>(safeDelay);
-            const float frac = safeDelay - static_cast<float>(id);
+        // read() が補間読み出し可能か（buffer 割り当て済み かつ タップ4点が確保できる）
+        inline bool hasBuffer() const noexcept { return buffer != nullptr && mask >= 5; }
 
+        // read() の前処理（clamp → 整数部 id / 小数部 frac）の分離。
+        // 遅延が静的なチャンネルでは (id, frac) を事前計算して使い回せる。
+        // read() 自身もこの関数を使うため、得られる値は read() と完全同一。
+        inline void prepareReadArgs(float delayInSamples, int& outId, float& outFrac) const noexcept {
+            const float safeDelay = std::clamp(delayInSamples, 1.0f, static_cast<float>(mask - 4));
+            outId = static_cast<int>(safeDelay);
+            outFrac = safeDelay - static_cast<float>(outId);
+        }
+
+        // prepareReadArgs で得た (id, frac) による Hermite 補間読み出し本体。
+        // 式・演算順序は従来の read() と完全に同一（ビット完全一致）。
+        inline float readPrepared(int id, float frac) const noexcept {
             const uint32_t uWrite = static_cast<uint32_t>(writeIndex);
             const uint32_t uId    = static_cast<uint32_t>(id);
             const uint32_t uMask  = static_cast<uint32_t>(mask);
@@ -75,6 +84,13 @@ namespace FDNReverb {
             const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
 
             return ((c3 * frac + c2) * frac + c1) * frac + c0;
+        }
+
+        inline float read(float delayInSamples) const noexcept {
+            if (buffer == nullptr || mask < 5) return 0.0f;
+            int id; float frac;
+            prepareReadArgs(delayInSamples, id, frac);
+            return readPrepared(id, frac);
         }
 
         inline float readInt(int delayInSamples) const noexcept {
