@@ -299,13 +299,24 @@ namespace FDNReverb {
         float hfDamping,
         float lfAbsorption)
     {
+        std::array<float, NUM_BANDS> uniform;
+        uniform.fill(static_cast<float>(delaySamples));
+        return designStage2PerBand(uniform, sampleRate, rt60, hfDamping, lfAbsorption);
+    }
+
+    MagnitudeResponseFitter::DesignResultStage2 MagnitudeResponseFitter::designStage2PerBand(
+        const std::array<float, NUM_BANDS>& loopSamplesPerBand,
+        double sampleRate,
+        const std::array<float, NUM_BANDS>& rt60,
+        float hfDamping,
+        float lfAbsorption)
+    {
         precomputeInteractionMatrix(sampleRate);
 
         DesignResultStage2 result;
 
         constexpr int N = NUM_BANDS;
         const float fs = static_cast<float>(sampleRate);
-        const float m = static_cast<float>(delaySamples);
 
         // ── Step 1: 音響物理に基づく RT60 連続変形と遅延長 m 比例 dB 目標化 ──
         //   - LF Absorption: 160Hz 基準の低域シェルビング重みによる連続変形
@@ -326,7 +337,8 @@ namespace FDNReverb {
             currentT60 = 1.0f / std::max(1e-4f, invT60);
 
             // 遅延線長 m に正確に比例した減衰量 (dB)
-            float db = -60.0f * m / (fs * currentT60);
+            // Phase3 PL-3: バンド別の実効ループ長 (APF 群遅延込み) を使う
+            float db = -60.0f * loopSamplesPerBand[i] / (fs * currentT60);
             db = std::clamp(db, -60.0f, -0.02f);
             targetDb[i] = db;
             result.targetDb[i] = db;

@@ -33,7 +33,9 @@ public:
         // Spring 1: 中域・中遅延 (~33.7ms 往復: Accutronics S1)
         static constexpr int BASE_DELAYS_S1[8] = {  89,  97, 107, 127, 137, 151, 163, 179 };
         // Spring 2: 高域・短遅延 (~24.1ms 往復: Accutronics S2)
-        static constexpr int BASE_DELAYS_S2[8] = {  61,  71,  79,  83, 101, 109, 113, 131 };
+        // Phase3 SP-3: 113/131 が S0 と重複し往復周期が相関していたため
+        // 117/139 へ置換 (S0/S1 は不変。SP-1 の全組み替えは THD+N 悪化で棄却)。
+        static constexpr int BASE_DELAYS_S2[8] = {  61,  71,  79,  83, 101, 109, 117, 139 };
 
         const float sampleRateScale = fsf / 48000.0f;
         for (int i = 0; i < 8; ++i) {

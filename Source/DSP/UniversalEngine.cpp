@@ -70,7 +70,11 @@ namespace FDNReverb {
         // HALL2: 12,000 m3, V^(1/3) ~ 22.9m, mean path ~ 15.5m
         { 26.0f, 135.0f },
         // PLATE: EMT 140 (2D Steel Plate, High Density)
-        { 2.0f, 25.0f },
+        // Phase3 PL-1: widened 2-25 ms -> 3-40 ms to lift FDN modal density
+        // (Schroeder sum 66% -> ~100%) and dilute the 234 Hz outlier mode.
+        // Phase3 PL-2: -> 4-55 ms (density ~137%) to dilute the residual
+        // slowest eigenmode further (PL-1 left W2 prominence +1.2 dB @205 Hz).
+        { 4.0f, 55.0f },
         // SPRING: Vintage Tank (Dispersive Dispersion)
         { 15.0f, 50.0f },
         // GOLDFOIL: EMT 240 (Ultra-thin Gold Foil)
@@ -641,17 +645,70 @@ namespace FDNReverb {
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         // ★ 状態変数（s1, s2）のコピーは完全に排除！新係数のみを非アクティブ側（targetIsB）に書き込む
+        // Phase3 PL-3: APF の群遅延は周波数依存 (Schroeder APF:
+        // tau(w) = m (1-g^2) / (1+g^2+2g cos(w m))) で、公称遅延和と最大で
+        // (1+g)/(1-g) 倍ずれる。バンド中心ごとに実効ループ長を求めて設計する。
+        // g は setParams と同一式で再計算する (設計時点の目標値)。
+        const float diffForDesign = std::clamp(activeParams.diffusion * diffusionSensitivity, 0.0f, 1.0f);
+        const float lateDensityScaleForDesign = std::clamp(activeParams.lateDensity / 0.7f, 0.1f, 1.4286f);
+        const float gApfDesign = std::clamp(
+            apfGain * std::pow(diffForDesign, 0.75f) * 0.76f * lateDensityScaleForDesign,
+            0.0f, 0.7071f);
+        // Phase3 PL-3d: per-band design is applied ONLY to Spring.
+        // Measured: Spring cepstrum 21.5 -> 17.2 dB (adopt). On Plate it
+        // improved band T30 further (250 Hz +19 -> +13%) but worsened
+        // cepstrum (+1.2 dB), NED (0 -> 1.4%) and the 205 Hz tone
+        // prominence, so Plate keeps PL-2 + the nominal P2 design.
+        // Room/Hall/Inchindown were neutral, Goldfoil negative
+        // (ring 35.6 -> 39.9 dB): they also keep the P2 design.
+        const bool usePerBandDesign =
+            (currentTopology == ReverbTopology::Spring);
         for (int i = 0; i < FDN_ORDER; ++i) {
             // Phase2 P2: 実際のループ周期で設計する。帰還路には FDN ディレイ本体に加えて
             // 直列3段 APF の遅延合計と fbVec の 1 サンプルが含まれる。従来は本体長だけで
             // 設計していたため、実効 T60 が (本体+APF)/本体 倍に伸びていた（実測で確認）。
-            float apfDelaySum = 0.0f;
-            for (int s = 0; s < SERIAL_APF_STAGES; ++s)
-                apfDelaySum += cachedApfBaseDelaySmp[i][s];
-            const int effectiveLoopSamples = static_cast<int>(std::round(
-                fdnBaseDelaySamples[i] + apfDelaySum + 1.0f));
-            auto s2 = fitter.designStage2(
-                effectiveLoopSamples, fs, scaledRT60,
+            if (!usePerBandDesign) {
+                float apfDelaySum = 0.0f;
+                for (int s = 0; s < SERIAL_APF_STAGES; ++s)
+                    apfDelaySum += cachedApfBaseDelaySmp[i][s];
+                const int effectiveLoopSamples = static_cast<int>(std::round(
+                    fdnBaseDelaySamples[i] + apfDelaySum + 1.0f));
+                auto s2n = fitter.designStage2(
+                    effectiveLoopSamples, fs, scaledRT60,
+                    activeParams.hfDamping, activeParams.lfAbsorption);
+                for (int b = 0; b < NUM_BANDS; ++b) {
+                    if (targetIsB) absorptionCoeffsS2_B[i][b] = s2n.geqStages[b];
+                    else           absorptionCoeffsS2_A[i][b] = s2n.geqStages[b];
+                }
+                continue;
+            }
+            std::array<float, NUM_BANDS> loopPerBand;
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                float loopB = fdnBaseDelaySamples[i] + 1.0f;
+                for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                    const float mApf = cachedApfBaseDelaySmp[i][s];
+                    // tau(f) oscillates with period fs/m Hz; sampling it at the
+                    // band centre alone is meaningless at HF. Average tau over
+                    // the octave band (8 log-spaced points): tends to m at HF,
+                    // captures the smooth LF peak (f ~ fs/(2m)) faithfully.
+                    double tauSum = 0.0;
+                    for (int k = 0; k < 8; ++k) {
+                        const double frac = (static_cast<double>(k) + 0.5) / 8.0;
+                        const double fEval = static_cast<double>(BAND_FREQ[b])
+                                           * std::pow(2.0, frac - 0.5);
+                        const double w = 2.0 * 3.141592653589793 * fEval
+                                       * static_cast<double>(mApf) / fs;
+                        const double denom = 1.0 + static_cast<double>(gApfDesign) * gApfDesign
+                                           + 2.0 * gApfDesign * std::cos(w);
+                        tauSum += static_cast<double>(mApf) * (1.0 - static_cast<double>(gApfDesign) * gApfDesign)
+                                / std::max(0.01, denom);
+                    }
+                    loopB += static_cast<float>(tauSum / 8.0);
+                }
+                loopPerBand[b] = loopB;
+            }
+            auto s2 = fitter.designStage2PerBand(
+                loopPerBand, fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption);
             for (int b = 0; b < NUM_BANDS; ++b) {
                 if (targetIsB) {
