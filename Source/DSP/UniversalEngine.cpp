@@ -1062,7 +1062,16 @@ namespace FDNReverb {
                 }
             }
 
-            // ★ 等パワーゲイン計算（アイドル時は超越関数完全スキップ、フェード時のみ三角関数計算）
+            // ★ 線形（凸結合）ゲイン計算（アイドル時は分岐のみ、フェード時も乗算のみ）
+            // [DecayKnob fix] 旧実装の等パワー (cos/sin) 合成は「無相関な2信号」
+            // 前提だが、A/B 両バンクは同一入力・同一初期状態から分岐する強相関
+            // 信号であり、実測では全帯域・全フェード位置で合成ゲインが端点に
+            // 対し最大 +3.01 dB (cos+sin の理論最大) 上乗せされていた。FDN
+            // ループ内ではこの上乗せが周回ごとに蓄積し、Decay ドラッグ中に
+            // テイルが再上昇する (最大 +50 dB 級の包絡膨らみ、Plate 低域)。
+            // 線形フェードは凸結合であり、各周波数で合成応答が複素平面上の
+            // 線分上に収まるため |H| が端点の最大を超えないことが保証される。
+            // 詳細: phase3/decay-knob/DECAY_KNOB.md
             float absoGainA = 1.0f;
             float absoGainB = 0.0f;
             if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
@@ -1072,9 +1081,8 @@ namespace FDNReverb {
                 absoGainA = 0.0f;
                 absoGainB = 1.0f;
             } else {
-                const float fadeRad = absoCrossfadePos * 1.5707963268f;
-                absoGainA = std::cos(fadeRad);
-                absoGainB = std::sin(fadeRad);
+                absoGainA = 1.0f - absoCrossfadePos;
+                absoGainB = absoCrossfadePos;
             }
 
             // ★ スムーザーからサンプル値を取得
