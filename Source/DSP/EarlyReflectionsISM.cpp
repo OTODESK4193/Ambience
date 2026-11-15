@@ -32,6 +32,36 @@ void EarlyReflectionsISM::reset() {
     lastAlgorithmIndex = -1;
 }
 
+EarlyReflectionsISM::StateSnapshot EarlyReflectionsISM::captureState() {
+    StateSnapshot s;
+    // ISMParameters は processBlock が chunk.filterState を書き換える
+    // 可変オブジェクトなので、ポインタ共有ではなく深いコピーで捕捉する。
+    // 復元側もスナップショットのコピーを直接渡さず毎回複製を作るため、
+    // 処理による filterState の汚染がスナップショットへ逆流しない。
+    s.current = currentParams ? std::make_shared<ISMParameters>(*currentParams) : nullptr;
+    auto pend = pendingParams.load(std::memory_order_acquire);
+    s.pending = pend ? std::make_shared<ISMParameters>(*pend) : nullptr;
+    s.lastAlgorithmIndex = lastAlgorithmIndex;
+    s.lastRoomSizeScale = lastRoomSizeScale;
+    s.lastPreDelayMs = lastPreDelayMs;
+    s.lastHfDamping = lastHfDamping;
+    s.lastLfAbsorption = lastLfAbsorption;
+    s.valid = true;
+    return s;
+}
+
+void EarlyReflectionsISM::restoreState(const StateSnapshot& s) {
+    if (!s.valid) return;
+    currentParams = s.current ? std::make_shared<ISMParameters>(*s.current) : nullptr;
+    pendingParams.store(s.pending ? std::make_shared<ISMParameters>(*s.pending) : nullptr,
+                        std::memory_order_release);
+    lastAlgorithmIndex = s.lastAlgorithmIndex;
+    lastRoomSizeScale = s.lastRoomSizeScale;
+    lastPreDelayMs = s.lastPreDelayMs;
+    lastHfDamping = s.lastHfDamping;
+    lastLfAbsorption = s.lastLfAbsorption;
+}
+
 void EarlyReflectionsISM::updateParameters(int algorithmIndex, float roomSizeScale,
                                           float preDelayMs, float hfDamping, float lfAbsorption)
 {

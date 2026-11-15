@@ -157,6 +157,27 @@ public:
         dryZ1 = 0.0;
     }
 
+    // [phase3/small-fixes] reset() は amount ランプ状態と active/pending
+    // モードを戻さない (prepare では 0 / Warm に初期化される)。呼び出し側が
+    // prepare 終端の値を捕捉し reset() の後に復元するためのアクセサ。
+    // 復元先の状態は reset() 直後の信号状態 (履歴ゼロ、クロスフェード完了)
+    // と整合する: prepare 終端でもクロスフェードは発生していない。
+    struct ResetState {
+        double amountCurrent{ 0.0 }, amountTarget{ 0.0 }, amountInc{ 0.0 };
+        SaturationMode activeMode{ SaturationMode::Warm };
+        SaturationMode pendingMode{ SaturationMode::Warm };
+    };
+    ResetState captureResetState() const noexcept {
+        return { amountCurrent, amountTarget, amountInc, activeMode, pendingMode };
+    }
+    void restoreResetState(const ResetState& s) noexcept {
+        amountCurrent = s.amountCurrent;
+        amountTarget = s.amountTarget;
+        amountInc = s.amountInc;
+        activeMode = s.activeMode;
+        pendingMode = s.pendingMode;
+    }
+
     void setMode(SaturationMode mode) noexcept {
         if (activeMode != mode && pendingMode != mode) {
             if (isModeCrossfading) {

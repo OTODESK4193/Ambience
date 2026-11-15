@@ -105,6 +105,30 @@ public:
     void setDroopCompEnabled(bool enabled) noexcept { inner.setDroopCompEnabled(enabled); }
     [[nodiscard]] bool isDroopCompEnabled() const noexcept { return inner.isDroopCompEnabled(); }
 
+    // [phase3/small-fixes] reset() は amount ランプ状態 (自クラスと inner の
+    // 双方) と pathFade 状態を戻さない。UniversalEngine が prepare 終端の
+    // 値を捕捉し reset() の後に復元するためのアクセサ
+    // (SaturatorADAA::ResetState 参照)。
+    struct ResetState {
+        SaturatorADAA::ResetState inner;
+        double amountCurrent{ 0.0 }, amountTarget{ 0.0 }, amountInc{ 0.0 };
+        double pathFade{ 0.0 }, pathFadeInc{ 0.0 };
+        bool pathFadePrimed{ false };
+    };
+    ResetState captureResetState() const noexcept {
+        return { inner.captureResetState(), amountCurrent, amountTarget, amountInc,
+                 pathFade, pathFadeInc, pathFadePrimed };
+    }
+    void restoreResetState(const ResetState& s) noexcept {
+        inner.restoreResetState(s.inner);
+        amountCurrent = s.amountCurrent;
+        amountTarget = s.amountTarget;
+        amountInc = s.amountInc;
+        pathFade = s.pathFade;
+        pathFadeInc = s.pathFadeInc;
+        pathFadePrimed = s.pathFadePrimed;
+    }
+
     inline float processSample(float inF) noexcept {
         if (amountInc != 0.0) {
             amountCurrent += amountInc;

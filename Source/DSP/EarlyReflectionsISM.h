@@ -49,6 +49,23 @@ public:
     void prepare(double sampleRate, int maxBlockSize);
     void reset();
 
+    // [phase3/small-fixes] reset() 完全初期化用スナップショット。
+    // reset() は currentParams / pendingParams と updateParameters の
+    // 変更検出キャッシュ (last*) を戻さないため、呼び出し側が prepare
+    // 終端の状態を捕捉し reset() の後に復元できるようにする。
+    struct StateSnapshot {
+        std::shared_ptr<ISMParameters> current;
+        std::shared_ptr<ISMParameters> pending;
+        int lastAlgorithmIndex{ -1 };
+        float lastRoomSizeScale{ -1.0f };
+        float lastPreDelayMs{ -1.0f };
+        float lastHfDamping{ -1.0f };
+        float lastLfAbsorption{ -1.0f };
+        bool valid{ false };
+    };
+    StateSnapshot captureState();
+    void restoreState(const StateSnapshot& s);
+
     // 幾何座標・タップ更新 (非オーディオスレッド / パラメータ変更時)
     void updateParameters(int algorithmIndex, float roomSizeScale, float preDelayMs,
                           float hfDamping, float lfAbsorption);

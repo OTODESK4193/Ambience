@@ -148,6 +148,9 @@ namespace FDNReverb {
         void calculatePrimePowerDelays();
         void updateAbsorptionFilters(bool targetIsB);
         void applySdnDerivedParams();
+        // [phase3/small-fixes] reset() 完全初期化: prepare() 終端状態の捕捉/復元
+        void captureResetSnapshot();
+        void restoreResetSnapshot();
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
@@ -325,6 +328,52 @@ namespace FDNReverb {
         SimpleAllpass<53>  outApR1;
         SimpleAllpass<89>  outApR2;
         SimpleAllpass<127> outApR3;
+
+        // ── [phase3/small-fixes] reset() 完全初期化スナップショット ──
+        // prepare() 終端 (updateTopologyAndRouting + reset 完了直後) の状態を
+        // 捕捉し、reset() で復元する。対象は「reset()/panicReset() が戻さず、
+        // かつ次の setParams/遷移で決定論的に再導出される前に音へ影響する」
+        // 状態の全て: パラメータ変更検出の基準 (activeParams)、平滑値の
+        // 現在値/目標値、吸収係数バンク、FDN 基準遅延 (currentFdnDelaySamples
+        // のスナップ先)、SDN 基準遅延、ISM のパラメータオブジェクトと
+        // 変更検出キャッシュ、サチュレータの amount/モード。
+        bool           resetSnapshotValid{ false };
+        DSPParams      snapActiveParams{};
+        DSPParams      snapPendingParams{};
+        ReverbTopology snapCurrentTopology{ ReverbTopology::Room };
+        ReverbTopology snapPendingTopology{ ReverbTopology::Room };
+        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> snapCoeffsA{};
+        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> snapCoeffsB{};
+        std::array<float, NUM_BANDS> snapEffectiveRT60{};
+        std::array<float, NUM_BANDS> snapTargetRT60{};
+        float          snapTheoreticalEDT{ 0.0f };
+        float          snapCurrentRT60Mid{ 1.5f };
+        float          snapCurrentDesignRT60_1k{ 1.5f };
+        float          snapModDepthScale{ 1.0f };
+        float          snapLateMakeupGainLinear{ 1.0f };
+        float          snapApfGain{ 0.618f };
+        float          snapDiffusionSensitivity{ 1.0f };
+        bool           snapBypassER{ false };
+        bool           snapBypassInputDiffusers{ false };
+        float          snapPreDelaySamples{ 0.0f };
+        std::array<float, FDN_ORDER> snapFdnBaseDelaySamples{};
+        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> snapCachedApfBaseDelaySmp{};
+        std::array<std::array<int, SERIAL_APF_STAGES>, FDN_ORDER> snapCachedApfBaseDelayInt{};
+        int            snapCurrentERTapCount{ 0 };
+        std::array<float, MAX_ER_TAPS> snapCurrentERDelaySamples{};
+        std::array<float, MAX_ER_TAPS> snapCurrentERGains{};
+        float          snapSmPreDelayCur{ 0.0f }, snapSmPreDelayTgt{ 0.0f };
+        float          snapSmRoomSizeCur{ 1.0f }, snapSmRoomSizeTgt{ 1.0f };
+        float          snapSmDiffuserCur{ 0.0f }, snapSmDiffuserTgt{ 0.0f };
+        float          snapSmApfCur{ 0.0f },      snapSmApfTgt{ 0.0f };
+        float          snapSmWidthCur{ 1.0f },    snapSmWidthTgt{ 1.0f };
+        float          snapSmMakeupCur{ 0.0f },   snapSmMakeupTgt{ 1.0f };
+
+        std::array<float, 8> snapSdnBaseDelaySamples{};
+        std::array<uint32_t, 6> snapSdnRngStates{};
+        EarlyReflectionsISM::StateSnapshot snapIsmState{};
+        SaturatorADAAOS2::ResetState snapSatL{};
+        SaturatorADAAOS2::ResetState snapSatR{};
     };
 
 } // namespace FDNReverb

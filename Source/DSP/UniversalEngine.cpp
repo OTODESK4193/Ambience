@@ -283,11 +283,27 @@ namespace FDNReverb {
 
         updateTopologyAndRouting(); // ★ 初期トポロジー・ディレイ長・吸音フィルタの完全同期初期化
         reset();
+        // [phase3/small-fixes] この時点の状態が「新規インスタンスの初期状態」。
+        // 以後の reset() はここへ完全復元する (captureResetSnapshot 参照)。
+        captureResetSnapshot();
     }
 
     void UniversalEngine::reset() {
         memoryPool.clear();
         panicReset();
+
+        // [phase3/small-fixes] prepare 終端スナップショットの復元。
+        // activeParams を含むため、この後の erSmoothedGain /
+        // smoothedModAmount / smoothedModRate の導出も prepare 終端の
+        // 値 (既定パラメータ由来) に揃う。prepare() 内の reset() 呼び出し
+        // ではスナップショット未捕捉のため無効 (自然な初期状態のまま)。
+        if (resetSnapshotValid) restoreResetSnapshot();
+        topologyUpdatePending = false;
+        sdnParamsUpdatePending = false;
+        fdnReadCacheTarget.fill(-1.0f); // prepare と同じ読み出しキャッシュ無効化
+        fdnReadCacheId.fill(0);
+        fdnReadCacheFrac.fill(0.0f);
+        fdnReadCacheIsInt.fill(0);
 
         gfMeshFeedLpState.fill(0.0f);
         for (int s = 0; s < 3; ++s) {
@@ -313,6 +329,100 @@ namespace FDNReverb {
             dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
             dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
+    }
+
+    // [phase3/small-fixes] prepare() 終端の状態を捕捉する。reset() が従来
+    // 復元し損ねていた状態 (下記) を全て含む。信号履歴そのもの (遅延線・
+    // フィルタ状態変数・履歴バッファ) は memoryPool.clear() と
+    // panicReset() が消去するため対象外。
+    void UniversalEngine::captureResetSnapshot() {
+        snapActiveParams = activeParams;
+        snapPendingParams = pendingParams;
+        snapCurrentTopology = currentTopology;
+        snapPendingTopology = pendingTopology;
+        snapCoeffsA = absorptionCoeffsS2_A;
+        snapCoeffsB = absorptionCoeffsS2_B;
+        snapEffectiveRT60 = effectiveRT60;
+        snapTargetRT60 = targetRT60;
+        snapTheoreticalEDT = theoreticalEDT;
+        snapCurrentRT60Mid = currentRT60Mid;
+        snapCurrentDesignRT60_1k = currentDesignRT60_1k;
+        snapModDepthScale = modDepthScale;
+        snapLateMakeupGainLinear = lateMakeupGainLinear;
+        snapApfGain = apfGain;
+        snapDiffusionSensitivity = diffusionSensitivity;
+        snapBypassER = bypassER;
+        snapBypassInputDiffusers = bypassInputDiffusers;
+        snapPreDelaySamples = preDelaySamples;
+        snapFdnBaseDelaySamples = fdnBaseDelaySamples;
+        snapCachedApfBaseDelaySmp = cachedApfBaseDelaySmp;
+        snapCachedApfBaseDelayInt = cachedApfBaseDelayInt;
+        snapCurrentERTapCount = currentERTapCount;
+        snapCurrentERDelaySamples = currentERDelaySamples;
+        snapCurrentERGains = currentERGains;
+        snapSmPreDelayCur = preDelaySmoothed.getCurrentValue();
+        snapSmPreDelayTgt = preDelaySmoothed.getTargetValue();
+        snapSmRoomSizeCur = roomSizeSmoothed.getCurrentValue();
+        snapSmRoomSizeTgt = roomSizeSmoothed.getTargetValue();
+        snapSmDiffuserCur = diffuserGainSmoothed.getCurrentValue();
+        snapSmDiffuserTgt = diffuserGainSmoothed.getTargetValue();
+        snapSmApfCur = apfGainStageSmoothed.getCurrentValue();
+        snapSmApfTgt = apfGainStageSmoothed.getTargetValue();
+        snapSmWidthCur = stereoWidthSmoothed.getCurrentValue();
+        snapSmWidthTgt = stereoWidthSmoothed.getTargetValue();
+        snapSmMakeupCur = lateMakeupGainSmoothed.getCurrentValue();
+        snapSmMakeupTgt = lateMakeupGainSmoothed.getTargetValue();
+        snapSdnBaseDelaySamples = sdnEngine.captureBaseDelaySamples();
+        snapSdnRngStates = sdnEngine.captureModulatorRngStates();
+        snapIsmState = ismEngine.captureState();
+        snapSatL = saturatorL.captureResetState();
+        snapSatR = saturatorR.captureResetState();
+        resetSnapshotValid = true;
+    }
+
+    void UniversalEngine::restoreResetSnapshot() {
+        activeParams = snapActiveParams;
+        pendingParams = snapPendingParams;
+        currentTopology = snapCurrentTopology;
+        pendingTopology = snapPendingTopology;
+        absorptionCoeffsS2_A = snapCoeffsA;
+        absorptionCoeffsS2_B = snapCoeffsB;
+        effectiveRT60 = snapEffectiveRT60;
+        targetRT60 = snapTargetRT60;
+        theoreticalEDT = snapTheoreticalEDT;
+        currentRT60Mid = snapCurrentRT60Mid;
+        currentDesignRT60_1k = snapCurrentDesignRT60_1k;
+        modDepthScale = snapModDepthScale;
+        lateMakeupGainLinear = snapLateMakeupGainLinear;
+        apfGain = snapApfGain;
+        diffusionSensitivity = snapDiffusionSensitivity;
+        bypassER = snapBypassER;
+        bypassInputDiffusers = snapBypassInputDiffusers;
+        preDelaySamples = snapPreDelaySamples;
+        fdnBaseDelaySamples = snapFdnBaseDelaySamples;
+        cachedApfBaseDelaySmp = snapCachedApfBaseDelaySmp;
+        cachedApfBaseDelayInt = snapCachedApfBaseDelayInt;
+        currentERTapCount = snapCurrentERTapCount;
+        currentERDelaySamples = snapCurrentERDelaySamples;
+        currentERGains = snapCurrentERGains;
+        // 平滑値: 現在値を即値で戻し、目標値が異なる場合のみランプを張り直す。
+        // prepare 終端では lateMakeup のみ current != target で、ランプ残量は
+        // stepsToTarget 全量 (= setTargetValue の再設定と一致) である。
+        auto restoreSm = [](auto& sm, float cur, float tgt) {
+            sm.setCurrentAndTargetValue(cur);
+            if (tgt != cur) sm.setTargetValue(tgt);
+        };
+        restoreSm(preDelaySmoothed, snapSmPreDelayCur, snapSmPreDelayTgt);
+        restoreSm(roomSizeSmoothed, snapSmRoomSizeCur, snapSmRoomSizeTgt);
+        restoreSm(diffuserGainSmoothed, snapSmDiffuserCur, snapSmDiffuserTgt);
+        restoreSm(apfGainStageSmoothed, snapSmApfCur, snapSmApfTgt);
+        restoreSm(stereoWidthSmoothed, snapSmWidthCur, snapSmWidthTgt);
+        restoreSm(lateMakeupGainSmoothed, snapSmMakeupCur, snapSmMakeupTgt);
+        sdnEngine.restoreBaseDelaySamples(snapSdnBaseDelaySamples);
+        sdnEngine.restoreModulatorRngStates(snapSdnRngStates);
+        ismEngine.restoreState(snapIsmState);
+        saturatorL.restoreResetState(snapSatL);
+        saturatorR.restoreResetState(snapSatR);
     }
 
     void UniversalEngine::panicReset() noexcept {

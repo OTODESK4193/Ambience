@@ -99,6 +99,14 @@ public:
         targetValue = 0.0f;
     }
 
+    // [phase3/small-fixes] RNG 状態の捕捉/復元。reset() 自体は rngState に
+    // 触らない: reset() はトポロジー遷移時の panicReset() からも呼ばれ、
+    // そこで RNG を巻き戻すと fresh instance の初回レンダーまで変わって
+    // しまう。巻き戻しは UniversalEngine::reset() がスナップショット
+    // 経由でのみ行う (prepare 終端 = シード値への復元)。
+    uint32_t getRngState() const noexcept { return rngState; }
+    void setRngState(uint32_t s) noexcept { rngState = s; }
+
     inline float tick(float depthInSamples, float rate) noexcept {
         rngState ^= rngState << 13;
         rngState ^= rngState >> 17;
@@ -164,6 +172,24 @@ public:
         baseDelaySamples[7] = 0.0f;
         smoothedDelaySamples[6] = 0.0f;
         smoothedDelaySamples[7] = 0.0f;
+    }
+
+    // [phase3/small-fixes] reset() は smoothedDelaySamples を baseDelaySamples へ
+    // 戻すが、base 自体は前ケースのジオメトリのまま残る (updateGeometry は
+    // トポロジー切替時にしか呼ばれない)。UniversalEngine が prepare 終端の
+    // base を捕捉し reset() で復元するために使うアクセサ。
+    std::array<float, 8> captureBaseDelaySamples() const { return baseDelaySamples; }
+    void restoreBaseDelaySamples(const std::array<float, 8>& b) {
+        baseDelaySamples = b;
+        smoothedDelaySamples = b;
+    }
+    std::array<uint32_t, 6> captureModulatorRngStates() const {
+        std::array<uint32_t, 6> a{};
+        for (int i = 0; i < NUM_NODES; ++i) a[i] = modulators[i].getRngState();
+        return a;
+    }
+    void restoreModulatorRngStates(const std::array<uint32_t, 6>& a) {
+        for (int i = 0; i < NUM_NODES; ++i) modulators[i].setRngState(a[i]);
     }
 
     void updateGeometry(float width, float depth, float height,
