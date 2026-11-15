@@ -146,6 +146,24 @@ public:
     }
 
     void reset() noexcept {
+        // [phase3/mode-fix] クロスフェード進行中の reset() は、要求済み
+        // モード (pendingMode) を確定させてから状態を消去する。従来は
+        // isModeCrossfading だけが落とされ pendingMode が残留するため、
+        // activeMode != pendingMode の不整合状態のまま固定され、以降の
+        // setMode(pendingMode) がガード条件 (pendingMode != mode) で
+        // no-op になり、要求モードへ二度と到達できなかった。実測済みの
+        // 経路: プリセット読込で setParams の setMode がクロスフェードを
+        // 開始 → 8ms グレースフルミュート遷移完了時の panicReset() が
+        // 本関数でキャンセル → updateTopologyAndRouting() の setMode が
+        // no-op になり、モードが Warm に固定される。
+        // reset() は信号履歴を全消去する遷移点 (prepare / panicReset)
+        // でのみ呼ばれるため、クロスフェードの残りを省略して確定させ
+        // てもクリックは発生しない。これにより reset() 後は常に
+        // activeMode == pendingMode の整合状態になり、
+        // captureResetState() の捕捉値も整合する。
+        if (isModeCrossfading) {
+            activeMode = pendingMode;
+        }
         lpDiffState = 0.0;
         lpDiffState2 = 0.0;
         stateActive.reset();
