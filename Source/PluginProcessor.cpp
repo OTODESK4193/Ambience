@@ -100,6 +100,11 @@ void FDNReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 
     engine.prepare(sampleRate, maxBlock);
 
+    // サチュレータ段 (ADAA1 + 2x OS) のレイテンシをホストへ申告する。
+    // 実測 47.5 サンプルの切り上げ。amount=0 のバイパス時は無遅延だが、
+    // 申告は最悪値で一定とする (パラメータで変動させない)。
+    setLatencySamples(SaturatorADAAOS2::kLatencySamples);
+
     // 最大ブロックサイズで事前確保（オーディオスレッドでの再確保を根絶）
     wetBuffer.setSize(2, maxBlock);
     stereoBlockBuffer.setSize(2, maxBlock);

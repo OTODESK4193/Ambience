@@ -13,7 +13,7 @@
 #include "BiquadFilters.h"
 #include "MagnitudeResponseFitter.h"
 #include "AcousticMetrics.h"
-#include "SaturatorADAA.h"
+#include "SaturatorADAAOS2.h"
 #include "OutputLimiter.h"
 #include "OutputEQ.h"
 #include "SDNEngine.h"
@@ -307,8 +307,8 @@ namespace FDNReverb {
         float currentDesignRT60_1k{ 1.5f }; // effectiveRT60[5], captured in updateAbsorptionFilters
 
         AcousticMetrics acousticMetrics;
-        SaturatorADAA saturatorL;
-        SaturatorADAA saturatorR;
+        SaturatorADAAOS2 saturatorL;
+        SaturatorADAAOS2 saturatorR;
         DynamicEQDucker dynamicDucker;
         EarlyReflectionsISM ismEngine;
         std::vector<float> ismBufferL;
