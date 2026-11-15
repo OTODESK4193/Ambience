@@ -792,6 +792,50 @@ namespace FDNReverb {
 
     }
 
+    // phase3/stereo SPLIT8 implementation support (STEREO_IMPL.md):
+    // per-algorithm band-T30 recalibration factors (multipliers on the
+    // design RT60 targets) and late-makeup trims (dB) for the split-FDN
+    // path. Splitting the shared 16ch network into two 8ch per-ear
+    // networks changes each band's modal statistics, so the design
+    // targets are trimmed per band to reproduce the current head's
+    // measured band T30, and the late makeup is trimmed to restore the
+    // total IR energy lost with the crossLeak contribution.
+    // Goldfoil (index 6) never takes the split path: its row is the
+    // identity and is never applied. Bands follow BAND_FREQ
+    // (31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000 Hz).
+    // Rebase note (phase3/stereo/STEREO_REBASE.md): the Room1 / Room2 /
+    // Spring / Inchindown rows and all makeup trims were re-identified
+    // on the f309b2fb base (B3 + Inchindown fixes + OS2 + diffusion (a)
+    // + F3 landed after the original identification); the Hall1 /
+    // Hall2 / Plate band rows are unchanged from the original
+    // identification and still meet gates there.
+    static constexpr std::array<std::array<float, NUM_BANDS>, NUM_ALGORITHMS> SPLIT8_BAND_CORR = { {
+        { 0.8021f, 0.8021f, 0.8021f, 1.2297f, 1.0485f, 1.1074f, 0.9245f, 1.0418f, 0.9882f, 0.9882f }, // Room1
+        { 0.9483f, 0.9483f, 0.9483f, 1.0001f, 1.0600f, 0.9927f, 0.9906f, 1.0027f, 1.0028f, 1.0028f }, // Room2
+        { 0.9753f, 0.9753f, 0.9753f, 1.0001f, 1.0146f, 0.9669f, 1.0128f, 0.9963f, 0.9949f, 0.9949f }, // Hall1
+        { 1.0177f, 1.0177f, 1.0177f, 0.9941f, 0.9957f, 1.0249f, 1.0248f, 0.9810f, 0.9984f, 0.9984f }, // Hall2
+        { 0.9997f, 0.9997f, 0.9997f, 1.0260f, 1.0859f, 1.0274f, 0.9545f, 0.9992f, 0.9231f, 0.9231f }, // Plate
+        { 1.0129f, 1.0129f, 1.0129f, 1.0518f, 0.9851f, 1.0114f, 0.9400f, 1.0063f, 0.9871f, 0.9871f }, // Spring
+        { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }, // Goldfoil (unused)
+        { 0.9626f, 0.9626f, 0.9626f, 1.0178f, 1.0804f, 1.0003f, 1.0140f, 0.9948f, 1.0163f, 1.0163f }  // Inchindown
+    } };
+    // Makeup trims are applied in the audio path (processBlock, keyed on
+    // activeParams.algorithmIndex), NOT in this design function: a
+    // design-time trim leaks into the prepare()-time design (which runs
+    // with the default algorithm index) and shifts the lateMakeupGain
+    // smoother's starting target, which audibly perturbs even Goldfoil's
+    // first ~400 samples; and Room1's design-time total already sits at
+    // the +12 dB makeup clamp, nullifying any in-limit trim there.
+    // Rebase round 3: values identified with the split-mode width
+    // remap (below) active; the remap retains side energy that the
+    // legacy stage scaled down, raising the dual-mono IR energy by
+    // +0.24...+0.59 dB, and these trims absorb that so the patch as a
+    // whole stays level-neutral at preset defaults.
+    static constexpr std::array<float, NUM_ALGORITHMS> SPLIT8_MAKEUP_DB = { {
+        // Room1     Room2     Hall1     Hall2     Plate     Spring    Goldfoil  Inchindown
+        -0.48f,     -0.26f,     -0.18f,     -0.10f,     -0.08f,     -0.31f,     0.0f,       1.30f
+    } };
+
     void UniversalEngine::updateAbsorptionFilters(bool targetIsB) {
         const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
         auto& preset = *ALL_PRESETS[safeAlgo];
@@ -826,6 +870,16 @@ namespace FDNReverb {
         }
         for (int b = 0; b < NUM_BANDS; ++b)
             scaledRT60[b] *= activeParams.rtBands[b];
+
+        // phase3/stereo SPLIT8: per-algorithm band recalibration for the
+        // split (per-ear) networks (see SPLIT8_BAND_CORR above). Applied
+        // to the design targets only; the audio path is untouched.
+        // Goldfoil keeps the legacy shared design (identity).
+        if (safeAlgo != 6) {
+            const auto& splitCorr = SPLIT8_BAND_CORR[safeAlgo];
+            for (int b = 0; b < NUM_BANDS; ++b)
+                scaledRT60[b] *= splitCorr[b];
+        }
 
         // 大気減衰 (ISO 9613-1 指数べき乗モデル)
         const float safeAirScale = std::clamp(activeParams.airAbsorbScale, 0.0f, 5.0f);
@@ -1106,6 +1160,32 @@ namespace FDNReverb {
         for (int i = 0; i < 16; ++i) v[i] *= s[i];
     }
 
+    // phase3/stereo SPLIT8 (STEREO_IMPL.md): 8-point unitary FWHT
+    // (1/sqrt(8) scaling) + sign flipping for the per-ear partition
+    // networks. Sign patterns reuse the two halves of the 16ch
+    // applySignFlipping table.
+    static inline void stereoFwht8(std::array<float, 8>& a) noexcept {
+        const float t0 = a[0] + a[1], t1 = a[0] - a[1];
+        const float t2 = a[2] + a[3], t3 = a[2] - a[3];
+        const float t4 = a[4] + a[5], t5 = a[4] - a[5];
+        const float t6 = a[6] + a[7], t7 = a[6] - a[7];
+        const float u0 = t0 + t2, u2 = t0 - t2;
+        const float u1 = t1 + t3, u3 = t1 - t3;
+        const float u4 = t4 + t6, u6 = t4 - t6;
+        const float u5 = t5 + t7, u7 = t5 - t7;
+        constexpr float s = 0.35355339f; // 1/sqrt(8)
+        a[0] = (u0 + u4) * s; a[4] = (u0 - u4) * s;
+        a[1] = (u1 + u5) * s; a[5] = (u1 - u5) * s;
+        a[2] = (u2 + u6) * s; a[6] = (u2 - u6) * s;
+        a[3] = (u3 + u7) * s; a[7] = (u3 - u7) * s;
+    }
+    static inline void stereoSignFlip8(std::array<float, 8>& v, bool secondHalf) noexcept {
+        static constexpr float s0[8] = { 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f };
+        static constexpr float s1[8] = { 1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f };
+        const float* s = secondHalf ? s1 : s0;
+        for (int i = 0; i < 8; ++i) v[i] *= s[i];
+    }
+
     void UniversalEngine::processBlock(const float* inL, const float* inR,
         float* outL, float* outR, int numSamples) noexcept {
         juce::ScopedNoDenormals noDenormals;
@@ -1121,6 +1201,13 @@ namespace FDNReverb {
             updateTopologyAndRouting();
             topologyUpdatePending = false;
         }
+
+        // phase3/stereo SPLIT8: per-algorithm late-energy makeup trim
+        // (see SPLIT8_MAKEUP_DB). Exactly 1.0f for Goldfoil, so its
+        // renders stay bit-identical to the current head.
+        const int curAlgoIdx = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+        const float splitMakeupLin = (curAlgoIdx != 6)
+            ? juce::Decibels::decibelsToGain(SPLIT8_MAKEUP_DB[curAlgoIdx]) : 1.0f;
 
         // [P6] GEQ 再設計を伴わない SDN 派生値の即時反映
         if (sdnParamsUpdatePending) {
@@ -1345,9 +1432,29 @@ namespace FDNReverb {
 
             float erOutL = 0.0f, erOutR = 0.0f;
 
+            // phase3/stereo SPLIT8 (STEREO_IMPL.md): Goldfoil keeps the
+            // legacy shared-FDN path below bit-exactly (its structural
+            // mesh feed is a shared cross-path that needs a per-ear
+            // redesign first); all other topologies run the per-ear
+            // split FDN. In split mode the two variables below carry the
+            // per-ear streams (fdnInputMid = L stream, fdnInputSide = R
+            // stream) instead of Mid/Side.
+            const bool splitStereo = (currentTopology != ReverbTopology::Goldfoil);
+
             // ★ Mid / Side 双方を 6段ディフューザーで完全拡散 (ハードバイパス撤廃・サンプル線形平滑化)
-            float fdnInputMid = midIn;
-            float fdnInputSide = sideIn;
+            // SPLIT8: the two diffuser chains carry the raw per-ear
+            // signals (M chain = L, S chain = R) instead of Mid/Side.
+            // Position information lives in the correlation between Mid
+            // and Side; diffusing them through separate chains destroys
+            // that correlation, after which L = M+S and R = M-S have
+            // equal energy and no split FDN can recover the position
+            // (phase3/stereo/STEREO.md §2a, §3). Each chain keeps its own
+            // delay set: in split mode the M chain's prime set
+            // (DIFF_SMP_M) serves L and the S chain's (DIFF_SMP_S) serves
+            // R, with the same per-stage taper — the 6-stage extension of
+            // the assignment the SPLIT8 prep used on the 4-stage sets.
+            float fdnInputMid = splitStereo ? inLpfStateL : midIn;
+            float fdnInputSide = splitStereo ? inLpfStateR : sideIn;
             if (!bypassInputDiffusers && inputDiffusersValid) {
                 // [phase3/diffusion 候補(a)] 段別ゲインテーパ (Dattorro 型:
                 // 前段を強く、後段を弱く)。curDiffuserGain は段1のゲイン。
@@ -1403,8 +1510,17 @@ namespace FDNReverb {
                 erOutL += ismBufferL[n];
                 erOutR += ismBufferR[n];
                 // SDN / 2D Mesh 散乱出力をFDNへ注入 (LateDensity 連動ハイブリッド結合: 事前計算ゲイン適用)
-                fdnInputMid += (erOutL + erOutR) * lateInjectGain;
-                fdnInputSide += (erOutL - erOutR) * lateInjectGain;
+                if (splitStereo) {
+                    // Per-ear streams: inject each ear's core output into
+                    // its own stream. The factor 2 matches the legacy
+                    // design's excitation for a mono source (Mid receives
+                    // (erL+erR)*g, i.e. 2*e*g when erL == erR == e).
+                    fdnInputMid += erOutL * lateInjectGain * 2.0f;
+                    fdnInputSide += erOutR * lateInjectGain * 2.0f;
+                } else {
+                    fdnInputMid += (erOutL + erOutR) * lateInjectGain;
+                    fdnInputSide += (erOutL - erOutR) * lateInjectGain;
+                }
             }
 
             // Goldfoil structural feed (phase3/goldfoil/STRUCTURAL.md):
@@ -1441,8 +1557,19 @@ namespace FDNReverb {
             static constexpr float extractSign[16] = { 1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f, -1.0f,  1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f,  1.0f, -1.0f };
 
             std::array<float, 16> currentFb = fbVec;
-            fastWalshHadamardTransform(currentFb);
-            applySignFlipping(currentFb);
+            if (splitStereo) {
+                // Partition mixing: even channels form the L network, odd
+                // channels the R network; each gets its own 8ch FWHT, so
+                // no energy crosses between the ears inside the loop.
+                std::array<float, 8> blkA, blkB;
+                for (int k = 0; k < 8; ++k) { blkA[k] = currentFb[2 * k]; blkB[k] = currentFb[2 * k + 1]; }
+                stereoFwht8(blkA); stereoFwht8(blkB);
+                stereoSignFlip8(blkA, false); stereoSignFlip8(blkB, true);
+                for (int k = 0; k < 8; ++k) { currentFb[2 * k] = blkA[k]; currentFb[2 * k + 1] = blkB[k]; }
+            } else {
+                fastWalshHadamardTransform(currentFb);
+                applySignFlipping(currentFb);
+            }
 
             float evenSum = 0.0f, oddSum = 0.0f;
             std::array<float, 16> nextFb;
@@ -1592,8 +1719,14 @@ namespace FDNReverb {
                 const float limitedApfOut = apfOutVec[i] * gLoop;
                 nextFb[i] = limitedApfOut;
 
-                const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
-                float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
+                float fdnInputForThisCh;
+                if (splitStereo) {
+                    // Each channel is fed only by its own ear's stream.
+                    fdnInputForThisCh = (((i & 1) == 0) ? fdnInputMid : fdnInputSide) * injectSign[i] * 0.25f;
+                } else {
+                    const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
+                    fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
+                }
                 float fdnWriteVal = fdnInputForThisCh + currentFb[i];
                 // Goldfoil structural feed: add the lowpassed per-channel
                 // mesh pickup (see the conditioning block above). The gain
@@ -1609,10 +1742,18 @@ namespace FDNReverb {
                 else              oddSum  += extractedOut;
             }
 
-            const float curCrossLeak = 1.0f - curWidth;
-            // 16ch FDNのL/R出力 (各8chの非相関サミング: 1/sqrt(8) = 0.3535f)
-            const float fdnOutL = (evenSum + oddSum * curCrossLeak) * 0.353553f;
-            const float fdnOutR = (oddSum + evenSum * curCrossLeak) * 0.353553f;
+            float fdnOutL, fdnOutR;
+            if (splitStereo) {
+                // Per-ear extraction: no crossLeak. Stereo width is still
+                // applied by the final Mid/Side stage below, unchanged.
+                fdnOutL = evenSum * 0.353553f;
+                fdnOutR = oddSum * 0.353553f;
+            } else {
+                const float curCrossLeak = 1.0f - curWidth;
+                // 16ch FDNのL/R出力 (各8chの非相関サミング: 1/sqrt(8) = 0.3535f)
+                fdnOutL = (evenSum + oddSum * curCrossLeak) * 0.353553f;
+                fdnOutR = (oddSum + evenSum * curCrossLeak) * 0.353553f;
+            }
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
@@ -1637,8 +1778,8 @@ namespace FDNReverb {
             // ★ ModAmt 変調時の Hermite 補間通過損失を動的補正（音量低下ゼロ化）
             const float modLossComp = 1.0f + (0.08f + 0.08f * std::min(5.0f, currentRT60Mid)) * modAmtCurved;
             const float curLateMakeupGain = lateMakeupGainSmoothed.getNextValue();
-            const float lateMixL = fdnOutL * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate;
-            const float lateMixR = fdnOutR * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate;
+            const float lateMixL = fdnOutL * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate * splitMakeupLin;
+            const float lateMixR = fdnOutR * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate * splitMakeupLin;
 
             // ★ Vintage Warmth ADAA Saturator (出力段 L/R 独立 1次 ADAA 処理)
             float satL = saturatorL.processSample(lateMixL);
@@ -1660,8 +1801,20 @@ namespace FDNReverb {
             dynamicDucker.processStereo(inL[n], inR[n], wetL, wetR);
 
             // ★ 最終出力段 Mid/Side（和差）幅制御 (条件分岐完全撤廃・全域 C^∞ 連続平滑化)
+            // phase3/stereo width-cap revision (STEREO_REBASE.md): in split
+            // mode the legacy M/S stage caps the late-field ILD at
+            // 20*log10((1+w)/(1-w)) (Spring default w=0.70 -> 15.1 dB,
+            // Room1 w=0.75 -> 16.9 dB), discarding most of the separation
+            // the split FDN delivers (wet ILD at w=1: Spring 24.4 dB,
+            // Room1 25.8 dB). Remap the width curve in split mode only:
+            // wEff = 1-(1-w)^1.5 (endpoints and monotonicity preserved,
+            // w=0 stays exact mono). Goldfoil never takes the split path,
+            // so its renders stay bit-identical.
+            const float effWidth = splitStereo
+                ? 1.0f - (1.0f - curWidth) * std::sqrt(1.0f - curWidth)
+                : curWidth;
             const float mid  = 0.5f * (wetL + wetR);
-            const float side = 0.5f * (wetL - wetR) * curWidth;
+            const float side = 0.5f * (wetL - wetR) * effWidth;
             wetL = mid + side;
             wetR = mid - side;
 
