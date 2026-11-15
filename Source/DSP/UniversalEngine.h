@@ -369,6 +369,18 @@ namespace FDNReverb {
         float          snapSmWidthCur{ 1.0f },    snapSmWidthTgt{ 1.0f };
         float          snapSmMakeupCur{ 0.0f },   snapSmMakeupTgt{ 1.0f };
 
+        // ── [phase3/small-fixes 試作] makeup 増加の保留・解放 ──
+        // Decay 下方向ドラッグでは rt60Mid の低下で makeup が最大 +6 dB
+        // 上昇する。長いテイルがループ内に残っている間に makeup だけが
+        // 先に上がると帯域包絡が静的端点を超える (DECAY_KNOB 残存項)。
+        // テイルが鳴っている状態でのフェード経由の再設計では増加分を
+        // 保留し、再設計が止んで hold 時間が経ってから解放する。
+        bool  makeupHoldActive{ false };
+        float makeupHeldTarget{ 1.0f };
+        int   makeupHoldSamplesLeft{ 0 };
+        int   makeupHoldSamplesTotal{ 14400 }; // prepare で fs × 0.300 に設定
+        bool  absorptionDesignFromFade{ false }; // processBlock の保留対象経路か
+        bool  tailWasActive{ false }; // reset 以降に有意な入力を処理したか
         std::array<float, 8> snapSdnBaseDelaySamples{};
         std::array<uint32_t, 6> snapSdnRngStates{};
         EarlyReflectionsISM::StateSnapshot snapIsmState{};

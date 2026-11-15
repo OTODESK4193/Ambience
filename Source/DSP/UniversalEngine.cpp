@@ -252,6 +252,7 @@ namespace FDNReverb {
         loopEnergyEnv = 0.0f;
 
         lateMakeupGainSmoothed.reset(sampleRate, 0.030); // 30ms sample-accurate linear smoothing
+        makeupHoldSamplesTotal = static_cast<int>(sampleRate * 0.300); // [small-fixes 試作] 保留 300ms
         preDelaySmoothed.reset(sampleRate, 0.025);
         roomSizeSmoothed.reset(sampleRate, 0.040);
         diffuserGainSmoothed.reset(sampleRate, 0.025);
@@ -298,6 +299,8 @@ namespace FDNReverb {
         // 値 (既定パラメータ由来) に揃う。prepare() 内の reset() 呼び出し
         // ではスナップショット未捕捉のため無効 (自然な初期状態のまま)。
         if (resetSnapshotValid) restoreResetSnapshot();
+        makeupHoldActive = false; // [small-fixes 試作] prepare 終端と一致
+        tailWasActive = false;
         topologyUpdatePending = false;
         sdnParamsUpdatePending = false;
         fdnReadCacheTarget.fill(-1.0f); // prepare と同じ読み出しキャッシュ無効化
@@ -1085,7 +1088,27 @@ namespace FDNReverb {
         float algoOffset = algorithmOffsetDB[juce::jlimit(0, 7, activeParams.algorithmIndex)];
         const float totalMakeupDB = juce::jlimit(-6.0f, 12.0f, baseDB + decayCompDB + algoOffset);
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
-        lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+        // [phase3/small-fixes 試作] makeup 増加の保留・解放 (詳細は
+        // UniversalEngine.h の makeupHold* メンバー参照)。フェード経由の
+        // 再設計 かつ テイルが鳴っている場合のみ増加を保留する。トポロジー
+        // 経由 (切替直後は panicReset でテイルが消去済み) と減少は即時。
+        // テイルが無い状態 (静的レンダーのウォームアップ中など) も即時で、
+        // 静止時の出力は従来とビット同一に保たれる。
+        if (!absorptionDesignFromFade) {
+            makeupHoldActive = false;
+            lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+        } else if (lateMakeupGainLinear > lateMakeupGainSmoothed.getTargetValue()) {
+            if (tailWasActive) {
+                makeupHoldActive = true;
+                makeupHeldTarget = lateMakeupGainLinear;
+                makeupHoldSamplesLeft = makeupHoldSamplesTotal;
+            } else {
+                lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+            }
+        } else {
+            makeupHoldActive = false;
+            lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+        }
 
         // SDN 吸音の更新 (安価な派生値のみ; [P6] で独立関数化)
         applySdnDerivedParams();
@@ -1197,6 +1220,21 @@ namespace FDNReverb {
             return;
         }
 
+        // [phase3/small-fixes 試作] テイル活動の検出と makeup 保留の解放。
+        // 保留はブロック単位で数え、解放は通常の 30 ms ランプで行う。
+        if (!tailWasActive) {
+            for (int i = 0; i < numSamples; ++i) {
+                if (std::abs(inL[i]) > 1.0e-4f || std::abs(inR[i]) > 1.0e-4f) { tailWasActive = true; break; }
+            }
+        }
+        if (makeupHoldActive) {
+            makeupHoldSamplesLeft -= numSamples;
+            if (makeupHoldSamplesLeft <= 0) {
+                makeupHoldActive = false;
+                lateMakeupGainSmoothed.setTargetValue(makeupHeldTarget);
+            }
+        }
+
         if (topologyUpdatePending) {
             updateTopologyAndRouting();
             topologyUpdatePending = false;
@@ -1220,7 +1258,9 @@ namespace FDNReverb {
         const bool isCrossfadeIdle = (absoFadeState == AbsoFadeState::IdleAtA || absoFadeState == AbsoFadeState::IdleAtB);
         if (absorptionUpdatePending && isCrossfadeIdle && (samplesSinceLastAbsorptionUpdate >= absorptionRateLimitIntervalSamples)) {
             const bool targetIsB = (absoFadeState == AbsoFadeState::IdleAtA);
+            absorptionDesignFromFade = true;
             updateAbsorptionFilters(targetIsB);
+            absorptionDesignFromFade = false;
             // [inchindown-decay fix] The tank's RT60 feed lives only in
             // updateTopologyAndRouting, which a Decay-knob turn (absorption-
             // only update) never reaches: without this re-feed the tank
