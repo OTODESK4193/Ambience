@@ -28,10 +28,15 @@
 //
 //  Bypass: while the amount is settled at exactly 0 the input is returned
 //  bit-exact (same contract as the inner class), but the oversampled path
-//  keeps running internally so its state stays warm. Note the inherent
-//  wart of this arm: leaving the bypass re-enters a path whose latency is
-//  ~47 samples, so a saturation 0 -> >0 knob move has a one-time timing
-//  step in the wet path (the current 1-sample designs do not).
+//  keeps running internally so its state stays warm. The two paths differ
+//  in latency by ~47.5 samples, so presenting them with a hard switch
+//  produces a one-sample step of up to |x[n] - x[n-47.5]| when the knob
+//  crosses 0 in either direction (measured 0.85 FS on a 500 Hz sine at
+//  amplitude 0.5 — an audible click, independent of drag speed, target
+//  value and mode). The presented output therefore crossfades between
+//  the dry input and the oversampled path over kPathFadeSeconds whenever
+//  the bypass state changes; both settled states stay bit-exact (pure
+//  dry at fade 0, pure oversampled path at fade 1).
 // ─────────────────────────────────────────────────────────────────────────────
 
 namespace FDNReverb {
@@ -54,6 +59,9 @@ public:
         amountCurrent = 0.0;
         amountTarget = 0.0;
         amountInc = 0.0;
+        pathFade = 0.0; // settled amount is 0 here: dry presented
+        pathFadeInc = 1.0 / std::max(1.0, fs * kPathFadeSeconds);
+        pathFadePrimed = false; // first sample presents the current path directly
         reset();
     }
 
@@ -78,6 +86,20 @@ public:
         inner.setAmount(amount);
         amountTarget = static_cast<double>(std::clamp(amount, 0.0f, 1.0f));
         amountInc = (amountTarget - amountCurrent) / amountSteps;
+        // Snap the last epsilon of a return to exactly 0. Without this,
+        // a caller that re-issues setAmount every audio block (the engine
+        // does) recomputes amountInc from the current value each block,
+        // so the 20 ms ramp restarts forever and amountCurrent decays
+        // geometrically ((1 - block/steps) per block) without ever
+        // reaching 0: the bypass then never re-engages after a drag back
+        // to 0 (measured: never within 8 s at block 256/512), and the
+        // settled-at-0 bit-exact contract is silently lost. Below 1e-6
+        // the amount is already treated as bypass by the gate itself,
+        // so snapping changes no audible state.
+        if (amountTarget == 0.0 && amountCurrent < 1e-6) {
+            amountCurrent = 0.0;
+            amountInc = 0.0;
+        }
     }
 
     void setDroopCompEnabled(bool enabled) noexcept { inner.setDroopCompEnabled(enabled); }
@@ -126,12 +148,37 @@ public:
             out = static_cast<float>(acc);
         }
         ++nin;
-        return bypass ? inF : out;
+
+        // Present the dry input or the oversampled path, crossfading over
+        // kPathFadeSeconds whenever the bypass state changes (see header
+        // note). The endpoints are returned through the exact original
+        // expressions, so both settled states are bit-identical to the
+        // pre-fix build; the blend only exists while a fade is running.
+        const double fadeTarget = bypass ? 0.0 : 1.0;
+        if (!pathFadePrimed) {
+            // First sample after prepare(): present whichever path the
+            // current state dictates, exactly like the pre-fix build —
+            // a preset loaded with saturation > 0 must render bit-
+            // identically from sample 0. Only later crossings fade.
+            pathFade = fadeTarget;
+            pathFadePrimed = true;
+        }
+        else if (pathFade < fadeTarget) pathFade = std::min(fadeTarget, pathFade + pathFadeInc);
+        else if (pathFade > fadeTarget) pathFade = std::max(fadeTarget, pathFade - pathFadeInc);
+        if (pathFade <= 0.0) return inF;
+        if (pathFade >= 1.0) return out;
+        return static_cast<float>((1.0 - pathFade) * static_cast<double>(inF)
+                                  + pathFade * static_cast<double>(out));
     }
 
 private:
     static constexpr int kTaps = 95;
     static constexpr double kBeta = 9.0;
+    // Dry <-> oversampled-path presentation crossfade length. Long enough
+    // to spread the 47.5-sample path step below audibility, short enough
+    // that the comb dip while the two delayed copies blend stays a
+    // few-ms event (measured in phase3/sat-boundary/SAT_BOUNDARY.md).
+    static constexpr double kPathFadeSeconds = 0.005;
 
     SaturatorADAA inner;
     double fs{ 48000.0 };
@@ -147,6 +194,10 @@ private:
     double amountTarget{ 0.0 };
     double amountInc{ 0.0 };
     double amountSteps{ 960.0 };
+
+    double pathFade{ 0.0 };    // 0 = dry presented, 1 = oversampled path
+    double pathFadeInc{ 0.0 }; // per-sample step toward the target side
+    bool pathFadePrimed{ false };
 
     // Base-rate input history: histAt(k) = x[n - k], k = 0..47.
     inline double histAt(int k) const noexcept {
