@@ -529,7 +529,7 @@ namespace FDNReverb {
         // 吸音フィルタ初期化（AとBの双方に初期係数を適用）
         updateAbsorptionFilters(false);
         for (int i = 0; i < FDN_ORDER; ++i) {
-            for (int b = 0; b < NUM_BANDS; ++b) {
+            for (int b = 0; b < ABSO_STAGES_S2; ++b) {
                 absorptionCoeffsS2_B[i][b] = absorptionCoeffsS2_A[i][b];
             }
         }
@@ -789,6 +789,71 @@ namespace FDNReverb {
                     absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
                 } else {
                     absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
+                }
+            }
+        }
+        // ─────────────────────────────────────────────────────────────
+        // Phase3 plate234 candidate B3: APF group-delay compensation stage
+        // (stage index NUM_BANDS). The serial Schroeder APFs inflate the
+        // true loop period tau(f) above the nominal period used by the P2
+        // design, peaking where the stage-3 group delay peaks
+        // (f = fs / (2*m3) = 195-250 Hz at 48 kHz, staggered per channel).
+        // Modal decay rate = per-trip loss * fs / tau(f) therefore dips
+        // ~24% around 205-225 Hz, leaving a slow modal basin that rings.
+        // This stage adds a shallow peaking cut at the tau-peak frequency
+        // whose depth is derived from the same tau model, restoring a
+        // flat modal decay rate. Plate only; every other topology gets
+        // an exact identity stage (bit-transparent).
+        {
+            if (currentTopology == ReverbTopology::Plate) {
+                const double q = 2.5;
+                // Per-channel design: each channel's tau peak sits at its
+                // own stage-3 frequency fs / (2*m3_i) (195-250 Hz), and the
+                // excess (tau_i - nominal_i) is largest for the shortest
+                // channels, whose modes dominate the late tail. A single
+                // shared depth under-doses exactly those channels, so the
+                // cut is designed per channel from its own tau model.
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    const double m3 = static_cast<double>(cachedApfBaseDelaySmp[i][2]);
+                    const double fc = std::clamp(fs / (2.0 * m3), 150.0, 300.0);
+                    const double w = 2.0 * 3.141592653589793 * fc / fs;
+                    double nom = static_cast<double>(fdnBaseDelaySamples[i]) + 1.0;
+                    double tau = static_cast<double>(fdnBaseDelaySamples[i]) + 1.0;
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                        const double m = static_cast<double>(cachedApfBaseDelaySmp[i][s]);
+                        nom += m;
+                        const double den = 1.0 + gApfDesign * gApfDesign
+                            + 2.0 * gApfDesign * std::cos(w * m);
+                        tau += m * (1.0 - gApfDesign * gApfDesign) / std::max(0.01, den);
+                    }
+                    // design decay rate at fc from the (scaled) RT60
+                    // targets, log-interpolated between the 125/250 Hz bands
+                    const double frac = std::clamp(std::log2(fc / 125.0), 0.0, 1.0);
+                    const double rt60fc = std::exp(
+                        (1.0 - frac) * std::log(static_cast<double>(scaledRT60[2]))
+                        + frac * std::log(static_cast<double>(scaledRT60[3])));
+                    const double designRate = 60.0 / std::max(0.05, rt60fc); // dB/s
+                    double depthDb = designRate * (tau - nom) / fs;
+                    depthDb = std::clamp(depthDb, 0.0, 0.45);
+                    // RBJ peaking cut, gain = -depthDb
+                    const double A = std::pow(10.0, -depthDb / 40.0);
+                    const double alpha = std::sin(w) / (2.0 * q);
+                    const double cw = std::cos(w);
+                    const double a0 = 1.0 + alpha / A;
+                    BiquadCoeffs comp{};
+                    comp.b0 = static_cast<float>((1.0 + alpha * A) / a0);
+                    comp.b1 = static_cast<float>((-2.0 * cw) / a0);
+                    comp.b2 = static_cast<float>((1.0 - alpha * A) / a0);
+                    comp.a1 = static_cast<float>((-2.0 * cw) / a0);
+                    comp.a2 = static_cast<float>((1.0 - alpha / A) / a0);
+                    if (targetIsB) absorptionCoeffsS2_B[i][NUM_BANDS] = comp;
+                    else           absorptionCoeffsS2_A[i][NUM_BANDS] = comp;
+                }
+            } else {
+                const BiquadCoeffs identity{};
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    if (targetIsB) absorptionCoeffsS2_B[i][NUM_BANDS] = identity;
+                    else           absorptionCoeffsS2_A[i][NUM_BANDS] = identity;
                 }
             }
         }

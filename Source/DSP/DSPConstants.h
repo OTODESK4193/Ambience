@@ -17,7 +17,9 @@ namespace FDNReverb {
     //   - LF Absorption / HF Damping ユーザー補正は GEQ 目標 dB に直接加算する形で
     //     組み込む。独立段は持たない。
     //   - 目標 dB は 0 以下にクランプし、ループゲイン ≤ 1 を数学的に保証する。
-    static constexpr int ABSO_STAGES_S2 = 10;
+    // 11 段目 (index 10) は Plate 専用の APF 群遅延補償段 (phase3/plate234 候補B3)。
+    // 他トポロジでは恒等係数を入れ、ビット透明を保つ。
+    static constexpr int ABSO_STAGES_S2 = 11;
 
     // Mutually-prime base delays (samples @ 48 kHz), log-distributed 30–130 ms
     static constexpr std::array<int, FDN_N> BASE_PRIMES_48K = {
