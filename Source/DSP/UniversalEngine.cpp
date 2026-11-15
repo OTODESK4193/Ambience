@@ -905,7 +905,11 @@ namespace FDNReverb {
         }
         theoreticalEDT = currentRT60Mid * edtCoeff;
 
-        modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
+        // [phase3/modulation F3] RT60 連動の深さスケール (最大 ×3) は撤廃し 1.0 固定。
+        // 変調の利益 (密度・平坦度) は深さの全条件で JND 未満と実測されたため、
+        // 副作用 (持続音 AM・サイドバンド) だけを適正化する。深さ係数も
+        // 0.0022 → 0.00055 (×0.25) に再校正済み (下記 depthSamples 参照)。
+        modDepthScale = 1.0f;
 
         constexpr float baseDB = 5.0f;
         float decayCompDB = -10.0f * std::log10(std::max(0.1f, rt60Mid));
@@ -1071,7 +1075,7 @@ namespace FDNReverb {
         bool usePrecomputedSafeMod = false;
         if (modAmountStationary) {
             const float modAmtCurvedStat = smoothedModAmount * smoothedModAmount;
-            const float depthSamplesStat = modAmtCurvedStat * 0.0022f * fsf * modDepthScale;
+            const float depthSamplesStat = modAmtCurvedStat * 0.00055f * fsf * modDepthScale;
             if (depthSamplesStat > 0.01f) {
                 for (int i = 0; i < FDN_ORDER; ++i) {
                     const float baseDelay = cachedApfBaseDelaySmp[i][2];
@@ -1194,7 +1198,7 @@ namespace FDNReverb {
             }
 
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
-            const float depthSamples = modAmtCurved * 0.0022f * fsf * modDepthScale;
+            const float depthSamples = modAmtCurved * 0.00055f * fsf * modDepthScale;
 
             preDelayLineL.write(inL[n]);
             preDelayLineR.write(inR[n]);
