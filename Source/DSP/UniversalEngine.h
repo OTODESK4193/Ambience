@@ -234,6 +234,24 @@ namespace FDNReverb {
         float                                      delaySmoothCoeff{ 0.0f };
         std::array<float, FDN_ORDER>               fbVec{};
 
+        // Goldfoil structural feed (phase3/goldfoil/STRUCTURAL.md): state of
+        // the 1-pole lowpass (fc = 1 kHz, coefficient set in prepare()) that
+        // conditions the per-channel mesh pickup vector before it is wired
+        // into the FDN delay-line inputs. Goldfoil only; all other
+        // topologies never touch this state.
+        std::array<float, FDN_ORDER>               gfMeshFeedLpState{};
+        float                                      gfMeshFeedLpCoeff{ 0.0f };
+        // Second feed-shaping stage (phase3/goldfoil/FEED8K.md): 6th-order
+        // Butterworth lowpass at 2.2 kHz (3 RBJ biquad sections, coefficients
+        // set in prepare()) cascaded after the 1 kHz 1-pole above. The mesh
+        // pickup is spectrally bright; without this stage its 3-6 kHz energy
+        // inflates the tail's upper-mid band (and, through analysis-filter
+        // skirt leakage, the measured 8 kHz decay). The stage passes the
+        // <= 3 kHz zero-filling band essentially intact.
+        std::array<std::array<float, 5>, 3>        gfMeshFeedBqCoeffs{}; // per section: b0,b1,b2,a1,a2
+        std::array<std::array<float, FDN_ORDER>, 3> gfMeshFeedBqX1{}, gfMeshFeedBqX2{};
+        std::array<std::array<float, FDN_ORDER>, 3> gfMeshFeedBqY1{}, gfMeshFeedBqY2{};
+
         float apfGain{ 0.618f };
         bool  bypassER{ false };
         bool  bypassInputDiffusers{ false };

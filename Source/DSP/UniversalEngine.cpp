@@ -107,6 +107,26 @@ namespace FDNReverb {
         fs = sampleRate;
         DualGoldenLFO::initTable();
 
+        // Goldfoil mesh-feed lowpass coefficient (1-pole, fc = 1 kHz).
+        gfMeshFeedLpCoeff = 1.0f - std::exp(-6.28318530718f * 1000.0f / static_cast<float>(fs));
+
+        // Second feed-shaping stage: 6th-order Butterworth LP at 2.2 kHz
+        // (3 RBJ sections; see the header note and FEED8K.md).
+        {
+            static constexpr double kQ[3] = { 0.5176, 0.7071, 1.9319 };
+            for (int s = 0; s < 3; ++s) {
+                const double w = 6.283185307179586 * 2200.0 / fs;
+                const double alpha = std::sin(w) / (2.0 * kQ[s]);
+                const double cs = std::cos(w);
+                const double a0 = 1.0 + alpha;
+                gfMeshFeedBqCoeffs[s] = { static_cast<float>((1.0 - cs) * 0.5 / a0),
+                                          static_cast<float>((1.0 - cs) / a0),
+                                          static_cast<float>((1.0 - cs) * 0.5 / a0),
+                                          static_cast<float>(-2.0 * cs / a0),
+                                          static_cast<float>((1.0 - alpha) / a0) };
+            }
+        }
+
         auto getPow2 = [](size_t s) {
             size_t p = 16;
             while (p < s) p <<= 1;
@@ -246,6 +266,11 @@ namespace FDNReverb {
         memoryPool.clear();
         panicReset();
 
+        gfMeshFeedLpState.fill(0.0f);
+        for (int s = 0; s < 3; ++s) {
+            gfMeshFeedBqX1[s].fill(0.0f); gfMeshFeedBqX2[s].fill(0.0f);
+            gfMeshFeedBqY1[s].fill(0.0f); gfMeshFeedBqY2[s].fill(0.0f);
+        }
         currentFdnDelaySamples.fill(0.0f);
         erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
         smoothedModAmount = activeParams.modAmount;
@@ -423,9 +448,25 @@ namespace FDNReverb {
     // golden-ratio fractional offsets make every total loop length
     // incommensurate, smearing the transmission-zero pattern. The engine's
     // delay read already interpolates non-integer delays.
+    // Robust-screening revision (phase3/goldfoil/ROBUST_SCREENING.md): the
+    // fractional parts were re-screened over the full condition grid
+    // (SR 44.1/48/96/192k x roomSize 0.30-2.00 + spot values) under a hard
+    // min-distance constraint. Every channel's delay now keeps a distance
+    // of >= 0.05 samples from the nearest integer at all 40 checked
+    // conditions (the previous set landed exactly on an integer at
+    // roomSize 2.00, ch0 = 173.00 samples, defeating the fractional-delay
+    // premise for that channel, and within 0.003 at roomSize 0.30).
+    // Design point (48k / 0.90) vs the previous set: ring 21.7 -> 20.9 dB,
+    // THDN 2.27 -> 2.01 %, T30@1k error +1.5 -> +3.1 % (gate +-3pt), the
+    // sweep keeps only the shared ~159 Hz zero. The grid exceedance
+    // profile vs dev is unchanged in character (worst margin +8, at
+    // 48k / roomSize 1.15, as before): within the constants-only scope no
+    // screened set beat it without breaking a design-point gate; see
+    // ROBUST_SCREENING.md for the full before/after and the rejected
+    // margin-optimal alternative.
     static constexpr std::array<float, 16> GOLDFOIL_DELAY_SET_48K = { {
-        67.05f, 71.62f, 89.24f, 113.81f, 137.43f, 191.99f, 223.37f, 257.93f,
-        337.55f, 421.12f, 499.68f, 631.30f, 757.87f, 977.49f, 1181.06f, 1481.64f
+        67.204f, 71.39f, 89.4705f, 113.558f, 137.5775f, 191.842f, 223.2695f, 257.156f,
+        337.6045f, 421.4115f, 499.8085f, 631.3845f, 757.8545f, 977.5775f, 1181.096f, 1481.4285f
     } };
 
     void UniversalEngine::calculatePrimePowerDelays() {
@@ -1135,6 +1176,35 @@ namespace FDNReverb {
                 fdnInputSide += (erOutL - erOutR) * lateInjectGain;
             }
 
+            // Goldfoil structural feed (phase3/goldfoil/STRUCTURAL.md):
+            // lowpass the per-channel mesh pickup vector (fdnMeshInject,
+            // computed above by the 2D mesh but otherwise unused) at 1 kHz,
+            // then through the 6th-order Butterworth stage at 2.2 kHz
+            // (FEED8K.md: keeps the <= 3 kHz zero-filling band, removes the
+            // bright 3-6 kHz content that inflates the HF tail).
+            // The conditioned vector is added to the FDN delay-line inputs
+            // in the channel loop below. The mesh's decorrelated per-channel
+            // excitation breaks the fixed phasor geometry of the single
+            // broadcast FDN input, flattening the deep transmission zeros
+            // the long-delay FDN otherwise produces at non-design room
+            // sizes; the lowpass keeps the mesh's HF modal content out of
+            // the sustained tail. Feedforward only: loop poles unchanged.
+            if (currentTopology == ReverbTopology::Goldfoil) {
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    gfMeshFeedLpState[i] += gfMeshFeedLpCoeff * (fdnMeshInject[i] - gfMeshFeedLpState[i]);
+                    float v = gfMeshFeedLpState[i];
+                    for (int s = 0; s < 3; ++s) {
+                        const auto& c = gfMeshFeedBqCoeffs[s];
+                        const float y = c[0] * v + c[1] * gfMeshFeedBqX1[s][i] + c[2] * gfMeshFeedBqX2[s][i]
+                                      - c[3] * gfMeshFeedBqY1[s][i] - c[4] * gfMeshFeedBqY2[s][i];
+                        gfMeshFeedBqX2[s][i] = gfMeshFeedBqX1[s][i]; gfMeshFeedBqX1[s][i] = v;
+                        gfMeshFeedBqY2[s][i] = gfMeshFeedBqY1[s][i]; gfMeshFeedBqY1[s][i] = y;
+                        v = y;
+                    }
+                    fdnMeshInject[i] = v;
+                }
+            }
+
             // ★ 空間相関の対称性破壊 (Asymmetric Injection / Extraction)
             static constexpr float injectSign[16]  = { 1.0f,  1.0f, -1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f,  1.0f, -1.0f,  1.0f, -1.0f, -1.0f };
             static constexpr float extractSign[16] = { 1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f, -1.0f,  1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f,  1.0f, -1.0f };
@@ -1294,6 +1364,12 @@ namespace FDNReverb {
                 const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
                 float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
                 float fdnWriteVal = fdnInputForThisCh + currentFb[i];
+                // Goldfoil structural feed: add the lowpassed per-channel
+                // mesh pickup (see the conditioning block above). The gain
+                // is relative to the raw pickup values (which already carry
+                // the mesh's MESH_SIGN extraction signs).
+                if (currentTopology == ReverbTopology::Goldfoil)
+                    fdnWriteVal += fdnMeshInject[i] * 4.0f;
                 if (!std::isfinite(fdnWriteVal)) [[unlikely]] fdnWriteVal = 0.0f;
                 fdnDelays[i].write(fdnWriteVal);
 
