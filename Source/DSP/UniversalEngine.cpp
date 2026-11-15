@@ -782,7 +782,8 @@ namespace FDNReverb {
             }
             auto s2 = fitter.designStage2PerBand(
                 loopPerBand, fs, scaledRT60,
-                activeParams.hfDamping, activeParams.lfAbsorption);
+                activeParams.hfDamping, activeParams.lfAbsorption,
+                true); // Spring: オクターブ較正 (phase3/spring8k/SPRING8K.md)
             for (int b = 0; b < NUM_BANDS; ++b) {
                 if (targetIsB) {
                     absorptionCoeffsS2_B[i][b] = s2.geqStages[b];

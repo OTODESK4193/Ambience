@@ -99,7 +99,8 @@ namespace FDNReverb {
             double sampleRate,
             const std::array<float, NUM_BANDS>& rt60,
             float hfDamping,
-            float lfAbsorption);
+            float lfAbsorption,
+            bool octaveCalibrate = false);
 
         // ─────────────────────────────────────────────────────────────────────────
         //  Interaction Matrix の事前計算（prepare()時にインスタンスごとに呼ぶ）
