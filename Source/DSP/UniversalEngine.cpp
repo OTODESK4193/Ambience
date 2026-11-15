@@ -1024,6 +1024,16 @@ namespace FDNReverb {
         if (absorptionUpdatePending && isCrossfadeIdle && (samplesSinceLastAbsorptionUpdate >= absorptionRateLimitIntervalSamples)) {
             const bool targetIsB = (absoFadeState == AbsoFadeState::IdleAtA);
             updateAbsorptionFilters(targetIsB);
+            // [inchindown-decay fix] The tank's RT60 feed lives only in
+            // updateTopologyAndRouting, which a Decay-knob turn (absorption-
+            // only update) never reaches: without this re-feed the tank
+            // keeps its load-time RT60 (35 s at the preset) at every knob
+            // position while the FDN tracks. Re-feed with the fresh design
+            // value, same arguments as the topology path.
+            if (currentTopology == ReverbTopology::Inchindown) {
+                const float erSizeScaleTank = 0.5f + activeParams.roomSizeScale;
+                inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScaleTank, 1.0f);
+            }
             // ★ 状態変数ディープコピー（クリックノイズ完全ゼロの状態転送）
             if (targetIsB) {
                 for (int i = 0; i < FDN_ORDER; ++i) {
