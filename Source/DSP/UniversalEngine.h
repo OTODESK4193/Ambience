@@ -191,8 +191,8 @@ namespace FDNReverb {
         SDNTopologySpring1D                          springChain;
         SDNTopologyInchindown                        inchindownEngine;
 
-        std::array<LinearDelayLine, 4>               inputDiffusersM;
-        std::array<LinearDelayLine, 4>               inputDiffusersS;
+        std::array<LinearDelayLine, INPUT_DIFFUSER_STAGES> inputDiffusersM;
+        std::array<LinearDelayLine, INPUT_DIFFUSER_STAGES> inputDiffusersS;
         std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;
         std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
@@ -255,6 +255,7 @@ namespace FDNReverb {
         float apfGain{ 0.618f };
         bool  bypassER{ false };
         bool  bypassInputDiffusers{ false };
+        bool  inputDiffusersValid{ true }; // false if any diffuser delay line got nullptr at prepare
         float lateMixScale{ 1.0f };
         float lateMakeupGainLinear{ 1.0f };
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> lateMakeupGainSmoothed;
@@ -289,8 +290,8 @@ namespace FDNReverb {
 
         // ★ ループ不変量事前計算キャッシュ (Hot Loop CPU 最適化)
         std::array<float, FDN_ORDER> cachedFreqModScales{};
-        std::array<float, 4> cachedDiffuserDelaySmpM{};
-        std::array<float, 4> cachedDiffuserDelaySmpS{};
+        std::array<float, INPUT_DIFFUSER_STAGES> cachedDiffuserDelaySmpM{};
+        std::array<float, INPUT_DIFFUSER_STAGES> cachedDiffuserDelaySmpS{};
         std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelaySmp{};
         std::array<std::array<int, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelayInt{};
         std::array<float, FDN_ORDER> dualLfoIncScale1{};

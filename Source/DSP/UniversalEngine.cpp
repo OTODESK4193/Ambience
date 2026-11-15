@@ -148,7 +148,7 @@ namespace FDNReverb {
 
         size_t totalMemoryNeeded = 0;
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5)) * 2;
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i)
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05)) * 2; // Mid & Side
         for (int i = 0; i < FDN_ORDER; ++i) {
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * fdnAllocSec)); // FDN lines (sized above)
@@ -176,10 +176,13 @@ namespace FDNReverb {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask);
             sdnEngine.delayLines[i].init(ptr, mask);
         }
-        for (int i = 0; i < 4; ++i) {
+        inputDiffusersValid = true;
+        for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
+            if (ptr == nullptr) inputDiffusersValid = false;
             inputDiffusersM[i].init(ptr, mask);
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
+            if (ptr == nullptr) inputDiffusersValid = false;
             inputDiffusersS[i].init(ptr, mask);
         }
 
@@ -215,9 +218,16 @@ namespace FDNReverb {
             dualLfoIncScale2[i] = (dualLFOs[i].rateScale * 0.6180339887f) / fsf;
         }
 
-        for (int i = 0; i < 4; ++i) {
-            cachedDiffuserDelaySmpM[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
-            cachedDiffuserDelaySmpS[i] = (3.5f + i * 2.3f) * 0.001f * fsf;
+        // [phase3/diffusion 候補(a)] 入力ディフューザ遅延セット再設計:
+        // 旧セットは等差数列 (M: 3/5/7/9ms = 全て 48 smp の倍数, GCD=48) で
+        // 出力が 1ms 格子に量子化されバースト NED 平均 0.058 しかなかった。
+        // 互いに素な素数遅延 (GCD=1) に置換し 6 段化。48k 基準サンプル数で
+        // 保持し SR 比でスケールする。詳細: phase3/diffusion/DIFFUSION.md
+        static constexpr float DIFF_SMP_M[INPUT_DIFFUSER_STAGES] = { 97.0f, 191.0f, 307.0f, 139.0f, 421.0f, 263.0f };
+        static constexpr float DIFF_SMP_S[INPUT_DIFFUSER_STAGES] = { 113.0f, 229.0f, 167.0f, 389.0f, 271.0f, 239.0f };
+        for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i) {
+            cachedDiffuserDelaySmpM[i] = DIFF_SMP_M[i] * (fsf / 48000.0f);
+            cachedDiffuserDelaySmpS[i] = DIFF_SMP_S[i] * (fsf / 48000.0f);
         }
 
         // ★ 入力段 Bandwidth LPF (12kHz 1次ローパス)
@@ -1211,22 +1221,26 @@ namespace FDNReverb {
 
             float erOutL = 0.0f, erOutR = 0.0f;
 
-            // ★ Mid / Side 双方を 4段ディフューザーで完全拡散 (ハードバイパス撤廃・サンプル線形平滑化)
+            // ★ Mid / Side 双方を 6段ディフューザーで完全拡散 (ハードバイパス撤廃・サンプル線形平滑化)
             float fdnInputMid = midIn;
             float fdnInputSide = sideIn;
-            if (!bypassInputDiffusers) {
-                for (int i = 0; i < 4; ++i) {
+            if (!bypassInputDiffusers && inputDiffusersValid) {
+                // [phase3/diffusion 候補(a)] 段別ゲインテーパ (Dattorro 型:
+                // 前段を強く、後段を弱く)。curDiffuserGain は段1のゲイン。
+                static constexpr float DIFF_TAPER[INPUT_DIFFUSER_STAGES] = { 1.0f, 1.0f, 0.9286f, 0.8333f, 0.8333f, 0.7743f };
+                for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i) {
+                    const float stageGain = curDiffuserGain * DIFF_TAPER[i];
                     float dm = inputDiffusersM[i].read(cachedDiffuserDelaySmpM[i]);
-                    float wm = fdnInputMid + curDiffuserGain * dm;
+                    float wm = fdnInputMid + stageGain * dm;
                     if (!std::isfinite(wm)) [[unlikely]] wm = 0.0f;
                     inputDiffusersM[i].write(wm);
-                    fdnInputMid = dm - curDiffuserGain * wm;
+                    fdnInputMid = dm - stageGain * wm;
 
                     float ds = inputDiffusersS[i].read(cachedDiffuserDelaySmpS[i]);
-                    float ws = fdnInputSide + curDiffuserGain * ds;
+                    float ws = fdnInputSide + stageGain * ds;
                     if (!std::isfinite(ws)) [[unlikely]] ws = 0.0f;
                     inputDiffusersS[i].write(ws);
-                    fdnInputSide = ds - curDiffuserGain * ws;
+                    fdnInputSide = ds - stageGain * ws;
                 }
             }
 

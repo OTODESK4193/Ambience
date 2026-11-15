@@ -21,6 +21,12 @@ namespace FDNReverb {
     // 他トポロジでは恒等係数を入れ、ビット透明を保つ。
     static constexpr int ABSO_STAGES_S2 = 11;
 
+    // 入力ディフューザ段数 (phase3/diffusion 候補(a) で 4 → 6)。
+    // メモリプールの要求側・積算側・処理ループは必ずこの単一定数を共用する。
+    // 両側の数え間違いで末尾段に nullptr が渡り、その段が純ゲイン化して
+    // 全アルゴの T30 が無言で劣化した事故の恒常対策。
+    static constexpr int INPUT_DIFFUSER_STAGES = 6;
+
     // Mutually-prime base delays (samples @ 48 kHz), log-distributed 30–130 ms
     static constexpr std::array<int, FDN_N> BASE_PRIMES_48K = {
         1451, 1693, 1979, 2311, 2683, 3067, 3491, 3923
