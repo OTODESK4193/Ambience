@@ -56,6 +56,39 @@
 #define AMBIENCE_ADAA_DROOP_COEFF (1.0 / 24.0)
 #endif
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  EXPERIMENT ARM — Tube input bias (branch muse/exp-tube-bias ONLY).
+//  This block must never be merged into mainline as-is.
+//
+//  AMBIENCE_TUBE_BIAS=1 replaces the Tube transfer curve with the biased
+//  form evaluated around the operating point b = 0.5:
+//      g(x)  = tube(x + b) - tube(b)          (so g(0) = 0 exactly)
+//      G(x)  = F_tube(x + b) - tube(b) * x    (antiderivative of g)
+//      g''(x) = tube''(x + b)
+//  where tube()/F_tube() are the stock Tube curve and its antiderivative
+//  below. Only the Tube mode is affected; Warm/Tape/Hard compile to the
+//  exact stock expressions in both settings, and with
+//  AMBIENCE_TUBE_BIAS=0 the Tube path is bit-identical to stock as well.
+//  Rationale and measurements: phase3/tube-bias/TUBE_BIAS.md (the bias
+//  deepens the even-harmonic dominance of the already-asymmetric stock
+//  curve; THD roughly doubles and the raw curve carries signal-dependent
+//  DC, which is why the Tube DC blocker below stays mandatory here).
+//
+//  AMBIENCE_TUBE_DC_BLOCKER / AMBIENCE_TUBE_DC_HZ control the Tube-only
+//  first-order DC blocker in processCore (stock: enabled, 15 Hz). They
+//  exist so the experiment branch can A/B the blocker; the defaults
+//  reproduce the stock values exactly.
+// ─────────────────────────────────────────────────────────────────────────────
+#ifndef AMBIENCE_TUBE_BIAS
+#define AMBIENCE_TUBE_BIAS 1
+#endif
+#ifndef AMBIENCE_TUBE_DC_BLOCKER
+#define AMBIENCE_TUBE_DC_BLOCKER 1
+#endif
+#ifndef AMBIENCE_TUBE_DC_HZ
+#define AMBIENCE_TUBE_DC_HZ 15.0
+#endif
+
 namespace FDNReverb {
 
 namespace adaa_detail {
@@ -135,7 +168,11 @@ public:
 
     void prepare(double sampleRate) noexcept {
         fs = (sampleRate > 1000.0) ? sampleRate : 48000.0;
-        dcR = 1.0 - (2.0 * 3.14159265358979323846 * 15.0 / fs);
+        dcR = 1.0 - (2.0 * 3.14159265358979323846 * AMBIENCE_TUBE_DC_HZ / fs);
+        // Exact double value of tube(b) as computed by tubeNLRaw itself, so
+        // the biased curve's g(0) = tube(b) - tubeBiasC is exactly 0.0 and
+        // silence stays bit-exact (a decimal literal could differ by 1 ulp).
+        tubeBiasC = tubeNLRaw(kTubeBias);
         lpCoeff = 1.0 - std::exp(-2.0 * 3.14159265358979323846 * 4500.0 / fs);
         amountSteps = std::max(1.0, fs * 0.020);
         amountCurrent = 0.0;
@@ -313,6 +350,10 @@ private:
     double modeCrossfadePos{ 1.0 };
     double modeCrossfadeInc{ 0.001 };
 
+    // Tube bias experiment arm (see the note at the top of this file).
+    static constexpr double kTubeBias = 0.5;
+    double tubeBiasC{ 0.50721359549995793928 }; // tube(0.5); prepare() recomputes it exactly
+
     bool droopEnabled{ true };
     double wetZ1{ 0.0 };
     double wetZ2{ 0.0 };
@@ -347,13 +388,40 @@ private:
         st.adPrev = ad_x;
         st.hasAdPrev = true;
 
+#if AMBIENCE_TUBE_DC_BLOCKER
         if (mode == SaturationMode::Tube) {
             const double hp = y - st.dcInPrev + dcR * st.dcOutPrev;
             st.dcInPrev = y;
             st.dcOutPrev = hp;
             y = hp;
         }
+#endif
         return y;
+    }
+
+    // Stock Tube curve pieces, factored out verbatim so the bias arm can
+    // evaluate them at the shifted argument. Calling these with the plain
+    // argument reproduces the stock Tube expressions bit-exactly.
+    inline double tubeNLRaw(double x) const noexcept {
+        const double x2 = x * x;
+        const double invHypot = 1.0 / std::sqrt(1.0 + x2);
+        return (x * invHypot) + 0.30 * (x2 / (1.0 + x2));
+    }
+    inline double tubeADRaw(double x) const noexcept {
+        const double x2 = x * x;
+        // sqrt(1+x^2) - 1, rationalised (HVSE AlgebraicADAA1Policy).
+        const double term1 = x2 / (std::sqrt(1.0 + x2) + 1.0);
+        const double term2 = adaa_detail::xMinusAtan(x);
+        return term1 + 0.30 * term2;
+    }
+    inline double tubeD2Raw(double x) const noexcept {
+        // g = x / sqrt(1+x^2): g'' = -3x / (1+x^2)^(5/2)
+        // h = a x^2 / (1+x^2): h'' = a (2 - 6x^2) / (1+x^2)^3
+        const double x2 = x * x;
+        const double d = 1.0 + x2;
+        const double g2 = -3.0 * x / (d * d * std::sqrt(d));
+        const double h2 = 0.30 * (2.0 - 6.0 * x2) / (d * d * d);
+        return g2 + h2;
     }
 
     // f(x) — identical transfer laws to the shipping Saturator, in double.
@@ -371,9 +439,11 @@ private:
             return 1.25 * twoOverPi * std::atan(k * x);
         }
         case SaturationMode::Tube: {
-            const double x2 = x * x;
-            const double invHypot = 1.0 / std::sqrt(1.0 + x2);
-            return (x * invHypot) + 0.30 * (x2 / (1.0 + x2));
+#if AMBIENCE_TUBE_BIAS
+            return tubeNLRaw(x + kTubeBias) - tubeBiasC;
+#else
+            return tubeNLRaw(x);
+#endif
         }
         case SaturationMode::Hard: {
             constexpr double kHardGain = 2.5;
@@ -398,11 +468,12 @@ private:
             return 1.25 * twoOverPi * (x * std::atan(kx) - (0.5 / k) * std::log1p(kx * kx));
         }
         case SaturationMode::Tube: {
-            const double x2 = x * x;
-            // sqrt(1+x^2) - 1, rationalised (HVSE AlgebraicADAA1Policy).
-            const double term1 = x2 / (std::sqrt(1.0 + x2) + 1.0);
-            const double term2 = adaa_detail::xMinusAtan(x);
-            return term1 + 0.30 * term2;
+#if AMBIENCE_TUBE_BIAS
+            // G(x) = F_tube(x + b) - tube(b) * x  (integral of the biased g).
+            return tubeADRaw(x + kTubeBias) - tubeBiasC * x;
+#else
+            return tubeADRaw(x);
+#endif
         }
         case SaturationMode::Hard: {
             constexpr double kHardGain = 2.5;
@@ -440,13 +511,11 @@ private:
             return -A * (2.0 * k * k * k) * x / (d * d);
         }
         case SaturationMode::Tube: {
-            // g = x / sqrt(1+x^2): g'' = -3x / (1+x^2)^(5/2)
-            // h = a x^2 / (1+x^2): h'' = a (2 - 6x^2) / (1+x^2)^3
-            const double x2 = x * x;
-            const double d = 1.0 + x2;
-            const double g2 = -3.0 * x / (d * d * std::sqrt(d));
-            const double h2 = 0.30 * (2.0 - 6.0 * x2) / (d * d * d);
-            return g2 + h2;
+#if AMBIENCE_TUBE_BIAS
+            return tubeD2Raw(x + kTubeBias);
+#else
+            return tubeD2Raw(x);
+#endif
         }
         case SaturationMode::Hard: {
             return 0.0; // piecewise linear
