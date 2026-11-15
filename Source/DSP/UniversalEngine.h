@@ -13,7 +13,7 @@
 #include "BiquadFilters.h"
 #include "MagnitudeResponseFitter.h"
 #include "AcousticMetrics.h"
-#include "Saturator.h"
+#include "SaturatorADAA.h"
 #include "OutputLimiter.h"
 #include "OutputEQ.h"
 #include "SDNEngine.h"
@@ -288,8 +288,8 @@ namespace FDNReverb {
         float currentRT60Mid{ 1.5f };
 
         AcousticMetrics acousticMetrics;
-        Saturator saturatorL;
-        Saturator saturatorR;
+        SaturatorADAA saturatorL;
+        SaturatorADAA saturatorR;
         DynamicEQDucker dynamicDucker;
         EarlyReflectionsISM ismEngine;
         std::vector<float> ismBufferL;
