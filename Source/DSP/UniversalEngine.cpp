@@ -622,7 +622,12 @@ namespace FDNReverb {
         } else if (currentTopology == ReverbTopology::Spring) {
             springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
         } else if (currentTopology == ReverbTopology::Inchindown) {
-            inchindownEngine.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.0f);
+            // The tank must be driven by the Decay Time the FDN implements,
+            // not by the ER-crossover pseudo-RT60 (sdnRt60 <= 0.5 s): at
+            // 0.5 s the 237 m long-axis per-trip broadband gain is ~2e-11,
+            // so the namesake long-axis nodes are silent and the core dies
+            // within ~2 s. (phase3/inchindown/INCHINDOWN.md)
+            inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
         }
         
         // ★ 【ER ビジュアライザー用動的タップ抽出ブリッジ】
@@ -728,6 +733,7 @@ namespace FDNReverb {
         }
         targetRT60 = displayRT60;
         effectiveRT60 = targetRT60;
+        currentDesignRT60_1k = effectiveRT60[5];
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         // ★ 状態変数（s1, s2）のコピーは完全に排除！新係数のみを非アクティブ側（targetIsB）に書き込む

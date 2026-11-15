@@ -304,6 +304,7 @@ namespace FDNReverb {
         std::array<float, NUM_BANDS> targetRT60{};
         float theoreticalEDT{ 0.0f };
         float currentRT60Mid{ 1.5f };
+        float currentDesignRT60_1k{ 1.5f }; // effectiveRT60[5], captured in updateAbsorptionFilters
 
         AcousticMetrics acousticMetrics;
         SaturatorADAA saturatorL;
