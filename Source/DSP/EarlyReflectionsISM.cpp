@@ -9,6 +9,15 @@ EarlyReflectionsISM::EarlyReflectionsISM() {
 
 void EarlyReflectionsISM::prepare(double sr, int /*maxBlockSize*/) {
     sampleRate = sr;
+    // Ring capacity from seconds: max pre-delay (0.500 s, the parameter
+    // range) + ER window (0.045 s), plus interpolation headroom, rounded
+    // up to a power of two at this sample rate (never below the legacy
+    // 16384). Delays that fit the old buffer read bit-identically.
+    size_t need = static_cast<size_t>(0.545 * sr) + 64;
+    size_t sz = 16384;
+    while (sz < need) sz <<= 1;
+    ringBufferL.assign(sz, 0.0f);
+    ringBufferMask = static_cast<int>(sz - 1);
     reset();
     ISMParameters initialParams;
     computeGeometry(0, 1.0f, 10.0f, 0.5f, 0.5f, initialParams);
@@ -17,7 +26,7 @@ void EarlyReflectionsISM::prepare(double sr, int /*maxBlockSize*/) {
 }
 
 void EarlyReflectionsISM::reset() {
-    ringBufferL.fill(0.0f);
+    std::fill(ringBufferL.begin(), ringBufferL.end(), 0.0f);
     writeIndex = 0;
     smoothedErLevel = 0.0f;
     lastAlgorithmIndex = -1;
@@ -359,6 +368,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
                                       float* earlyWetL, float* earlyWetR,
                                       float* clusterSeed, int numSamples, float erLevel)
 {
+    if (ringBufferL.empty()) return; // prepare() not called yet
     if (erLevel <= 0.001f && smoothedErLevel <= 0.001f) {
         return;
     }
@@ -372,7 +382,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
 
     const auto& chunks = currentParams->chunks;
     const int numChunks = currentParams->numActiveChunks;
-    const __m256i maskReg = _mm256_set1_epi32(RING_BUFFER_MASK);
+    const __m256i maskReg = _mm256_set1_epi32(ringBufferMask);
 
     for (int i = 0; i < numSamples; ++i) {
         smoothedErLevel += 0.01f * (erLevel - smoothedErLevel);
@@ -428,7 +438,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
         if (currentParams->useVelvetNoise && numVelvetPulses > 0) {
             float vSumL = 0.0f, vSumR = 0.0f;
             for (int p = 0; p < numVelvetPulses; ++p) {
-                int rIdx = (static_cast<int32_t>(writeIndex) - velvetPulses[p].delaySample) & RING_BUFFER_MASK;
+                int rIdx = (static_cast<int32_t>(writeIndex) - velvetPulses[p].delaySample) & ringBufferMask;
                 float vSample = ringBufferL[rIdx];
                 vSumL += vSample * velvetPulses[p].gainL;
                 vSumR += vSample * velvetPulses[p].gainR;
@@ -444,7 +454,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
             clusterSeed[i] += (outL_sample + outR_sample) * 0.7071f;
         }
 
-        writeIndex = (writeIndex + 1) & RING_BUFFER_MASK;
+        writeIndex = (writeIndex + 1) & static_cast<uint32_t>(ringBufferMask);
     }
 }
 

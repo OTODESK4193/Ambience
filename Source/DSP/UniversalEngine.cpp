@@ -133,12 +133,25 @@ namespace FDNReverb {
             return p;
         };
 
+        // FDN delay-line capacity is derived from the longest designable
+        // delay: the largest ALGORITHM_DELAY_BOUNDS maximum (Inchindown
+        // 1500 ms) times the largest roomSizeScale the delay calculator
+        // accepts (2.5) = 3.75 s. The previous flat 2.0 s allocation could
+        // not hold that line: integer reads wrapped modulo the mask
+        // (143,999 -> 12,927 samples at 48 kHz) and fractional reads
+        // clamped, so the designed prime never sounded. Sizing follows
+        // seconds x sample rate, so it stays correct at every SR.
+        // (phase3/inchindown/INCHINDOWN.md)
+        float fdnAllocSec = 0.0f;
+        for (const auto& b : ALGORITHM_DELAY_BOUNDS)
+            fdnAllocSec = std::max(fdnAllocSec, b.maxDelayMs * 2.5f * 0.001f);
+
         size_t totalMemoryNeeded = 0;
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5)) * 2;
         for (int i = 0; i < 4; ++i)
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05)) * 2; // Mid & Side
         for (int i = 0; i < FDN_ORDER; ++i) {
-            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 2.0)); // ★ 2.0s 確保 (Inchindown対応)
+            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * fdnAllocSec)); // FDN lines (sized above)
             for (int s = 0; s < SERIAL_APF_STAGES; ++s)
                 totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05));
         }
@@ -171,7 +184,7 @@ namespace FDNReverb {
         }
 
         for (int i = 0; i < FDN_ORDER; ++i) {
-            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask); // ★ 2.0s 確保
+            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * fdnAllocSec), mask);
             fdnDelays[i].init(ptr, mask);
             for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                 ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);

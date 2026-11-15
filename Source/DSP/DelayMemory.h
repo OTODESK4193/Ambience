@@ -96,7 +96,12 @@ namespace FDNReverb {
         inline float readInt(int delayInSamples) const noexcept {
             if (buffer == nullptr || mask < 1) return 0.0f;
             const uint32_t uWrite = static_cast<uint32_t>(writeIndex);
-            const uint32_t uId    = static_cast<uint32_t>(delayInSamples);
+            // Defensive clamp: an over-long delay must degrade to the oldest
+            // stored sample, never wrap modulo the mask into a short delay
+            // (that aliasing is what silently broke Inchindown's longest
+            // FDN line; see phase3/inchindown/INCHINDOWN.md). In-range
+            // delays are unaffected, so this is bit-exact for valid use.
+            const uint32_t uId    = static_cast<uint32_t>(std::clamp(delayInSamples, 0, mask));
             const uint32_t uMask  = static_cast<uint32_t>(mask);
             return buffer[(uWrite - uId) & uMask];
         }

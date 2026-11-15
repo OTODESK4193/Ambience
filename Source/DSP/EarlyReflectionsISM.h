@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <atomic>
 #include <array>
+#include <vector>
 #include <memory>
 #include <cmath>
 #include <algorithm>
@@ -77,10 +78,13 @@ private:
 
     double sampleRate{ 48000.0 };
 
-    // リングバッファ (サイズ 16384: 192kHzでも 85ms をカバー)
-    static constexpr int RING_BUFFER_SIZE = 16384;
-    static constexpr int RING_BUFFER_MASK = RING_BUFFER_SIZE - 1;
-    alignas(32) std::array<float, RING_BUFFER_SIZE> ringBufferL{};
+    // リングバッファ: サイズは prepare() で秒ベースに決める (プリディレイ
+    // 上限 500 ms + ER 窓 45 ms を当該サンプルレートで収める 2 の冪)。
+    // 旧実装は固定 16384 サンプル (192 kHz で 85 ms) で、Inchindown 既定の
+    // タップ (65+45 ms = 110 ms) すら収まらず、マスク読みがラップして
+    // 過去のサンプルを誤って読んでいた (phase3/inchindown/INCHINDOWN.md)。
+    std::vector<float> ringBufferL;
+    int ringBufferMask{ 0 };
     uint32_t writeIndex{ 0 };
 
     // パラメータダブルバッファリング
