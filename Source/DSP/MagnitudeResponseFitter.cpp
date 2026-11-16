@@ -348,9 +348,12 @@ namespace FDNReverb {
         }
 
         // ── Steps 2/5/6/7: targetDb から GEQ 係数を解く (較正反復のため関数化) ──
+        // targetAdjust は Passivity Guard (関数末尾) が低域ターゲットを
+        // 局所的に深めるための補正量 (bands 0/1 のみ、初期値 0)。
+        std::array<double, N> targetAdjust{};
         auto solveFromTargetDb = [&]() {
             // ── Step 2: 中域基準ゲイン midGain を抽出 ──
-            // (固定 0.998f は廃止し、Step 7 の動的 Passivity Guard で厳密に保証)
+            // (固定 0.998f は廃止し、関数末尾の Passivity Guard で厳密に保証)
             const float midDb = targetDb[4];
             float midGainLinear = std::pow(10.0f, midDb / 20.0f);
             result.midGainAbsorbed = midGainLinear;
@@ -358,7 +361,8 @@ namespace FDNReverb {
             // 残差 dB: 中域からの偏差 (GEQ がフィットすべき周波数特性)
             std::array<double, NUM_BANDS> residualDb;
             for (int i = 0; i < N; ++i) {
-                residualDb[i] = static_cast<double>(targetDb[i] - midDb);
+                residualDb[i] = static_cast<double>(targetDb[i]) + targetAdjust[i]
+                              - static_cast<double>(midDb);
             }
 
             // ── Step 5: WLS による GEQ 係数の決定 ──
@@ -383,28 +387,10 @@ namespace FDNReverb {
                     BAND_FREQ[j], gDb, kBandQs[j], sampleRate);
             }
 
-            // ── Step 7: 動的 Passivity Guard & band 0 への midGain 吸収 ──
-            // WLS フィッティング後の Biquad カスケード全体の最大振幅ゲインを評価し、
-            // 全帯域でループゲイン <= 0.9995 を厳格に保証 (発振防止 & 長残響の維持)
-            float maxGeqGainLinear = 0.0f;
-            for (int evalBand = 0; evalBand < N; ++evalBand) {
-                float totalGainDb = 0.0f;
-                for (int j = 0; j < N; ++j) {
-                    totalGainDb += static_cast<float>(cachedB[evalBand][j]) * result.commandDb[j];
-                }
-                const float linear = std::pow(10.0f, totalGainDb / 20.0f);
-                if (linear > maxGeqGainLinear) {
-                    maxGeqGainLinear = linear;
-                }
-            }
-
-            const float totalMaxGain = midGainLinear * std::max(1.0f, maxGeqGainLinear);
-            if (totalMaxGain > 0.9995f) {
-                midGainLinear *= (0.9995f / totalMaxGain);
-            }
-            result.midGainAbsorbed = midGainLinear;
-
-            // band 0 の係数に安全化された midGain を吸収
+            // ── Step 7: band 0 への midGain 吸収 ──
+            // Passivity の保証は設計全体の末尾で行う (関数末尾の
+            // Passivity Guard を参照)。ここでは未補正の midGain を
+            // そのまま吸収する。
             result.geqStages[0] = absorbGainIntoBiquad(result.geqStages[0], midGainLinear);
         };
 
@@ -491,6 +477,113 @@ namespace FDNReverb {
                 }
                 if (!anyChange) break;
                 solveFromTargetDb();
+            }
+        }
+
+        // ── Step 9: Passivity Guard (細密グリッド真値評価 + 低域局所補正) ──
+        // WLS フィット後の Biquad カスケード全体の真の最大振幅ゲインを、
+        // 細密対数グリッド (1 Hz 〜 Nyquist、48 点/oct) で二重精度評価し、
+        // 真の最大値が -0.05 dB 以下になるよう設計を抑え、全帯域で
+        // ループゲイン < 1 を厳格に保証する (発振防止 & 長残響の維持)。
+        //
+        // 旧実装はバンド中心 10 点における相互作用行列近似でのみ評価して
+        // いたため、band 0 (31.25 Hz) 以下と帯域間の超過を素通りした。
+        // 実測では 192 kHz の Inchindown で最大 +1.23 dB の超過があり、
+        // FDN ループの低域モードが自己増殖発振した
+        // (phase3/sr-followup-b/SR_FOLLOWUP_B.md)。超過の主因は band 0
+        // セクションの低域スカートで、高 SR では同セクションの係数が
+        // b ≈ (1, -2, 1) の退化形に近づき、その低域応答は float32 の
+        // 丸め残差で決まる (吸収前の係数で評価すると最大で約 0.55 dB
+        // ずれるため、評価は常に格納される最終 float32 係数で行う)。
+        // グリッド下限を 1 Hz とするのは、低域段の DC ゲインが係数
+        // 量子化で 0 dB からずれ、DC〜数 Hz に平坦な超過が生じうるため
+        // (192 kHz の Spring で +0.128 dB を実測)。
+        //
+        // 抑制方法は較正への影響が最も小さいものを選ぶ: 超過が低域
+        // (90 Hz 未満) にある場合は、平坦な midGain スケールではなく
+        // bands 0/1 のターゲットを局所的に深めて再解釈する。平坦
+        // スケールは全帯域の毎パス損失を一様に増やし、高 SR (長い
+        // ループ = 毎パス損失が小さい) では較正 RT60 を大きく壊す
+        // (192 kHz で T30@1k が Inchindown -33%、Goldfoil -37% に
+        // なることを実測)。ターゲット補正は band 0/1 近傍にしか
+        // 効かず、125 Hz 以上の較正はほぼ保たれる。低域補正で届かない
+        // 残余 (DC 残差等) のみ、最終係数への平坦スケールを最小量
+        // 適用する。本ガードは設計時のみの計算で、音声経路の
+        // コストは増えない。
+        {
+            auto cascadePeak = [&]() {
+                double mx = -1.0e30;
+                double fStar = 0.0;
+                constexpr double kGridMinHz = 1.0;
+                constexpr int kPointsPerOctave = 48;
+                const double gridMaxHz = sampleRate * 0.5;
+                const int numPoints = static_cast<int>(
+                    std::ceil(std::log2(gridMaxHz / kGridMinHz) * kPointsPerOctave)) + 1;
+                for (int gi = 0; gi < numPoints; ++gi) {
+                    const double fEval = kGridMinHz
+                        * std::pow(2.0, static_cast<double>(gi) / kPointsPerOctave);
+                    double totalDb = 0.0;
+                    for (int j = 0; j < N; ++j) {
+                        totalDb += static_cast<double>(biquadMagnitudeDB(
+                            result.geqStages[j], static_cast<float>(fEval), sampleRate));
+                    }
+                    if (totalDb > mx) { mx = totalDb; fStar = fEval; }
+                }
+                return std::pair<double, double>(mx, fStar);
+            };
+
+            constexpr double kCascadeCapDb = -0.06; // 公称 -0.05 dB − グリッド余裕 0.01 dB
+            auto peak = cascadePeak();
+
+            // 低域局所補正: 超過量に応じて bands 0/1 のターゲットを深める
+            std::array<BiquadCoeffs, NUM_BANDS> bestStages = result.geqStages;
+            std::array<float, NUM_BANDS> bestCommandDb = result.commandDb;
+            std::array<double, N> bestAdjust = targetAdjust;
+            float bestMidGainAbsorbed = result.midGainAbsorbed;
+            double bestMaxDb = peak.first;
+            for (int iter = 0; iter < 8 && peak.first > kCascadeCapDb; ++iter) {
+                const double excess = peak.first - kCascadeCapDb;
+                if (peak.second < 45.0) {
+                    targetAdjust[0] -= excess * 1.15;
+                    targetAdjust[1] -= excess * 0.35;
+                } else if (peak.second < 90.0) {
+                    targetAdjust[0] -= excess * 0.50;
+                    targetAdjust[1] -= excess * 0.80;
+                } else {
+                    break; // 低域以外の超過は平坦スケール側で処理
+                }
+                solveFromTargetDb();
+                peak = cascadePeak();
+                if (peak.first < bestMaxDb) {
+                    bestMaxDb = peak.first;
+                    bestStages = result.geqStages;
+                    bestCommandDb = result.commandDb;
+                    bestAdjust = targetAdjust;
+                    bestMidGainAbsorbed = result.midGainAbsorbed;
+                }
+            }
+            result.geqStages = bestStages;
+            result.commandDb = bestCommandDb;
+            result.midGainAbsorbed = bestMidGainAbsorbed;
+            for (int i = 0; i < N; ++i)
+                result.targetDb[i] = static_cast<float>(
+                    static_cast<double>(targetDb[i]) + bestAdjust[i]);
+
+            // 残余の平坦スケール (最終 float32 係数に対して反復評価)
+            if (bestMaxDb > kCascadeCapDb) {
+                const BiquadCoeffs guardStage0 = result.geqStages[0];
+                float scaleLinear = 1.0f;
+                float bestScale = 1.0f;
+                double bestScaleMaxDb = bestMaxDb;
+                for (int iter = 0; iter < 8; ++iter) {
+                    result.geqStages[0] = absorbGainIntoBiquad(guardStage0, scaleLinear);
+                    const double maxDb = cascadePeak().first;
+                    if (maxDb < bestScaleMaxDb) { bestScaleMaxDb = maxDb; bestScale = scaleLinear; }
+                    if (maxDb <= kCascadeCapDb) break;
+                    scaleLinear *= static_cast<float>(std::pow(10.0, (kCascadeCapDb - maxDb) / 20.0));
+                }
+                result.geqStages[0] = absorbGainIntoBiquad(guardStage0, bestScale);
+                result.midGainAbsorbed = bestMidGainAbsorbed * bestScale;
             }
         }
 
