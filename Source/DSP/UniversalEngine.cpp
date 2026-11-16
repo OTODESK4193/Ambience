@@ -127,6 +127,26 @@ namespace FDNReverb {
             }
         }
 
+        // Third feed-shaping stage: RBJ peaking cuts against the mesh
+        // pickup's 1.7-2.9 kHz modal cluster (phase3/ringing).
+        {
+            static constexpr double kPkFc[2] = { 1750.0, 2600.0 };
+            static constexpr double kPkDb[2] = { -8.0, -10.0 };
+            static constexpr double kPkQ = 2.5;
+            for (int s = 0; s < 2; ++s) {
+                const double w = 6.283185307179586 * kPkFc[s] / fs;
+                const double alpha = std::sin(w) / (2.0 * kPkQ);
+                const double cs = std::cos(w);
+                const double A = std::pow(10.0, kPkDb[s] / 40.0);
+                const double a0 = 1.0 + alpha / A;
+                gfMeshFeedPkCoeffs[s] = { static_cast<float>((1.0 + alpha * A) / a0),
+                                          static_cast<float>(-2.0 * cs / a0),
+                                          static_cast<float>((1.0 - alpha * A) / a0),
+                                          static_cast<float>(-2.0 * cs / a0),
+                                          static_cast<float>((1.0 - alpha / A) / a0) };
+            }
+        }
+
         auto getPow2 = [](size_t s) {
             size_t p = 16;
             while (p < s) p <<= 1;
@@ -312,6 +332,10 @@ namespace FDNReverb {
         for (int s = 0; s < 3; ++s) {
             gfMeshFeedBqX1[s].fill(0.0f); gfMeshFeedBqX2[s].fill(0.0f);
             gfMeshFeedBqY1[s].fill(0.0f); gfMeshFeedBqY2[s].fill(0.0f);
+        }
+        for (int s = 0; s < 2; ++s) {
+            gfMeshFeedPkX1[s].fill(0.0f); gfMeshFeedPkX2[s].fill(0.0f);
+            gfMeshFeedPkY1[s].fill(0.0f); gfMeshFeedPkY2[s].fill(0.0f);
         }
         currentFdnDelaySamples.fill(0.0f);
         erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
@@ -1607,6 +1631,14 @@ namespace FDNReverb {
                         gfMeshFeedBqY2[s][i] = gfMeshFeedBqY1[s][i]; gfMeshFeedBqY1[s][i] = y;
                         v = y;
                     }
+                    for (int s = 0; s < 2; ++s) {
+                        const auto& c = gfMeshFeedPkCoeffs[s];
+                        const float y = c[0] * v + c[1] * gfMeshFeedPkX1[s][i] + c[2] * gfMeshFeedPkX2[s][i]
+                                      - c[3] * gfMeshFeedPkY1[s][i] - c[4] * gfMeshFeedPkY2[s][i];
+                        gfMeshFeedPkX2[s][i] = gfMeshFeedPkX1[s][i]; gfMeshFeedPkX1[s][i] = v;
+                        gfMeshFeedPkY2[s][i] = gfMeshFeedPkY1[s][i]; gfMeshFeedPkY1[s][i] = y;
+                        v = y;
+                    }
                     fdnMeshInject[i] = v;
                 }
             }
@@ -1734,7 +1766,14 @@ namespace FDNReverb {
                                 safeMod = knee + room * std::tanh(excess / room);
                             }
                         }
-                        const float apfDelaySmp = baseDelay + chorusVal * safeMod;
+                        // [phase3/goldfoil-1k] Goldfoil のみ、段2 APF の変調読み取りへ
+                        // -0.75 サンプル (48kHz 基準・時間一定形) の静的オフセットを加える。
+                        // 分数遅延読み取りの位相が作る干渉零点が設計点の 1000.0Hz に
+                        // 重なる問題 (対 dev Δ-12.7dB) への最小手当て。零点を 1001.8Hz へ
+                        // 退かし Δ-3.4dB に収める。根拠と全ゲート検証は GOLDFOIL_1K.md。
+                        const float gfApfTrim = (currentTopology == ReverbTopology::Goldfoil)
+                            ? -0.75f * (fsf / 48000.0f) : 0.0f;
+                        const float apfDelaySmp = baseDelay + chorusVal * safeMod + gfApfTrim;
                         delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
                     } else {
                         delayed = nestedAllpassDelays[i][s].readInt(cachedApfBaseDelayInt[i][s]);

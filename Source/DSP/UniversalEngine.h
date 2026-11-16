@@ -254,6 +254,17 @@ namespace FDNReverb {
         std::array<std::array<float, 5>, 3>        gfMeshFeedBqCoeffs{}; // per section: b0,b1,b2,a1,a2
         std::array<std::array<float, FDN_ORDER>, 3> gfMeshFeedBqX1{}, gfMeshFeedBqX2{};
         std::array<std::array<float, FDN_ORDER>, 3> gfMeshFeedBqY1{}, gfMeshFeedBqY2{};
+        // Third feed-shaping stage (phase3/ringing): two RBJ peaking cuts
+        // (1750 Hz / -8 dB and 2600 Hz / -10 dB, Q = 2.5, coefficients set in
+        // prepare()) cascaded after the Butterworth stage. The mesh pickup
+        // carries a dense modal cluster at 1.7-2.9 kHz that the feed injects
+        // into the FDN at +7..+12 dB over the main-path excitation, where it
+        // rings as an audible metallic tone in the tail. The cuts trim only
+        // the feed's share of that cluster's excitation; loop poles, the
+        // <= 1.5 kHz zero-filling band and the HF shaping are untouched.
+        std::array<std::array<float, 5>, 2>        gfMeshFeedPkCoeffs{}; // per section: b0,b1,b2,a1,a2
+        std::array<std::array<float, FDN_ORDER>, 2> gfMeshFeedPkX1{}, gfMeshFeedPkX2{};
+        std::array<std::array<float, FDN_ORDER>, 2> gfMeshFeedPkY1{}, gfMeshFeedPkY2{};
 
         float apfGain{ 0.618f };
         bool  bypassER{ false };
