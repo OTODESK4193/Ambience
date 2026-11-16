@@ -101,12 +101,14 @@ namespace FDNReverb {
             float hfDamping,
             float lfAbsorption,
             bool octaveCalibrate = false,
+            bool preciseDesign = false,
+            double cascadeCapDb = -0.06,
             bool deepLoss = false);
 
         // ─────────────────────────────────────────────────────────────────────────
         //  Interaction Matrix の事前計算（prepare()時にインスタンスごとに呼ぶ）
         // ─────────────────────────────────────────────────────────────────────────
-        void precomputeInteractionMatrix(double sampleRate);
+        void precomputeInteractionMatrix(double sampleRate, bool preciseDesign = false);
         double getCachedSampleRate() const noexcept { return cachedSampleRate; }
 
     private:
@@ -119,6 +121,11 @@ namespace FDNReverb {
 
         // ── Stage 2 ヘルパー ──
         static BiquadCoeffs designSymmetricPeakBiquad(
+            float fcHz, float gainDB, float Q, double sampleRate) noexcept;
+        // 倍精度で係数を算出し float32 に丸める版。高 SR では fc/fs が
+        // 極小となり float32 演算では cos(w0) 等の相殺で低域スカートが
+        // 崩れるため、設計精度が要る経路向けに使う。
+        static BiquadCoeffs designSymmetricPeakBiquadPrecise(
             float fcHz, float gainDB, float Q, double sampleRate) noexcept;
         static const std::array<float, NUM_BANDS>& getBandFreqs() noexcept { return BAND_FREQ; }
         static const std::array<float, NUM_BANDS>& getBandQs() noexcept;
@@ -138,6 +145,7 @@ namespace FDNReverb {
         std::array<double, NUM_BANDS> cachedW{};
         double cachedSampleRate{ 0.0 };
         bool cacheValid{ false };
+        bool cachedPrecise{ false };
     };
 
 } // namespace FDNReverb

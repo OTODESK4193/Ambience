@@ -996,24 +996,34 @@ namespace FDNReverb {
                     apfDelaySum += cachedApfBaseDelaySmp[i][s];
                 const int effectiveLoopSamples = static_cast<int>(std::round(
                     fdnBaseDelaySamples[i] + apfDelaySum + 1.0f));
-                // Inchindown (phase3/band8k/BAND8K.md): its 8k band needs up
-                // to -64 dB per-trip loss on the longest channels, far beyond
-                // the fitter's stock +-18 dB per-stage clamp, so the realized
-                // loss saturates at ~24 dB and the 8k T30 stretches to
-                // +193% (steep metric). Inchindown therefore designs through
-                // the deepLoss path (relaxed clamp + centre-loss iteration,
-                // active only for saturated designs). All other topologies
-                // keep the stock path bit-identically.
+                // Inchindown (phase3/band8k/BAND8K.md +
+                // phase3/inchindown-lf/INCHINDOWN_LF.md): its ultra-long
+                // RT60 breaks three generic-design behaviours, so it designs
+                // through a dedicated PerBand call:
+                // (1) the 8k band needs up to -64 dB per-trip loss on the
+                //     longest channels, far beyond the fitter's stock
+                //     +-18 dB per-stage clamp (realized loss saturates at
+                //     ~24 dB, 8k T30 +193% steep) -> deepLoss path
+                //     (relaxed clamp + centre-loss iteration, saturated
+                //     designs only);
+                // (2) float32 section design loses the LF response at high
+                //     sample rates -> double-precision sections;
+                // (3) the passivity guard's -0.06 dB cap sits above the
+                //     natural inter-band valleys of a correct shallow
+                //     design, so its LF deepening deforms the 125 Hz
+                //     calibration -> cap relaxed to -0.02 dB (still
+                //     strictly passive).
+                // All other topologies keep the stock path bit-identically.
                 if (currentTopology == ReverbTopology::Inchindown) {
                     std::array<float, NUM_BANDS> uniformLoop;
                     uniformLoop.fill(static_cast<float>(effectiveLoopSamples));
-                    auto s2d = fitter.designStage2PerBand(
+                    auto s2x = fitter.designStage2PerBand(
                         uniformLoop, fs, scaledRT60,
                         activeParams.hfDamping, activeParams.lfAbsorption,
-                        false, true);
+                        false, true, -0.02, true);
                     for (int b = 0; b < NUM_BANDS; ++b) {
-                        if (targetIsB) absorptionCoeffsS2_B[i][b] = s2d.geqStages[b];
-                        else           absorptionCoeffsS2_A[i][b] = s2d.geqStages[b];
+                        if (targetIsB) absorptionCoeffsS2_B[i][b] = s2x.geqStages[b];
+                        else           absorptionCoeffsS2_A[i][b] = s2x.geqStages[b];
                     }
                     continue;
                 }

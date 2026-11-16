@@ -131,6 +131,34 @@ namespace FDNReverb {
         return c;
     }
 
+    // 倍精度版: 式は designSymmetricPeakBiquad と同一だが全演算を double で
+    // 行い、最後に float32 へ丸める。高 SR (96k/192k) では w0 が極小となり
+    // float32 の cos(w0) が 1 付近で量子化され、(b0+b1+b2)/(1+a1+a2) 型の
+    // 相殺残差で決まる低域応答が大きくずれる (実測: 192k/31.25Hz で
+    // 中心誤差 -0.08dB、スカート誤差 +0.55dB の事例)。倍精度設計 +
+    // float32 格納では同条件の誤差は 0.002dB 以下に収まる。
+    BiquadCoeffs MagnitudeResponseFitter::designSymmetricPeakBiquadPrecise(
+        float fcHz, float gainDB, float Q, double sampleRate) noexcept
+    {
+        double fcSafe = juce::jlimit(10.0, sampleRate * 0.49, static_cast<double>(fcHz));
+
+        double A = std::pow(10.0, static_cast<double>(gainDB) / 40.0);
+        double w0 = 2.0 * juce::MathConstants<double>::pi * fcSafe / sampleRate;
+        double cosW0 = std::cos(w0);
+        double sinW0 = std::sin(w0);
+        double alpha = sinW0 / (2.0 * std::max(0.1, static_cast<double>(Q)));
+
+        double a0 = 1.0 + alpha / A;
+
+        BiquadCoeffs c;
+        c.b0 = static_cast<float>((1.0 + alpha * A) / a0);
+        c.b1 = static_cast<float>(-2.0 * cosW0 / a0);
+        c.b2 = static_cast<float>((1.0 - alpha * A) / a0);
+        c.a1 = static_cast<float>(-2.0 * cosW0 / a0);
+        c.a2 = static_cast<float>((1.0 - alpha / A) / a0);
+        return c;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     //  Stage 2 ヘルパー: Biquad 振幅応答 (dB) 計算
     // ─────────────────────────────────────────────────────────────────────────────
@@ -228,8 +256,9 @@ namespace FDNReverb {
     // ─────────────────────────────────────────────────────────────────────────────
     //  Stage 2: Interaction Matrix の事前計算
     // ─────────────────────────────────────────────────────────────────────────────
-    void MagnitudeResponseFitter::precomputeInteractionMatrix(double sampleRate) {
-        if (cacheValid && std::abs(cachedSampleRate - sampleRate) < 0.5) {
+    void MagnitudeResponseFitter::precomputeInteractionMatrix(double sampleRate, bool preciseDesign) {
+        if (cacheValid && cachedPrecise == preciseDesign
+            && std::abs(cachedSampleRate - sampleRate) < 0.5) {
             return;
         }
 
@@ -237,8 +266,11 @@ namespace FDNReverb {
         constexpr float kProbeGainDB = 1.0f;
 
         for (int j = 0; j < N; ++j) {
-            BiquadCoeffs c = designSymmetricPeakBiquad(
-                BAND_FREQ[j], kProbeGainDB, kBandQs[j], sampleRate);
+            BiquadCoeffs c = preciseDesign
+                ? designSymmetricPeakBiquadPrecise(
+                    BAND_FREQ[j], kProbeGainDB, kBandQs[j], sampleRate)
+                : designSymmetricPeakBiquad(
+                    BAND_FREQ[j], kProbeGainDB, kBandQs[j], sampleRate);
 
             for (int i = 0; i < N; ++i) {
                 float dB = biquadMagnitudeDB(c, BAND_FREQ[i], sampleRate);
@@ -275,6 +307,7 @@ namespace FDNReverb {
 
         cachedSampleRate = sampleRate;
         cacheValid = true;
+        cachedPrecise = preciseDesign;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -311,9 +344,11 @@ namespace FDNReverb {
         float hfDamping,
         float lfAbsorption,
         bool octaveCalibrate,
+        bool preciseDesign,
+        double cascadeCapDb,
         bool deepLoss)
     {
-        precomputeInteractionMatrix(sampleRate);
+        precomputeInteractionMatrix(sampleRate, preciseDesign);
 
         DesignResultStage2 result;
 
@@ -391,8 +426,11 @@ namespace FDNReverb {
                 if (deepLoss) lim = std::clamp(std::abs(residualDb[j]), 18.0, 60.0);
                 float gDb = static_cast<float>(juce::jlimit(-lim, lim, gCmd[j]));
                 result.commandDb[j] = gDb;
-                result.geqStages[j] = designSymmetricPeakBiquad(
-                    BAND_FREQ[j], gDb, kBandQs[j], sampleRate);
+                result.geqStages[j] = preciseDesign
+                    ? designSymmetricPeakBiquadPrecise(
+                        BAND_FREQ[j], gDb, kBandQs[j], sampleRate)
+                    : designSymmetricPeakBiquad(
+                        BAND_FREQ[j], gDb, kBandQs[j], sampleRate);
             }
 
             // ── Step 7: band 0 への midGain 吸収 ──
@@ -570,7 +608,7 @@ namespace FDNReverb {
                 return std::pair<double, double>(mx, fStar);
             };
 
-            constexpr double kCascadeCapDb = -0.06; // 公称 -0.05 dB − グリッド余裕 0.01 dB
+            const double kCascadeCapDb = cascadeCapDb; // 既定 -0.06 (公称 -0.05 dB − グリッド余裕 0.01 dB)
             auto peak = cascadePeak();
 
             // 低域局所補正: 超過量に応じて bands 0/1 のターゲットを深める
