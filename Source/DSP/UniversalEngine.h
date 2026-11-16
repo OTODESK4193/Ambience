@@ -202,6 +202,15 @@ namespace FDNReverb {
         SDNTopology2DMesh                            gfMeshR;
         SDNTopologySpring1D                          springChain;
         SDNTopologyInchindown                        inchindownEngine;
+        // [tank-stereo] Per-ear tank: a second, independent Inchindown
+        // tank instance for the R ear. The L tank (inchindownEngine) is
+        // driven by the L input alone and the R tank by the R input alone
+        // (same pattern as gfMeshL/gfMeshR), so the tank's late energy
+        // stops being a shared monaural cross-path under SPLIT8. Identical
+        // parameters on both instances: a centred source drives both tanks
+        // exactly as the legacy single tank, so centred renders stay
+        // bit-identical to the legacy design.
+        SDNTopologyInchindown                        inchindownEngineR;
 
         std::array<LinearDelayLine, INPUT_DIFFUSER_STAGES> inputDiffusersM;
         std::array<LinearDelayLine, INPUT_DIFFUSER_STAGES> inputDiffusersS;
