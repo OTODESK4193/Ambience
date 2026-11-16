@@ -310,7 +310,8 @@ namespace FDNReverb {
         const std::array<float, NUM_BANDS>& rt60,
         float hfDamping,
         float lfAbsorption,
-        bool octaveCalibrate)
+        bool octaveCalibrate,
+        bool deepLoss)
     {
         precomputeInteractionMatrix(sampleRate);
 
@@ -379,9 +380,16 @@ namespace FDNReverb {
             solveLDLT10(cachedBtWB, rhs, gCmd);
 
             // ── Step 6: 各 g_cmd[j] dB を Biquad 係数に変換 ──
-            // 安全範囲にクランプ (±18 dB 以内)
+            // 安全範囲にクランプ (±18 dB 以内)。deepLoss 指定時 (Inchindown
+            // のみ) は、残差が従来クランプを超える段だけクランプを
+            // max(18, min(60, |residualDb[j]|)) へ緩和する。必要損失が
+            // ±18 dB を超える設計 (超長ループ × 短 HF RT60、Inchindown の
+            // 8k で最大 -64 dB) では段ゲインが頭打ちになり帯域 T30 が
+            // 大幅に伸びるため (phase3/band8k/BAND8K.md §4.4/§5)。
             for (int j = 0; j < N; ++j) {
-                float gDb = static_cast<float>(juce::jlimit(-18.0, 18.0, gCmd[j]));
+                double lim = 18.0;
+                if (deepLoss) lim = std::clamp(std::abs(residualDb[j]), 18.0, 60.0);
+                float gDb = static_cast<float>(juce::jlimit(-lim, lim, gCmd[j]));
                 result.commandDb[j] = gDb;
                 result.geqStages[j] = designSymmetricPeakBiquad(
                     BAND_FREQ[j], gDb, kBandQs[j], sampleRate);
@@ -395,6 +403,36 @@ namespace FDNReverb {
         };
 
         solveFromTargetDb();
+
+        // ── Step 7.5 (deepLoss 時・飽和設計のみ): 中心損失イテレーション ──
+        // クランプ緩和で深くなった段のスカート漏れを他バンドのターゲット
+        // 補正で相殺し、全バンド中心で実現損失が targetDb に一致するよう
+        // 反復する (Step 9 と同じ真のカスケード評価を使用)。残差が従来
+        // クランプ (±18 dB) を超える設計でのみ発動し、それ以外の設計は
+        // 一切変わらない (phase3/band8k/BAND8K.md §5)。
+        if (deepLoss) {
+            bool sat = false;
+            for (int j = 0; j < N; ++j)
+                if (std::abs(static_cast<double>(targetDb[j]) - static_cast<double>(targetDb[4])) > 18.0)
+                    sat = true;
+            if (sat) {
+                for (int it = 0; it < 4; ++it) {
+                    std::array<double, N> adj{};
+                    double maxErr = 0.0;
+                    for (int i = 0; i < N; ++i) {
+                        double realized = 0.0;
+                        for (int j = 0; j < N; ++j)
+                            realized += static_cast<double>(biquadMagnitudeDB(
+                                result.geqStages[j], BAND_FREQ[i], sampleRate));
+                        adj[i] = static_cast<double>(targetDb[i]) - realized;
+                        maxErr = std::max(maxErr, std::abs(adj[i]));
+                    }
+                    if (maxErr < 0.25) break;
+                    for (int i = 0; i < N; ++i) targetAdjust[i] += 0.85 * adj[i];
+                    solveFromTargetDb();
+                }
+            }
+        }
 
         // ── Step 8 (任意): オクターブ較正イテレーション ──
         // バンド中心で厳密に合わせる従来設計では、オクターブ帯域内の

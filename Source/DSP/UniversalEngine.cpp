@@ -996,6 +996,27 @@ namespace FDNReverb {
                     apfDelaySum += cachedApfBaseDelaySmp[i][s];
                 const int effectiveLoopSamples = static_cast<int>(std::round(
                     fdnBaseDelaySamples[i] + apfDelaySum + 1.0f));
+                // Inchindown (phase3/band8k/BAND8K.md): its 8k band needs up
+                // to -64 dB per-trip loss on the longest channels, far beyond
+                // the fitter's stock +-18 dB per-stage clamp, so the realized
+                // loss saturates at ~24 dB and the 8k T30 stretches to
+                // +193% (steep metric). Inchindown therefore designs through
+                // the deepLoss path (relaxed clamp + centre-loss iteration,
+                // active only for saturated designs). All other topologies
+                // keep the stock path bit-identically.
+                if (currentTopology == ReverbTopology::Inchindown) {
+                    std::array<float, NUM_BANDS> uniformLoop;
+                    uniformLoop.fill(static_cast<float>(effectiveLoopSamples));
+                    auto s2d = fitter.designStage2PerBand(
+                        uniformLoop, fs, scaledRT60,
+                        activeParams.hfDamping, activeParams.lfAbsorption,
+                        false, true);
+                    for (int b = 0; b < NUM_BANDS; ++b) {
+                        if (targetIsB) absorptionCoeffsS2_B[i][b] = s2d.geqStages[b];
+                        else           absorptionCoeffsS2_A[i][b] = s2d.geqStages[b];
+                    }
+                    continue;
+                }
                 auto s2n = fitter.designStage2(
                     effectiveLoopSamples, fs, scaledRT60,
                     activeParams.hfDamping, activeParams.lfAbsorption);

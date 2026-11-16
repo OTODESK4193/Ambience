@@ -100,7 +100,8 @@ namespace FDNReverb {
             const std::array<float, NUM_BANDS>& rt60,
             float hfDamping,
             float lfAbsorption,
-            bool octaveCalibrate = false);
+            bool octaveCalibrate = false,
+            bool deepLoss = false);
 
         // ─────────────────────────────────────────────────────────────────────────
         //  Interaction Matrix の事前計算（prepare()時にインスタンスごとに呼ぶ）
