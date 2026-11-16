@@ -46,6 +46,17 @@
 //      which cancels the w^2 term of a single stage. Override with
 //      AMBIENCE_ADAA_DROOP_COEFF if you want the HVSE value.
 //
+//   5. The Tube curve is evaluated around a +0.5 input bias:
+//          g(x) = tube(x + 0.5) - tube(0.5),
+//      which deepens the even-harmonic dominance of the already
+//      asymmetric stock curve (raw-core H2-H3: +13.6/+7.5/+2.3 dB ->
+//      +23.8/+15.8/+7.0 dB at amp 0.25/0.5/0.9, drive 1). g(0) = 0
+//      exactly, because prepare() recomputes tube(0.5) through the same
+//      code path. The biased curve carries signal-dependent DC, so the
+//      Tube-only 15 Hz DC blocker in processCore is load-bearing here
+//      (with it, DC stays <= -204 dB rel. fundamental). Adopted
+//      2026-11-16 after listening tests (phase3/tube-bias/TUBE_BIAS.md).
+//
 //  Note on the HVSE reference: AlgebraicADAA1Policy::evalF2ndDeriv in HVSE
 //  returns -3 * x * f(x) / (1 + x^2)^2, which carries an extra factor of x
 //  versus the analytic -3x / (1 + x^2)^(5/2). This prototype implements the
@@ -136,6 +147,11 @@ public:
     void prepare(double sampleRate) noexcept {
         fs = (sampleRate > 1000.0) ? sampleRate : 48000.0;
         dcR = 1.0 - (2.0 * 3.14159265358979323846 * 15.0 / fs);
+        // Exact double value of tube(kTubeBias) as computed by tubeNLRaw
+        // itself, so the biased Tube curve's g(0) = tube(b) - tubeBiasC
+        // is exactly 0.0 and silence stays bit-exact (a decimal literal
+        // could differ by 1 ulp).
+        tubeBiasC = tubeNLRaw(kTubeBias);
         lpCoeff = 1.0 - std::exp(-2.0 * 3.14159265358979323846 * 4500.0 / fs);
         amountSteps = std::max(1.0, fs * 0.020);
         amountCurrent = 0.0;
@@ -331,6 +347,11 @@ private:
     double modeCrossfadePos{ 1.0 };
     double modeCrossfadeInc{ 0.001 };
 
+    // Tube operating-point bias (note 5 at the top of this file): the
+    // Tube transfer law is tube(x + kTubeBias) - tubeBiasC.
+    static constexpr double kTubeBias = 0.5;
+    double tubeBiasC{ 0.50721359549995793928 }; // tube(0.5); prepare() recomputes it exactly
+
     bool droopEnabled{ true };
     double wetZ1{ 0.0 };
     double wetZ2{ 0.0 };
@@ -374,6 +395,30 @@ private:
         return y;
     }
 
+    // Stock Tube curve pieces, factored out verbatim so the biased
+    // operating point can evaluate them at the shifted argument.
+    inline double tubeNLRaw(double x) const noexcept {
+        const double x2 = x * x;
+        const double invHypot = 1.0 / std::sqrt(1.0 + x2);
+        return (x * invHypot) + 0.30 * (x2 / (1.0 + x2));
+    }
+    inline double tubeADRaw(double x) const noexcept {
+        const double x2 = x * x;
+        // sqrt(1+x^2) - 1, rationalised (HVSE AlgebraicADAA1Policy).
+        const double term1 = x2 / (std::sqrt(1.0 + x2) + 1.0);
+        const double term2 = adaa_detail::xMinusAtan(x);
+        return term1 + 0.30 * term2;
+    }
+    inline double tubeD2Raw(double x) const noexcept {
+        // g = x / sqrt(1+x^2): g'' = -3x / (1+x^2)^(5/2)
+        // h = a x^2 / (1+x^2): h'' = a (2 - 6x^2) / (1+x^2)^3
+        const double x2 = x * x;
+        const double d = 1.0 + x2;
+        const double g2 = -3.0 * x / (d * d * std::sqrt(d));
+        const double h2 = 0.30 * (2.0 - 6.0 * x2) / (d * d * d);
+        return g2 + h2;
+    }
+
     // f(x) — identical transfer laws to the shipping Saturator, in double.
     inline double applyNL(double x, SaturationMode mode) const noexcept {
         switch (mode) {
@@ -389,9 +434,7 @@ private:
             return 1.25 * twoOverPi * std::atan(k * x);
         }
         case SaturationMode::Tube: {
-            const double x2 = x * x;
-            const double invHypot = 1.0 / std::sqrt(1.0 + x2);
-            return (x * invHypot) + 0.30 * (x2 / (1.0 + x2));
+            return tubeNLRaw(x + kTubeBias) - tubeBiasC;
         }
         case SaturationMode::Hard: {
             constexpr double kHardGain = 2.5;
@@ -416,11 +459,8 @@ private:
             return 1.25 * twoOverPi * (x * std::atan(kx) - (0.5 / k) * std::log1p(kx * kx));
         }
         case SaturationMode::Tube: {
-            const double x2 = x * x;
-            // sqrt(1+x^2) - 1, rationalised (HVSE AlgebraicADAA1Policy).
-            const double term1 = x2 / (std::sqrt(1.0 + x2) + 1.0);
-            const double term2 = adaa_detail::xMinusAtan(x);
-            return term1 + 0.30 * term2;
+            // G(x) = F_tube(x + b) - tube(b) * x  (integral of the biased g).
+            return tubeADRaw(x + kTubeBias) - tubeBiasC * x;
         }
         case SaturationMode::Hard: {
             constexpr double kHardGain = 2.5;
@@ -458,13 +498,7 @@ private:
             return -A * (2.0 * k * k * k) * x / (d * d);
         }
         case SaturationMode::Tube: {
-            // g = x / sqrt(1+x^2): g'' = -3x / (1+x^2)^(5/2)
-            // h = a x^2 / (1+x^2): h'' = a (2 - 6x^2) / (1+x^2)^3
-            const double x2 = x * x;
-            const double d = 1.0 + x2;
-            const double g2 = -3.0 * x / (d * d * std::sqrt(d));
-            const double h2 = 0.30 * (2.0 - 6.0 * x2) / (d * d * d);
-            return g2 + h2;
+            return tubeD2Raw(x + kTubeBias);
         }
         case SaturationMode::Hard: {
             return 0.0; // piecewise linear
