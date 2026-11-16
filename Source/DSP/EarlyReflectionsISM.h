@@ -67,8 +67,11 @@ public:
     void restoreState(const StateSnapshot& s);
 
     // 幾何座標・タップ更新 (非オーディオスレッド / パラメータ変更時)
+    // rt60Scaled1k / rt60Base1k: 1kHz 帯の実効 RT60 (decayScale 適用後 / プリセット素値)。
+    // タップゲインへ decayScale 連動の相対包絡を適用するために渡す (ism-link)。
     void updateParameters(int algorithmIndex, float roomSizeScale, float preDelayMs,
-                          float hfDamping, float lfAbsorption);
+                          float hfDamping, float lfAbsorption,
+                          float rt60Scaled1k, float rt60Base1k);
 
     // リアルタイムオーディオ処理 (AVX2 SIMD)
     void processBlock(const float* inL, const float* inR,
@@ -79,7 +82,8 @@ public:
 
 private:
     void computeGeometry(int algorithmIndex, float roomSizeScale, float preDelayMs,
-                         float hfDamping, float lfAbsorption, ISMParameters& outParams);
+                         float hfDamping, float lfAbsorption, ISMParameters& outParams,
+                         float rt60Scaled1k, float rt60Base1k);
 
     // 256bit レジスタ水平加算ヘルパー
     static inline float hsum_m256(__m256 v) noexcept {
@@ -119,6 +123,8 @@ private:
     float lastPreDelayMs{ -1.0f };
     float lastHfDamping{ -1.0f };
     float lastLfAbsorption{ -1.0f };
+    float lastRt60Scaled1k{ -1.0f };
+    float lastRt60Base1k{ -1.0f };
 };
 
 } // namespace FDNReverb\n

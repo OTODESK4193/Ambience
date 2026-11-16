@@ -791,7 +791,14 @@ namespace FDNReverb {
         saturatorL.setMode(activeParams.satTypeIdx);
         saturatorR.setMode(activeParams.satTypeIdx);
         dynamicDucker.setParameters(activeParams.duckingAmount, activeParams.duckingAttackMs, activeParams.duckingRelMs, activeParams.duckingThreshDB);
-        ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale, activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption);
+        {
+            // [ism-link] ISM タップ包絡の連動用に 1kHz 帯 (BAND_FREQ[5]) の
+            // プリセット RT60 と decayScale 適用後の値を渡す。
+            const int ismAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+            const float ismRt60Base1k = ALL_PRESETS[ismAlgo]->acoustics.rt60[5];
+            ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale, activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption,
+                                       ismRt60Base1k * activeParams.decayScale, ismRt60Base1k);
+        }
 
     }
 
@@ -1270,6 +1277,18 @@ namespace FDNReverb {
             if (currentTopology == ReverbTopology::Inchindown) {
                 const float erSizeScaleTank = 0.5f + activeParams.roomSizeScale;
                 inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScaleTank, 1.0f);
+            }
+            // [ism-link] ISM タップ包絡の decayScale 連動も同じ理由で吸収更新
+            // 経路で再供給する: ISM の updateParameters は updateTopology-
+            // AndRouting からしか呼ばれておらず、Decay ノブ変更だけでは新しい
+            // decayScale が ISM 幾何に届かなかった。値が変わっていない場合は
+            // updateParameters 側の変更検出で再計算をスキップする。
+            {
+                const int ismAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+                const float ismRt60Base1k = ALL_PRESETS[ismAlgo]->acoustics.rt60[5];
+                ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale,
+                                           activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption,
+                                           ismRt60Base1k * activeParams.decayScale, ismRt60Base1k);
             }
             // ★ 状態変数ディープコピー（クリックノイズ完全ゼロの状態転送）
             if (targetIsB) {

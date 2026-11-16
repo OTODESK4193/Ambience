@@ -20,7 +20,7 @@ void EarlyReflectionsISM::prepare(double sr, int /*maxBlockSize*/) {
     ringBufferMask = static_cast<int>(sz - 1);
     reset();
     ISMParameters initialParams;
-    computeGeometry(0, 1.0f, 10.0f, 0.5f, 0.5f, initialParams);
+    computeGeometry(0, 1.0f, 10.0f, 0.5f, 0.5f, initialParams, 0.0f, 0.0f);
     currentParams = std::make_shared<ISMParameters>(initialParams);
     pendingParams.store(nullptr);
 }
@@ -63,13 +63,21 @@ void EarlyReflectionsISM::restoreState(const StateSnapshot& s) {
 }
 
 void EarlyReflectionsISM::updateParameters(int algorithmIndex, float roomSizeScale,
-                                          float preDelayMs, float hfDamping, float lfAbsorption)
+                                          float preDelayMs, float hfDamping, float lfAbsorption,
+                                          float rt60Scaled1k, float rt60Base1k)
 {
+    // RT60 は 0.1〜35 s とレンジが広いため相対変化で判定する (未設定時は必ず再計算)
+    const bool rt60Unchanged =
+        lastRt60Scaled1k > 0.0f && lastRt60Base1k > 0.0f &&
+        std::abs(rt60Scaled1k - lastRt60Scaled1k) <= 0.002f * lastRt60Scaled1k &&
+        std::abs(rt60Base1k - lastRt60Base1k) <= 0.002f * lastRt60Base1k;
+
     if (algorithmIndex == lastAlgorithmIndex &&
         std::abs(roomSizeScale - lastRoomSizeScale) < 0.001f &&
         std::abs(preDelayMs - lastPreDelayMs) < 0.05f &&
         std::abs(hfDamping - lastHfDamping) < 0.005f &&
-        std::abs(lfAbsorption - lastLfAbsorption) < 0.005f)
+        std::abs(lfAbsorption - lastLfAbsorption) < 0.005f &&
+        rt60Unchanged)
     {
         return;
     }
@@ -79,15 +87,19 @@ void EarlyReflectionsISM::updateParameters(int algorithmIndex, float roomSizeSca
     lastPreDelayMs = preDelayMs;
     lastHfDamping = hfDamping;
     lastLfAbsorption = lfAbsorption;
+    lastRt60Scaled1k = rt60Scaled1k;
+    lastRt60Base1k = rt60Base1k;
 
     auto newParams = std::make_shared<ISMParameters>();
-    computeGeometry(algorithmIndex, roomSizeScale, preDelayMs, hfDamping, lfAbsorption, *newParams);
+    computeGeometry(algorithmIndex, roomSizeScale, preDelayMs, hfDamping, lfAbsorption, *newParams,
+                    rt60Scaled1k, rt60Base1k);
     pendingParams.store(newParams, std::memory_order_release);
 }
 
 void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScale,
                                          float preDelayMs, float hfDamping, float /*lfAbsorption*/,
-                                         ISMParameters& outParams)
+                                         ISMParameters& outParams,
+                                         float rt60Scaled1k, float rt60Base1k)
 {
     outParams.activeTaps = 0;
     outParams.numActiveChunks = 0;
@@ -367,6 +379,16 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
     outParams.activeTaps = numTaps;
     outParams.numActiveChunks = (numTaps + 7) / 8;
 
+    // [ism-link] decayScale 連動の相対包絡 (phase3/sr-followup-a §2.4 の試作を本番化):
+    // ISM タップゲインは距離則のみで RT60 を持たず、Decay を下げても初期反射だけが
+    // 固定包絡で残り、広帯域 T30 が +32〜+50% 膨らんでいた (Room1 x05、全 SR)。
+    // タップ遅延に応じた相対減衰 exp(−ln1000 · t · (1/RT60_scaled − 1/RT60_base))
+    // を掛け、ISM 包絡を FDN の実効 RT60 に追従させる。decayScale=1
+    // (scaled == base) では適用自体をスキップするため既定はビット一致。
+    const bool ismEnvActive = rt60Scaled1k > 0.0f && rt60Base1k > 0.0f && rt60Scaled1k != rt60Base1k;
+    const float ismEnvRate = ismEnvActive
+        ? -6.9078f * (1.0f / rt60Scaled1k - 1.0f / rt60Base1k) : 0.0f; // per second, ln(1000)=6.9078
+
     for (int c = 0; c < NUM_ISM_CHUNKS; ++c) {
         auto& chunk = outParams.chunks[c];
         for (int i = 0; i < 8; ++i) {
@@ -380,6 +402,11 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
                 chunk.delayFrac[i]   = fPart;
                 chunk.gainL[i]        = rawTaps[tapIndex].gainL;
                 chunk.gainR[i]        = rawTaps[tapIndex].gainR;
+                if (ismEnvActive) {
+                    const float envF = std::exp(ismEnvRate * (s / fs));
+                    chunk.gainL[i] *= envF;
+                    chunk.gainR[i] *= envF;
+                }
                 chunk.filterCoef[i]  = rawTaps[tapIndex].filterCoef;
                 chunk.filterState[i] = 0.0f;
             } else {
