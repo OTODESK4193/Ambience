@@ -148,6 +148,7 @@ namespace FDNReverb {
         void calculatePrimePowerDelays();
         void updateAbsorptionFilters(bool targetIsB);
         void applySdnDerivedParams();
+        void updateSdnGeometry();
         // [phase3/small-fixes] reset() 完全初期化: prepare() 終端状態の捕捉/復元
         void captureResetSnapshot();
         void restoreResetSnapshot();
@@ -298,6 +299,10 @@ namespace FDNReverb {
 
         // ★ Graceful Bypass: ER スムーズゲイン
         float erSmoothedGain{ 1.0f };
+        // [ER law unification] per-path trims anchored at the preset default
+        // erLevel so both ER paths follow the same erLevel^2 law (see ER_PRO.md)
+        float erCoreTrim{ 1.0f };
+        float erIsmTrim{ 1.0f };
         float erSmoothCoeff{ 0.0f };
 
         float diffusionSensitivity{ 1.0f };

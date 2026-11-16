@@ -525,7 +525,14 @@ namespace FDNReverb {
         // [P6] GEQ 再設計を伴わず SDN 派生値だけを更新すべきパラメータ
         const bool sdnDerivedNeedsUpdate =
                (activeParams.scattering != p.scattering)
-            || (activeParams.erCrossoverMs != p.erCrossoverMs);
+            || (activeParams.erCrossoverMs != p.erCrossoverMs)
+            // [PRO wiring fix] Asymmetry had NO update trigger at all: turning
+            // the knob alone never reached updateGeometry (dead on all 8
+            // algorithms; the SDN is not even the sounding core on 4 of them).
+            // Air Absorb is included so the SDN-side LPF follows the knob too
+            // (it previously only changed inside the absorption redesign).
+            || (activeParams.asymmetry != p.asymmetry)
+            || (activeParams.airAbsorbScale != p.airAbsorbScale);
 
         if (algoChanged) {
             ReverbTopology newTop = currentTopology;
@@ -727,28 +734,7 @@ namespace FDNReverb {
 
         // ★ 【SDN コア ジオメトリ更新 (Asymmetry 連動)】
         float erSizeScale = 0.5f + activeParams.roomSizeScale;
-        const float asym = activeParams.asymmetry;
-        
-        switch (currentTopology) {
-        case ReverbTopology::Room:
-            sdnEngine.updateGeometry(4.6f * erSizeScale, 7.4f * erSizeScale, 2.89f * erSizeScale, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f, asym);
-            break;
-        case ReverbTopology::Hall:
-            sdnEngine.updateGeometry(13.5f * erSizeScale, 27.0f * erSizeScale, 10.8f * erSizeScale, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f, asym);
-            break;
-        case ReverbTopology::Plate:
-            sdnEngine.updateGeometry(2.0f * erSizeScale, 1.0f * erSizeScale, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f, asym);
-            break;
-        case ReverbTopology::Spring:
-            sdnEngine.updateGeometry(0.3f * erSizeScale, 0.3f * erSizeScale, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f, asym);
-            break;
-        case ReverbTopology::Goldfoil:
-            sdnEngine.updateGeometry(0.27f * erSizeScale, 0.29f * erSizeScale, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f, asym);
-            break;
-        case ReverbTopology::Inchindown:
-            sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f, asym);
-            break;
-        }
+        updateSdnGeometry();
 
         // ★ SDN 壁面散乱度 (Scattering 連動)
         sdnEngine.scattering = juce::jlimit(0.0f, 1.0f, activeParams.scattering);
@@ -828,6 +814,17 @@ namespace FDNReverb {
             const float ismRt60Base1k = ALL_PRESETS[ismAlgo]->acoustics.rt60[5];
             ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale, activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption,
                                        ismRt60Base1k * activeParams.decayScale, ismRt60Base1k);
+        }
+
+        // [ER law unification] anchor trims at this algorithm's preset default
+        // erLevel: the core used to see erLevel^2 at this stage (erLevel^4 at
+        // the mix), the ISM erLevel^1 (erLevel^3 at the mix). With the trims
+        // both paths total erLevel^2 at the mix and match at the default.
+        {
+            const int defIdx = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+            const float erDef = PRESET_DEFAULTS[defIdx].erLevel;
+            erCoreTrim = erDef * erDef;
+            erIsmTrim = erDef;
         }
 
     }
@@ -929,15 +926,27 @@ namespace FDNReverb {
                 scaledRT60[b] *= splitCorr[b];
         }
 
-        // 大気減衰 (ISO 9613-1 指数べき乗モデル)
+        // 大気減衰 [PRO wiring fix: 連続法則化]
+        // 旧実装は bands 7-9 への連鎖 min() キャップで、キャップが掛かるか
+        // 否かがプリセット RT60 表の帯域比に依存した (例: Spring の 8k は
+        // 比 0.248 のため scale 2.5 でも不発、逆に scale<1 は全アルゴ不発)。
+        // 新法則は ISO 9613-1 の吸収係数 alpha(f) [dB/m, 20C/70%RH 近似] を
+        // 使い 1/T60 に (scale-1) * alpha * c/60 を加える連続形。全帯域・
+        // 全アルゴで単調、scale=1 で厳密に無変更 (従来とビット一致)。
         const float safeAirScale = std::clamp(activeParams.airAbsorbScale, 0.0f, 5.0f);
         if (std::abs(safeAirScale - 1.0f) > 1e-4f) {
-            float ratio7 = std::pow(0.90f, safeAirScale);
-            float ratio8 = std::pow(0.75f, safeAirScale);
-            float ratio9 = std::pow(0.60f, safeAirScale);
-            scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
-            scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
-            scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
+            static constexpr float kAirAlpha[NUM_BANDS] = {
+                0.0001f, 0.0002f, 0.0004f, 0.0010f, 0.0019f,
+                0.0037f, 0.0097f, 0.0328f, 0.1050f, 0.2900f }; // 31.25Hz..16kHz
+            const float dScale = safeAirScale - 1.0f;
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                const float invOld = 1.0f / scaledRT60[b];
+                float inv = invOld + dScale * kAirAlpha[b] * (343.0f / 60.0f);
+                // 相対クランプ: 伸長側は T60 が元の 2.5 倍を超えない (負の
+                // 1/T60 や 60s 天井への張り付きを防ぐ)。
+                inv = std::max(inv, 0.4f * invOld);
+                scaledRT60[b] = 1.0f / std::max(inv, 1.0f / 60.0f);
+            }
         }
 
         // GUI 表示用に物理減衰を反映した実効 RT60
@@ -1254,6 +1263,38 @@ namespace FDNReverb {
     // [P6] SDN 側の派生パラメータ (damping / lpfCoeff / scattering) のみを更新する。
     // designStage2 の入力ではない erCrossoverMs / scattering の変更は、
     // GEQ 再設計を経ずにここだけで反映できる (出力はビット同一)。
+    // [PRO wiring fix] SDN geometry (roomSize + Asymmetry), factored out of
+    // updateTopologyAndRouting so a knob turn can refresh it on its own.
+    // updateGeometry only recomputes baseDelaySamples; the per-sample delay
+    // smoother (0.0004/sample) glides to the new values, so this is click-free
+    // and cheap (6 nodes). NOTE: on Plate/Spring/Goldfoil/Inchindown the SDN
+    // is not the sounding core, so Asymmetry stays inaudible there by design
+    // of the topology routing, not by a wiring fault.
+    void UniversalEngine::updateSdnGeometry() {
+        const float erSizeScale = 0.5f + activeParams.roomSizeScale;
+        const float asym = activeParams.asymmetry;
+        switch (currentTopology) {
+        case ReverbTopology::Room:
+            sdnEngine.updateGeometry(4.6f * erSizeScale, 7.4f * erSizeScale, 2.89f * erSizeScale, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f, asym);
+            break;
+        case ReverbTopology::Hall:
+            sdnEngine.updateGeometry(13.5f * erSizeScale, 27.0f * erSizeScale, 10.8f * erSizeScale, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f, asym);
+            break;
+        case ReverbTopology::Plate:
+            sdnEngine.updateGeometry(2.0f * erSizeScale, 1.0f * erSizeScale, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f, asym);
+            break;
+        case ReverbTopology::Spring:
+            sdnEngine.updateGeometry(0.3f * erSizeScale, 0.3f * erSizeScale, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f, asym);
+            break;
+        case ReverbTopology::Goldfoil:
+            sdnEngine.updateGeometry(0.27f * erSizeScale, 0.29f * erSizeScale, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f, asym);
+            break;
+        case ReverbTopology::Inchindown:
+            sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f, asym);
+            break;
+        }
+    }
+
     void UniversalEngine::applySdnDerivedParams() {
         const float fsf = static_cast<float>(fs);
         const float erSizeScale = 0.5f + activeParams.roomSizeScale;
@@ -1267,6 +1308,30 @@ namespace FDNReverb {
         const float hfCutoff = std::clamp((10000.0f * (1.1f - activeParams.hfDamping)) / (0.6f + 0.4f * effectiveAirAbsorb), 800.0f, 20000.0f);
         sdnEngine.lpfCoeff = 1.0f - std::exp(-6.2831853f * hfCutoff / fsf);
         sdnEngine.scattering = juce::jlimit(0.0f, 1.0f, activeParams.scattering);
+
+        // [PRO wiring fix] Asymmetry: refresh geometry on knob turns too.
+        updateSdnGeometry();
+
+        // [PRO wiring fix] ER Crossover never reached the dedicated cores:
+        // mesh/spring setParameters ran only inside updateTopologyAndRouting
+        // (algorithm/room-size changes), so the knob was dead on Plate,
+        // Spring and Goldfoil. Propagate the same sdnRt60 law here.
+        // Inchindown is deliberately excluded: its tank is driven by
+        // currentDesignRT60_1k (see the Fix B note in
+        // updateTopologyAndRouting); feeding it sdnRt60 (<= 0.5 s) would
+        // re-break the tank.
+        if (currentTopology == ReverbTopology::Plate) {
+            plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, true);
+        } else if (currentTopology == ReverbTopology::Goldfoil) {
+            plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            // [tip adaptation] the split build's per-ear meshes are the
+            // feed source; updateTopologyAndRouting sets all three, so the
+            // derived-params propagation mirrors that here.
+            gfMeshL.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshR.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+        } else if (currentTopology == ReverbTopology::Spring) {
+            springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
+        }
     }
 
     inline void UniversalEngine::fastWalshHadamardTransform(std::array<float, 16>& a) noexcept {
@@ -1450,14 +1515,19 @@ namespace FDNReverb {
 
         constexpr float apfModFrac[SERIAL_APF_STAGES] = { 0.25f, 0.20f, 0.15f };
 
-        // ★ C80 自動調整サーボ (Clarity)
-        acousticMetrics.updateServo(activeParams.clarityDB, numSamples);
-        const float erServo = acousticMetrics.getERServoGain();
-        const float lateServo = acousticMetrics.getLateServoGain();
+        // ★ Clarity は単一法則に統一 [PRO wiring fix]
+        // 旧実装は (a) 直接ゲイン ±0.25dB/dB と (b) AcousticMetrics サーボ
+        // ±0.25dB/dB (100ms 追従・入力活動ゲート付き) の二重適用で、定常時は
+        // 合計 ±0.5dB/dB になる一方、静かな素材ではサーボが 1.0 に戻り
+        // 実効量が素材依存だった。サーボ適用を廃し直接法則を ±0.5dB/dB に
+        // することで定常時の総量を保ったまま時間・素材依存を除く。
+        // clarity=0 では従来と完全一致 (サーボも厳密に 1.0 バイパス)。
+        const float erServo = 1.0f;
+        const float lateServo = 1.0f;
 
         // ★ Clarity ゲインのブロック単位事前計算 (毎サンプルの std::pow / decibelsToGain を完全排除)
         const float cDb = std::clamp(activeParams.clarityDB, -6.0f, 6.0f);
-        const float clarityShift = cDb * 0.25f; // 最大 ±1.5dB
+        const float clarityShift = cDb * 0.5f; // 最大 ±3dB (単一法則)
         const float gClarityER   = juce::Decibels::decibelsToGain(+clarityShift);
         const float gClarityLate = juce::Decibels::decibelsToGain(-clarityShift);
 
@@ -1503,7 +1573,10 @@ namespace FDNReverb {
             std::fill(ismBufferR.begin(), ismBufferR.begin() + numSamples, 0.0f);
 
             // 未使用の ismSeedBuffer を排除し nullptr を渡すことで不要なメモリ書き込みをスキップ
-            ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), nullptr, numSamples, activeParams.erLevel);
+            // [ER law unification] ISM runs at unity internal level; the preset
+            // trim at the add site + shared final-mix law replace its private
+            // linear erLevel factor (previously erLevel^3 total at the output).
+            ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), nullptr, numSamples, 1.0f);
         }
 
         for (int n = 0; n < numSamples; ++n) {
@@ -1693,13 +1766,15 @@ namespace FDNReverb {
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR);
                 }
-                erOutL *= erSmoothedGain;
-                erOutR *= erSmoothedGain;
+                // [ER law unification] core path carries the constant preset
+                // trim; the erLevel^2 law is applied once at the final mix.
+                erOutL *= erCoreTrim;
+                erOutR *= erCoreTrim;
             }
 
             if (!bypassER) {
-                erOutL += ismBufferL[n];
-                erOutR += ismBufferR[n];
+                erOutL += ismBufferL[n] * erIsmTrim;
+                erOutR += ismBufferR[n] * erIsmTrim;
                 // SDN / 2D Mesh 散乱出力をFDNへ注入 (LateDensity 連動ハイブリッド結合: 事前計算ゲイン適用)
                 if (splitStereo) {
                     // Per-ear streams: inject each ear's core output into
