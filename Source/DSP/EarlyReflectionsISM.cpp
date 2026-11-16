@@ -111,8 +111,13 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
     const float preDelaySamples = (preDelayMs * 0.001f) * fs;
     const float sizeScale = std::clamp(roomSizeScale, 0.2f, 5.0f);
 
-    // 空間容積に応じた物理的初期反射窓 (Room: 35ms, Hall/Plate/Spring/Inch: 45ms)
-    const float roomErWindowSec = (algorithmIndex == 0 || algorithmIndex == 1) ? 0.035f : 0.045f;
+    // 空間容積に応じた物理的初期反射窓 (Room: 35ms, その他: 45ms)。
+    // 大空間分岐 (Hall1/Hall2/Inchindown) のみ窓を sizeScale 倍する: 固定45msでは
+    // 大空間幾何の最小反射路長 (Hall2 61.5ms / Inchindown 54.8ms) が窓を超え、
+    // 全タップが棄却されて ISM が完全に死ぬため。
+    const float roomErWindowSec = ((algorithmIndex == 0 || algorithmIndex == 1) ? 0.035f : 0.045f)
+        * ((algorithmIndex == 2 || algorithmIndex == 3 || algorithmIndex == 7)
+               ? std::max(1.0f, sizeScale) : 1.0f);
     const float maxErDelaySamples = preDelaySamples + (roomErWindowSec * fs);
 
     struct RawTap {
