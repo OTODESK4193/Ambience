@@ -850,7 +850,7 @@ namespace FDNReverb {
     // Hall2 / Plate band rows are unchanged from the original
     // identification and still meet gates there.
     static constexpr std::array<std::array<float, NUM_BANDS>, NUM_ALGORITHMS> SPLIT8_BAND_CORR = { {
-        { 0.8021f, 0.8021f, 0.8021f, 1.2297f, 1.0485f, 1.1074f, 0.9245f, 1.0418f, 0.9882f, 0.9882f }, // Room1
+        { 0.8021f, 0.8021f, 0.8021f, 1.1300f, 1.0485f, 1.1074f, 0.9245f, 1.0418f, 0.9882f, 0.9882f }, // Room1 [phase3/room1-late P3: 250 Hz re-identified on 836d1b16+ERPRO base, full SR x scale grid vs nominal; 125 and 8k entries deliberately unchanged]
         { 0.9483f, 0.9483f, 0.9483f, 1.0001f, 1.0600f, 0.9927f, 0.9906f, 1.0027f, 1.0028f, 1.0028f }, // Room2
         { 0.9753f, 0.9753f, 0.9753f, 1.0001f, 1.0146f, 0.9669f, 1.0128f, 0.9963f, 0.9949f, 0.9949f }, // Hall1
         { 1.0177f, 1.0177f, 1.0177f, 0.9941f, 0.9957f, 1.0249f, 1.0248f, 0.9810f, 0.9984f, 0.9984f }, // Hall2
