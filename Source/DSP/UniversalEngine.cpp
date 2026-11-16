@@ -456,6 +456,16 @@ namespace FDNReverb {
     }
 
     void UniversalEngine::panicReset() noexcept {
+        // [panic-fix] プール上の遅延線 (preDelay / inputDiffusers /
+        // fdnDelays / nestedAllpass) の resetState() は書き込み位置を
+        // 戻すだけでバッファ内容を消さないため、プールを消去しないと
+        // 旧テイルがそのまま循環して残る (実測: 消去なしでは Panic 後も
+        // 無音入力で -24.6dBFS 級の残響が継続)。reset() は従来から本関数
+        // の前にプールを消去しており、本関数側で消去しても reset() の
+        // net な挙動は変わらない (冪等)。トポロジー遷移経由でも、設計
+        // コメントが前提としてきた「panicReset でテイルが消去済み」が
+        // 実際に成立するようになる。
+        memoryPool.clear();
         fbVec.fill(0.0f);
 
         preDelayLineL.resetState();
@@ -476,6 +486,20 @@ namespace FDNReverb {
 #else
         for (auto& f : absorptionFilters) f.reset();
 #endif
+
+        // [panic-fix] Goldfoil メッシュフィード整形フィルタの状態変数も
+        // 音声状態であり、残すと消去直後のメッシュへ小さな過渡が漏れる
+        // (実測: 無音入力で [10-100ms] 窓 RMS -60dB 級)。reset() が
+        // 消去してきた範囲に合わせ、本関数でも消去する。
+        gfMeshFeedLpState.fill(0.0f);
+        for (int s = 0; s < 3; ++s) {
+            gfMeshFeedBqX1[s].fill(0.0f); gfMeshFeedBqX2[s].fill(0.0f);
+            gfMeshFeedBqY1[s].fill(0.0f); gfMeshFeedBqY2[s].fill(0.0f);
+        }
+        for (int s = 0; s < 2; ++s) {
+            gfMeshFeedPkX1[s].fill(0.0f); gfMeshFeedPkX2[s].fill(0.0f);
+            gfMeshFeedPkY1[s].fill(0.0f); gfMeshFeedPkY2[s].fill(0.0f);
+        }
 
         acousticMetrics.reset();
         saturatorL.reset(); saturatorR.reset();
