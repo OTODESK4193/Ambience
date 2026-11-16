@@ -3,6 +3,12 @@
 
 namespace FDNReverb {
 
+    // [exp-tank-stereo] Inchindown per-ear tanks: ON by default in this
+    // listening build. Set to false to restore the legacy single shared
+    // (monophonic) tank path; the second tank instance stays prepared and
+    // reset either way, so flipping the constant is the only change needed.
+    static constexpr bool kInchindownTankStereo = true;
+
     static bool isPrime(int n) {
         if (n <= 1) return false;
         if (n <= 3) return true;
@@ -194,6 +200,7 @@ namespace FDNReverb {
         gfMeshR.prepare(sampleRate, maxBlockSize);
         springChain.prepare(sampleRate, maxBlockSize);
         inchindownEngine.prepare(sampleRate, maxBlockSize);
+        inchindownEngineR.prepare(sampleRate, maxBlockSize);
         for (int i = 0; i < SDNShoebox3D::NUM_NODES; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask);
             sdnEngine.delayLines[i].init(ptr, mask);
@@ -489,6 +496,7 @@ namespace FDNReverb {
         gfMeshR.reset();
         springChain.reset();
         inchindownEngine.reset();
+        inchindownEngineR.reset();
         ismEngine.reset();
         erOffsetDelayL.fill(0.0f);
         erOffsetDelayR.fill(0.0f);
@@ -767,6 +775,7 @@ namespace FDNReverb {
             // so the namesake long-axis nodes are silent and the core dies
             // within ~2 s. (phase3/inchindown/INCHINDOWN.md)
             inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
+            inchindownEngineR.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
         }
         
         // ★ 【ER ビジュアライザー用動的タップ抽出ブリッジ】
@@ -1502,6 +1511,7 @@ namespace FDNReverb {
             if (currentTopology == ReverbTopology::Inchindown) {
                 const float erSizeScaleTank = 0.5f + activeParams.roomSizeScale;
                 inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScaleTank, 1.0f);
+                inchindownEngineR.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScaleTank, 1.0f);
             }
             // [ism-link] ISM タップ包絡の decayScale 連動も同じ理由で吸収更新
             // 経路で再供給する: ISM の updateParameters は updateTopology-
@@ -1788,7 +1798,27 @@ namespace FDNReverb {
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.tickModulatorsOnly();
                 } else if (isInchindown) {
-                    inchindownEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR, fdnMeshInject);
+                    if (kInchindownTankStereo) {
+                        // [exp-tank-stereo] Per-ear tanks: each
+                        // ear's tank instance is driven by that ear's input alone
+                        // (inL == inR == the ear's signal — the same drive a
+                        // centred source gives the legacy single tank) and only
+                        // that ear's own output is taken, so no tank energy
+                        // crosses between the ears. Both instances carry
+                        // identical parameters, so a centred source reproduces
+                        // the legacy tank output bit-exactly (each instance
+                        // replays the legacy trajectory). The R tank's pickup
+                        // vector goes to a scratch buffer: Inchindown never
+                        // consumes fdnMeshInject (only Goldfoil does).
+                        float tankOutL = 0.0f, tankDropL = 0.0f, tankDropR = 0.0f, tankOutR = 0.0f;
+                        alignas(32) float tankInjScratch[16];
+                        inchindownEngine.processOneSample(inLpfStateL, inLpfStateL, tankOutL, tankDropL, fdnMeshInject);
+                        inchindownEngineR.processOneSample(inLpfStateR, inLpfStateR, tankDropR, tankOutR, tankInjScratch);
+                        erOutL = tankOutL;
+                        erOutR = tankOutR;
+                    } else {
+                        inchindownEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR, fdnMeshInject);
+                    }
                     sdnEngine.modDepth = depthSamples * 0.2f;
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.tickModulatorsOnly();
