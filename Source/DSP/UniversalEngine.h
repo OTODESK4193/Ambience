@@ -191,6 +191,14 @@ namespace FDNReverb {
         // Legacy ER taps replaced by SDN Core
         SDNShoebox3D                                 sdnEngine;
         SDNTopology2DMesh                            plateMesh;
+        // phase3/goldfoil-stereo: per-ear feed meshes (Goldfoil only).
+        // gfMeshL is driven by the L input alone, gfMeshR by R alone;
+        // their pickup vectors source the structural FDN feed for the
+        // matching ear's channels so the feed stops being a shared
+        // cross-path under SPLIT8. The shared plateMesh still produces
+        // the ER output exactly as before.
+        SDNTopology2DMesh                            gfMeshL;
+        SDNTopology2DMesh                            gfMeshR;
         SDNTopologySpring1D                          springChain;
         SDNTopologyInchindown                        inchindownEngine;
 

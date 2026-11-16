@@ -190,6 +190,8 @@ namespace FDNReverb {
         // Initialize SDN Engine
         sdnEngine.prepare(sampleRate, maxBlockSize);
         plateMesh.prepare(sampleRate, maxBlockSize);
+        gfMeshL.prepare(sampleRate, maxBlockSize);
+        gfMeshR.prepare(sampleRate, maxBlockSize);
         springChain.prepare(sampleRate, maxBlockSize);
         inchindownEngine.prepare(sampleRate, maxBlockSize);
         for (int i = 0; i < SDNShoebox3D::NUM_NODES; ++i) {
@@ -483,6 +485,8 @@ namespace FDNReverb {
         loopEnergyEnv = 0.0f;
         sdnEngine.reset();
         plateMesh.reset();
+        gfMeshL.reset();
+        gfMeshR.reset();
         springChain.reset();
         inchindownEngine.reset();
         ismEngine.reset();
@@ -766,6 +770,8 @@ namespace FDNReverb {
             plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, true);
         } else if (currentTopology == ReverbTopology::Goldfoil) {
             plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshL.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshR.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
         } else if (currentTopology == ReverbTopology::Spring) {
             springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
         } else if (currentTopology == ReverbTopology::Inchindown) {
@@ -834,8 +840,11 @@ namespace FDNReverb {
     // targets are trimmed per band to reproduce the current head's
     // measured band T30, and the late makeup is trimmed to restore the
     // total IR energy lost with the crossLeak contribution.
-    // Goldfoil (index 6) never takes the split path: its row is the
-    // identity and is never applied. Bands follow BAND_FREQ
+    // Goldfoil (index 6) joined the split path in phase3/goldfoil-stereo
+    // (e2 + 2.6 kHz fix); its band row is the identity — the split design
+    // measured within JND of the shared design at every band on the
+    // prototype base (T30@1k −2.7%), so no recalibration was identified
+    // for it. Bands follow BAND_FREQ
     // (31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000 Hz).
     // Rebase note (phase3/stereo/STEREO_REBASE.md): the Room1 / Room2 /
     // Spring / Inchindown rows and all makeup trims were re-identified
@@ -850,7 +859,7 @@ namespace FDNReverb {
         { 1.0177f, 1.0177f, 1.0177f, 0.9941f, 0.9957f, 1.0249f, 1.0248f, 0.9810f, 0.9984f, 0.9984f }, // Hall2
         { 0.9997f, 0.9997f, 0.9997f, 1.0260f, 1.0859f, 1.0274f, 0.9545f, 0.9992f, 0.9231f, 0.9231f }, // Plate
         { 1.0129f, 1.0129f, 1.0129f, 1.0518f, 0.9851f, 1.0114f, 0.9400f, 1.0063f, 0.9871f, 0.9871f }, // Spring
-        { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }, // Goldfoil (unused)
+        { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }, // Goldfoil (identity)
         { 0.9626f, 0.9626f, 0.9626f, 1.0178f, 1.0804f, 1.0003f, 1.0140f, 0.9948f, 1.0163f, 1.0163f }  // Inchindown
     } };
     // Makeup trims are applied in the audio path (processBlock, keyed on
@@ -865,9 +874,13 @@ namespace FDNReverb {
     // legacy stage scaled down, raising the dual-mono IR energy by
     // +0.24...+0.59 dB, and these trims absorb that so the patch as a
     // whole stays level-neutral at preset defaults.
+    // Goldfoil's +0.19 dB was identified separately at its split apply
+    // (phase3/goldfoil-stereo, on the a7a9a27b base with the protoB feed
+    // cuts and the APF offset already in): the split path measured
+    // -0.19 dB of total IR energy (impC) against the shared path.
     static constexpr std::array<float, NUM_ALGORITHMS> SPLIT8_MAKEUP_DB = { {
         // Room1     Room2     Hall1     Hall2     Plate     Spring    Goldfoil  Inchindown
-        -0.48f,     -0.26f,     -0.18f,     -0.10f,     -0.08f,     -0.31f,     0.0f,       1.30f
+        -0.48f,     -0.26f,     -0.18f,     -0.10f,     -0.08f,     -0.31f,     0.19f,       1.30f
     } };
 
     void UniversalEngine::updateAbsorptionFilters(bool targetIsB) {
@@ -908,8 +921,9 @@ namespace FDNReverb {
         // phase3/stereo SPLIT8: per-algorithm band recalibration for the
         // split (per-ear) networks (see SPLIT8_BAND_CORR above). Applied
         // to the design targets only; the audio path is untouched.
-        // Goldfoil keeps the legacy shared design (identity).
-        if (safeAlgo != 6) {
+        // Goldfoil's row is the identity (see the table comment), so
+        // applying it unconditionally is exact for Goldfoil.
+        {
             const auto& splitCorr = SPLIT8_BAND_CORR[safeAlgo];
             for (int b = 0; b < NUM_BANDS; ++b)
                 scaledRT60[b] *= splitCorr[b];
@@ -1075,6 +1089,98 @@ namespace FDNReverb {
                     comp.a2 = static_cast<float>((1.0 - alpha / A) / a0);
                     if (targetIsB) absorptionCoeffsS2_B[i][NUM_BANDS] = comp;
                     else           absorptionCoeffsS2_A[i][NUM_BANDS] = comp;
+                }
+            } else if (currentTopology == ReverbTopology::Goldfoil) {
+                // phase3/goldfoil-stereo 2.6k fix (GOLDFOIL_26K_PROTO):
+                // per-channel modal compensation for the split (8ch/ear)
+                // networks, on the same stage hook as B3. Splitting halves
+                // the modal density, and the implied per-channel decay rate
+                //   r_i(f) = per-trip loss_i(f) * fs / tau_i(f)
+                // has a pocket at 2-3.5 kHz: tau_i is inflated where the
+                // serial APFs' group delays align, and the GEQ loss there
+                // sits below target (spectroscopy: worst channel
+                // r = 19.7 dB/s vs design 33.9 at 2625 Hz). In the shared
+                // 16ch network the pocket is averaged out; in an 8ch ear
+                // network the slowest mode stands alone (design-point
+                // ring absolute PSD +4.4 dB before this fix). This stage
+                // cancels each channel's own worst deficit in the window
+                // with an RBJ peaking cut whose depth restores the design
+                // rate at the pocket frequency:
+                //   depth = kappa * (r_des(f*) - r_min) * tau(f*) / fs
+                // kappa = 0.85, Q = 6.0, window 2100-3400 Hz, depth capped
+                // at 0.9 dB (prototype-measured cuts: 0.13-0.29 dB).
+                // Goldfoil only; every other topology keeps the exact
+                // identity stage below (bit-transparent). Design-time
+                // only: the audio path cost is unchanged.
+                const double kappa = 0.85;
+                const double q26   = 6.0;
+                const double dMax  = 0.9;
+                const double fLo   = 2100.0;
+                const double fHi   = 3400.0;
+                const double gg    = static_cast<double>(gApfDesign);
+                auto& bank26 = targetIsB ? absorptionCoeffsS2_B : absorptionCoeffsS2_A;
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    // grid search (1/24 oct) for the slowest implied rate
+                    double fStar = 0.0, rMin = 1e30, tauStar = 0.0;
+                    const int nSteps = static_cast<int>(std::ceil(std::log2(fHi / fLo) * 24.0));
+                    for (int k = 0; k <= nSteps; ++k) {
+                        const double f = fLo * std::pow(2.0, k / 24.0);
+                        const double w = 2.0 * 3.141592653589793 * f / fs;
+                        const double c1 = std::cos(w), s1 = std::sin(w);
+                        const double c2 = std::cos(2.0 * w), s2 = std::sin(2.0 * w);
+                        double lossDb = 0.0;
+                        for (int b = 0; b < NUM_BANDS; ++b) {
+                            const auto& cf = bank26[i][b];
+                            const double nRe = cf.b0 + cf.b1 * c1 + cf.b2 * c2;
+                            const double nIm = -(cf.b1 * s1 + cf.b2 * s2);
+                            const double dRe = 1.0 + cf.a1 * c1 + cf.a2 * c2;
+                            const double dIm = -(cf.a1 * s1 + cf.a2 * s2);
+                            const double magSq = (nRe * nRe + nIm * nIm)
+                                               / std::max(1e-24, dRe * dRe + dIm * dIm);
+                            lossDb += -10.0 * std::log10(std::max(1e-24, magSq));
+                        }
+                        double tau = static_cast<double>(fdnBaseDelaySamples[i]) + 1.0;
+                        for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                            const double m = static_cast<double>(cachedApfBaseDelaySmp[i][s]);
+                            const double den = 1.0 + gg * gg + 2.0 * gg * std::cos(w * m);
+                            tau += m * (1.0 - gg * gg) / std::max(0.01, den);
+                        }
+                        const double r = lossDb * fs / tau;
+                        if (r < rMin) { rMin = r; fStar = f; tauStar = tau; }
+                    }
+                    // design rate at f* from the (scaled) RT60 targets,
+                    // log-interpolated between the bracketing bands
+                    double rt60Star = static_cast<double>(scaledRT60[NUM_BANDS - 1]);
+                    if (fStar <= BAND_FREQ[0]) {
+                        rt60Star = static_cast<double>(scaledRT60[0]);
+                    } else {
+                        for (int b = 0; b < NUM_BANDS - 1; ++b) {
+                            if (fStar >= BAND_FREQ[b] && fStar <= BAND_FREQ[b + 1]) {
+                                const double frac = std::log2(fStar / BAND_FREQ[b]);
+                                rt60Star = std::exp(
+                                    (1.0 - frac) * std::log(static_cast<double>(scaledRT60[b]))
+                                    + frac * std::log(static_cast<double>(scaledRT60[b + 1])));
+                                break;
+                            }
+                        }
+                    }
+                    const double designRate = 60.0 / std::max(0.05, rt60Star); // dB/s
+                    double depthDb = kappa * (designRate - rMin) * tauStar / fs;
+                    depthDb = std::clamp(depthDb, 0.0, dMax);
+                    BiquadCoeffs comp{};
+                    if (depthDb > 0.02) {
+                        const double w = 2.0 * 3.141592653589793 * fStar / fs;
+                        const double A = std::pow(10.0, -depthDb / 40.0);
+                        const double alpha = std::sin(w) / (2.0 * q26);
+                        const double cw = std::cos(w);
+                        const double a0 = 1.0 + alpha / A;
+                        comp.b0 = static_cast<float>((1.0 + alpha * A) / a0);
+                        comp.b1 = static_cast<float>((-2.0 * cw) / a0);
+                        comp.b2 = static_cast<float>((1.0 - alpha * A) / a0);
+                        comp.a1 = static_cast<float>((-2.0 * cw) / a0);
+                        comp.a2 = static_cast<float>((1.0 - alpha / A) / a0);
+                    }
+                    bank26[i][NUM_BANDS] = comp;
                 }
             } else {
                 const BiquadCoeffs identity{};
@@ -1272,11 +1378,10 @@ namespace FDNReverb {
         }
 
         // phase3/stereo SPLIT8: per-algorithm late-energy makeup trim
-        // (see SPLIT8_MAKEUP_DB). Exactly 1.0f for Goldfoil, so its
-        // renders stay bit-identical to the current head.
+        // (see SPLIT8_MAKEUP_DB). Goldfoil's trim restores the total IR
+        // energy its split path loses (phase3/goldfoil-stereo apply).
         const int curAlgoIdx = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
-        const float splitMakeupLin = (curAlgoIdx != 6)
-            ? juce::Decibels::decibelsToGain(SPLIT8_MAKEUP_DB[curAlgoIdx]) : 1.0f;
+        const float splitMakeupLin = juce::Decibels::decibelsToGain(SPLIT8_MAKEUP_DB[curAlgoIdx]);
 
         // [P6] GEQ 再設計を伴わない SDN 派生値の即時反映
         if (sdnParamsUpdatePending) {
@@ -1515,14 +1620,17 @@ namespace FDNReverb {
 
             float erOutL = 0.0f, erOutR = 0.0f;
 
-            // phase3/stereo SPLIT8 (STEREO_IMPL.md): Goldfoil keeps the
-            // legacy shared-FDN path below bit-exactly (its structural
-            // mesh feed is a shared cross-path that needs a per-ear
-            // redesign first); all other topologies run the per-ear
-            // split FDN. In split mode the two variables below carry the
-            // per-ear streams (fdnInputMid = L stream, fdnInputSide = R
-            // stream) instead of Mid/Side.
-            const bool splitStereo = (currentTopology != ReverbTopology::Goldfoil);
+            // phase3/stereo SPLIT8 (STEREO_IMPL.md): every topology now
+            // runs the per-ear split FDN. Goldfoil originally kept the
+            // legacy shared-FDN path bit-exactly (its structural mesh
+            // feed was a shared cross-path); it joined in
+            // phase3/goldfoil-stereo with a per-ear feed redesign (e2)
+            // plus the 2.6 kHz modal compensation, so the legacy path is
+            // no longer taken by any topology. In split mode the two
+            // variables below carry the per-ear streams
+            // (fdnInputMid = L stream, fdnInputSide = R stream) instead
+            // of Mid/Side.
+            const bool splitStereo = true;
 
             // ★ Mid / Side 双方を 6段ディフューザーで完全拡散 (ハードバイパス撤廃・サンプル線形平滑化)
             // SPLIT8: the two diffuser chains carry the raw per-ear
@@ -1620,6 +1728,25 @@ namespace FDNReverb {
             // sizes; the lowpass keeps the mesh's HF modal content out of
             // the sustained tail. Feedforward only: loop poles unchanged.
             if (currentTopology == ReverbTopology::Goldfoil) {
+                if (!bypassER) {
+                    // phase3/goldfoil-stereo: per-ear feed source. Each
+                    // ear's own mesh instance is driven by that ear's
+                    // input alone, through the same dual-point excitation
+                    // geometry as the shared mesh (with inL == inR the
+                    // ear-mesh field equals the shared field, so a
+                    // centred source feeds bit-comparably to the legacy
+                    // design). Channel i takes pickup i from its own
+                    // ear's mesh (even = L, odd = R, the SPLIT8
+                    // partition), so no feed energy crosses the ears.
+                    // The shared plateMesh above still produces the ER
+                    // output; its pickup vector is no longer used here.
+                    alignas(32) float gfInjL[16], gfInjR[16];
+                    float dummyL = 0.0f, dummyR = 0.0f;
+                    gfMeshL.processOneSample(inLpfStateL, inLpfStateL, dummyL, dummyR, gfInjL);
+                    gfMeshR.processOneSample(inLpfStateR, inLpfStateR, dummyL, dummyR, gfInjR);
+                    for (int i = 0; i < FDN_ORDER; ++i)
+                        fdnMeshInject[i] = ((i & 1) == 0) ? gfInjL[i] : gfInjR[i];
+                }
                 for (int i = 0; i < FDN_ORDER; ++i) {
                     gfMeshFeedLpState[i] += gfMeshFeedLpCoeff * (fdnMeshInject[i] - gfMeshFeedLpState[i]);
                     float v = gfMeshFeedLpState[i];
