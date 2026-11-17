@@ -51,6 +51,13 @@ namespace FDNReverb {
             dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
             dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] ペアレート: ペア (i, i+8) の両チャンネルの
+        // chorusRates の幾何平均。ランダム源の初期化もここで行う。
+        for (int p = 0; p < RAND_PAIRS; ++p)
+            randPairRates[p] = std::sqrt(chorusRates[p] * chorusRates[p + RAND_PAIRS]);
+        resetRandMod();
+#endif
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
     }
@@ -359,7 +366,30 @@ namespace FDNReverb {
             dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
             dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] ランダム源も LFO 位相と同様に決定論的に復元する
+        // (seq ≡ fresh の前提)。panicReset() は LFO と同様に触らない。
+        resetRandMod();
+#endif
     }
+
+#if AMBIENCE_MODSRC_PACKAGE
+    // [phase3/mod-source] ランダム変調源の初期化: ストリーム毎に決定的シードを
+    // 割り当て、LP 状態・補間端点・制御カウンタを初期状態に戻す。
+    // コンストラクタと reset() の双方から呼ばれ、常に同一の初期状態になる。
+    void UniversalEngine::resetRandMod() {
+        for (int k = 0; k < RAND_PAIRS * SERIAL_APF_STAGES; ++k) {
+            auto& st = randStreams[k];
+            st.rngState = 0x9E3779B9u * static_cast<uint32_t>(k + 1) | 1u;
+            st.lp1 = 0.0f;
+            st.lp2 = 0.0f;
+        }
+        for (auto& pair : randValFrom)  pair.fill(0.0f);
+        for (auto& pair : randValTo)    pair.fill(0.0f);
+        for (auto& pair : randPairVals) pair.fill(0.0f);
+        randCtrlCounter = 0;
+    }
+#endif
 
     // [phase3/small-fixes] prepare() 終端の状態を捕捉する。reset() が従来
     // 復元し損ねていた状態 (下記) を全て含む。信号履歴そのもの (遅延線・
@@ -1596,12 +1626,36 @@ namespace FDNReverb {
             smoothedModAmount = activeParams.modAmount;
         }
         std::array<float, FDN_ORDER> cachedApfSafeMod{};
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] 全段分の事前計算 (s=2 の値は従来の cachedApfSafeMod と同一式)
+        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfSafeModAll{};
+#endif
         bool usePrecomputedSafeMod = false;
         if (modAmountStationary) {
             const float modAmtCurvedStat = smoothedModAmount * smoothedModAmount;
+#if AMBIENCE_MODSRC_PACKAGE
+            const float depthSamplesStat = modAmtCurvedStat * 0.00055f * fsf * modDepthScale * MODSRC_DMULT;
+#else
             const float depthSamplesStat = modAmtCurvedStat * 0.00055f * fsf * modDepthScale;
+#endif
             if (depthSamplesStat > 0.01f) {
                 for (int i = 0; i < FDN_ORDER; ++i) {
+#if AMBIENCE_MODSRC_PACKAGE
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                        const float baseDelay = cachedApfBaseDelaySmp[i][s];
+                        const float maxSafeMod = baseDelay * 0.15f;
+                        const float targetMod = depthSamplesStat * apfModFrac[s] * cachedFreqModScales[i];
+                        const float knee = maxSafeMod * 0.75f;
+                        float safeMod = targetMod;
+                        if (targetMod > knee) {
+                            const float excess = targetMod - knee;
+                            const float room = maxSafeMod - knee;
+                            safeMod = knee + room * std::tanh(excess / room);
+                        }
+                        cachedApfSafeModAll[i][s] = safeMod;
+                    }
+                    cachedApfSafeMod[i] = cachedApfSafeModAll[i][2];
+#else
                     const float baseDelay = cachedApfBaseDelaySmp[i][2];
                     const float maxSafeMod = baseDelay * 0.15f;
                     const float targetMod = depthSamplesStat * apfModFrac[2] * cachedFreqModScales[i];
@@ -1613,6 +1667,7 @@ namespace FDNReverb {
                         safeMod = knee + room * std::tanh(excess / room);
                     }
                     cachedApfSafeMod[i] = safeMod;
+#endif
                 }
             }
             usePrecomputedSafeMod = true;
@@ -1637,6 +1692,31 @@ namespace FDNReverb {
             // linear erLevel factor (previously erLevel^3 total at the output).
             ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), nullptr, numSamples, 1.0f);
         }
+
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] ランダム源の LP 係数・正規化ゲインをブロック毎に
+        // 更新する (ModRate の平滑値に追従)。fc = ModRate × ペアレート とし、
+        // 軌跡のゼロ交差レートが正弦 LFO1 の周波数と一致する換算 (プローブ実測)。
+        // 制御ステップ (16 サンプル) あたりの係数は極を保存する
+        // aStep = 1 - exp(-2π fc · 16 / fs)。正規化: 白色一様乱数 (分散 1/3) を
+        // 2 段 1-pole に通した定常分散 var = (1/3) * a (1 + b^2) / (2 - a)^3
+        // (b = 1 - a、制御時間でも同形) を解析的に使い、squash 前 std を
+        // RAND_PRE_STD に揃える。
+        for (int p = 0; p < RAND_PAIRS; ++p) {
+            const float fc = smoothedModRate * randPairRates[p];
+            const float aStep = 1.0f - std::exp(-6.28318530718f * fc
+                                                * static_cast<float>(RAND_CTRL_INTERVAL) / fsf);
+            const float bStep = 1.0f - aStep;
+            const float varOut = (1.0f / 3.0f) * aStep * (1.0f + bStep * bStep)
+                               / ((2.0f - aStep) * (2.0f - aStep) * (2.0f - aStep));
+            const float g = (aStep > 1.0e-7f) ? RAND_PRE_STD / std::sqrt(varOut) : 0.0f;
+            for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                auto& st = randStreams[p * SERIAL_APF_STAGES + s];
+                st.coeff = aStep;
+                st.gain = g;
+            }
+        }
+#endif
 
         for (int n = 0; n < numSamples; ++n) {
             // ★ Wet-Only Graceful Mute State Machine (全8アルゴリズム対応・Panic連動)
@@ -1724,8 +1804,36 @@ namespace FDNReverb {
                 dualLFOs[i].phaseInc2 = smoothedModRate * dualLfoIncScale2[i];
             }
 
+#if AMBIENCE_MODSRC_PACKAGE
+            // [phase3/mod-source] ランダム源: 制御レート (16 サンプル毎) で tick し、
+            // 区間内は線形補間で毎サンプルの値を得る (深さゼロでも位相が進み続ける
+            // 正弦 LFO と同じ扱い)。値はペア単位で保持し、チャンネル i>=8 は
+            // ペア相手の反転を使う (逆位相ペアリング)。
+            if (randCtrlCounter == 0) {
+                for (int p = 0; p < RAND_PAIRS; ++p)
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                        randValFrom[p][s] = randValTo[p][s];
+                        randValTo[p][s] = randStreams[p * SERIAL_APF_STAGES + s].tickControl();
+                    }
+            }
+            {
+                const float frac = static_cast<float>(randCtrlCounter)
+                                 * (1.0f / static_cast<float>(RAND_CTRL_INTERVAL));
+                for (int p = 0; p < RAND_PAIRS; ++p)
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s)
+                        randPairVals[p][s] = randValFrom[p][s]
+                                           + frac * (randValTo[p][s] - randValFrom[p][s]);
+            }
+            if (++randCtrlCounter >= RAND_CTRL_INTERVAL) randCtrlCounter = 0;
+#endif
+
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
             const float depthSamples = modAmtCurved * 0.00055f * fsf * modDepthScale;
+#if AMBIENCE_MODSRC_PACKAGE
+            // [phase3/mod-source] 深さ倍率は APF 変調経路にのみ掛ける
+            // (SDN Brownian 側の modDepth は従来通り depthSamples から取る)。
+            const float apfDepthSamples = depthSamples * MODSRC_DMULT;
+#endif
 
             preDelayLineL.write(inL[n]);
             preDelayLineR.write(inR[n]);
@@ -1945,7 +2053,12 @@ namespace FDNReverb {
             float maxChPeak = 0.0f;
 
             for (int i = 0; i < FDN_ORDER; ++i) {
+#if AMBIENCE_MODSRC_PACKAGE
+                // [phase3/mod-source] 変調値はランダム源 (randPairVals) から取るため
+                // 正弦 LFO の tick は行わない (LFO 状態は他の経路から読まれない)。
+#else
                 const float chorusVal = dualLFOs[i].tick();
+#endif
                 
                 // ★ FDNベースディレイの 1-pole スムージング & Fractional リード
                 const float targetSmp = fdnBaseDelaySamples[i];
@@ -2027,6 +2140,39 @@ namespace FDNReverb {
                 for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                     const float baseDelay = cachedApfBaseDelaySmp[i][s];
                     float delayed;
+#if AMBIENCE_MODSRC_PACKAGE
+                    // [phase3/mod-source] 変調は第 1〜3 段すべてに適用し、変調値は
+                    // ランダム源 (ペアストリーム、i>=8 は反転 = 逆位相ペア) から取る。
+                    if (apfDepthSamples > 0.01f) {
+                        float safeMod;
+                        if (usePrecomputedSafeMod) [[likely]] {
+                            safeMod = cachedApfSafeModAll[i][s];
+                        } else {
+                            const float maxSafeMod = baseDelay * 0.15f;
+                            const float targetMod = apfDepthSamples * apfModFrac[s] * cachedFreqModScales[i];
+                            const float knee = maxSafeMod * 0.75f;
+                            safeMod = targetMod;
+                            if (targetMod > knee) {
+                                const float excess = targetMod - knee;
+                                const float room = maxSafeMod - knee;
+                                safeMod = knee + room * std::tanh(excess / room);
+                            }
+                        }
+                        const float modVal = randPairVals[i & (RAND_PAIRS - 1)][s]
+                                           * ((i >= RAND_PAIRS) ? -1.0f : 1.0f);
+                        // [phase3/goldfoil-1k] Goldfoil のみ、段2 APF の変調読み取りへ
+                        // -0.75 サンプル (48kHz 基準・時間一定形) の静的オフセットを加える。
+                        // 分数遅延読み取りの位相が作る干渉零点が設計点の 1000.0Hz に
+                        // 重なる問題 (対 dev Δ-12.7dB) への最小手当て。零点を 1001.8Hz へ
+                        // 退かし Δ-3.4dB に収める。根拠と全ゲート検証は GOLDFOIL_1K.md。
+                        const float gfApfTrim = (s == 2 && currentTopology == ReverbTopology::Goldfoil)
+                            ? -0.75f * (fsf / 48000.0f) : 0.0f;
+                        const float apfDelaySmp = baseDelay + modVal * safeMod + gfApfTrim;
+                        delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
+                    } else {
+                        delayed = nestedAllpassDelays[i][s].readInt(cachedApfBaseDelayInt[i][s]);
+                    }
+#else
                     
                     if (s == 2 && depthSamples > 0.01f) {
                         float safeMod;
@@ -2055,6 +2201,7 @@ namespace FDNReverb {
                     } else {
                         delayed = nestedAllpassDelays[i][s].readInt(cachedApfBaseDelayInt[i][s]);
                     }
+#endif
 
                     const float v = apfOut - curApfGainStage * delayed;
                     nestedAllpassDelays[i][s].write(v);
