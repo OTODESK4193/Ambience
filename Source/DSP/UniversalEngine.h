@@ -130,6 +130,53 @@ namespace FDNReverb {
 #endif
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  [phase3/matrix-mod] ユニタリ帰還行列変調 (Schlecht & Habets, JASA 2015)
+    //  帰還混合 U (= 符号反転 ∘ FWHT、正規化済みでユニタリ) の直後に、時間変動する
+    //  直交段 G(t) を直列に挿入する。U'(t) = G(t)・U は任意の t でユニタリであり、
+    //  吸収 Γ (チャンネル毎 GEQ) と遅延長には一切触れないため、ピッチ変調ゼロの
+    //  まま経路間の AM 分散だけが得られ、安定性はユニタリ性から保証される。
+    //  G(t) は Coppola (DAFx-26) の Kronecker 型バタフライ: SPLIT8 の耳別 8ch
+    //  分割ごとにストライド 1/2/4 の Givens 回転 3 段 (12 回転 × 2 分割 = 24)。
+    //  回転角は決定的平滑ランダム源 (APF 変調源と同型の独立ストリーム) で駆動し、
+    //  制御レート (16 サンプル) で (cos, sin) 端点を更新して線形補間する。
+    //  補間された (cos, sin) のノルム偏差は区間内の角度変化 Δθ に対し (Δθ)^2/8 級
+    //  で、本源の帯域 (≤0.3 Hz) では Δθ ≤ 2.5e-4 rad → 相対 1e-8 級と無視できる。
+    //  角度の絶対量: MAT_AMP_RAD = ピーク 0.20 rad (rms ≈ 0.082 rad) を基準量
+    //  とし、本番深さ MAT_DEPTH = 0.5 で実効ピーク 0.10 rad とする。根拠と
+    //  スイープ実測は MATRIX_MOD.md。本番構成では 7 アルゴ (Room1/Room2/
+    //  Hall1/Hall2/Plate/Goldfoil/Inchindown) に適用し、Spring は応答が
+    //  桁違いに大きいため除外する (Spring のレンダーは土台とビット一致)。
+    //  AMBIENCE_MATRIX_MOD=0 でビルドすると全体が消え、土台とビット一致する。
+    // ═══════════════════════════════════════════════════════════════════════════
+#ifndef AMBIENCE_MATRIX_MOD
+#define AMBIENCE_MATRIX_MOD 1
+#endif
+
+#if AMBIENCE_MATRIX_MOD
+    struct MatModStream {
+        uint32_t rngState{ 1 };
+        float lp1{ 0.0f };
+        float lp2{ 0.0f };
+        float coeff{ 0.0f }; // 制御ステップあたりの 1-pole 係数 (ブロック毎に再計算)
+        float gain{ 0.0f };  // 正規化ゲイン (同上)
+
+        // 制御ステップ 1 回分 (16 サンプル相当) 進め、軟飽和後の値を返す。
+        // APF 変調源 (RandModStream) と同一アルゴリズムの独立実装。
+        inline float tickControl() noexcept {
+            rngState ^= rngState << 13;
+            rngState ^= rngState >> 17;
+            rngState ^= rngState << 5;
+            const float u = static_cast<float>(static_cast<int32_t>(rngState))
+                          * (1.0f / 2147483648.0f); // [-1, +1)
+            lp1 += coeff * (u - lp1);
+            lp2 += coeff * (lp1 - lp2);
+            const float x = gain * lp2 * (1.0f / 1.15f);
+            return 1.15f * x / std::sqrt(1.0f + x * x);
+        }
+    };
+#endif
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  SimpleAllpass: 出力段ステレオ・オールパス・ディフューザー
     //  (振幅着色ゼロ・位相直交化によるステレオ相関低減・IACC 最適化)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -203,6 +250,10 @@ namespace FDNReverb {
         void restoreResetSnapshot();
 #if AMBIENCE_MODSRC_PACKAGE
         void resetRandMod(); // [phase3/mod-source] ランダム源の決定論的再シード
+#endif
+#if AMBIENCE_MATRIX_MOD
+        void resetMatMod(); // [phase3/matrix-mod] 行列変調源の決定論的再シード
+        inline void applyMatRot8(std::array<float, 8>& a, int streamBase) noexcept;
 #endif
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
@@ -306,6 +357,24 @@ namespace FDNReverb {
         std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randValTo{};    // 補間終点
         std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randPairVals{}; // 当サンプルの補間値
         int randCtrlCounter{ 0 };
+#endif
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調の状態。ストリームは
+        // (分割 2 × 段 3 × ペア 4) = 24 本。角度は (cos, sin) 端点を
+        // 制御レートで更新し線形補間する。初期値は恒等 (θ=0) で、
+        // ストリームの LP が温まるにつれて変調が滑らかに立ち上がる。
+        static constexpr int   MAT_STAGES = 3;          // ストライド 1/2/4
+        static constexpr int   MAT_STREAMS = 24;        // 2 分割 × 3 段 × 4 ペア
+        static constexpr int   MAT_CTRL_INTERVAL = 16;  // 制御レート間隔 (サンプル)
+        static constexpr float MAT_PRE_STD = 0.60f;     // squash 前 std 目標 (APF 源と同一校正)
+        static constexpr float MAT_AMP_RAD = 0.20f;     // 基準ピーク回転角 (rad)
+        static constexpr float MAT_DEPTH = 0.5f;        // 本番深さ (実効ピーク 0.10 rad)
+        std::array<MatModStream, MAT_STREAMS> matStreams{};
+        std::array<float, MAT_STREAMS> matRates{};      // ストリーム毎の固定レート (Hz)
+        std::array<float, MAT_STREAMS> matCosFrom{}, matCosTo{};
+        std::array<float, MAT_STREAMS> matSinFrom{}, matSinTo{};
+        std::array<float, MAT_STREAMS> matCos{}, matSin{}; // 当サンプルの補間値
+        int matCtrlCounter{ 0 };
 #endif
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples{};
         std::array<float, FDN_ORDER>               currentFdnDelaySamples{};
