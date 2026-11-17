@@ -38,7 +38,18 @@ namespace FDNReverb {
         }
     }
 
+#if AMBIENCE_MODSRC_PACKAGE
+    // [phase3/release-prep seed-fix] 生成順カウンタの実体。
+    std::atomic<uint32_t> UniversalEngine::s_instanceSeedCounter{ 0 };
+#endif
+
     UniversalEngine::UniversalEngine() {
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/release-prep seed-fix] 生成順に一意なシードオフセットを
+        // 採番する。プロセス内で最初に生成されたインスタンス (および
+        // ハーネスの単一エンジン経路) は 0 になり、従来とビット一致する。
+        modSeedOffset_ = s_instanceSeedCounter.fetch_add(1, std::memory_order_relaxed);
+#endif
         fbVec.fill(0.0f);
         DualGoldenLFO::initTable();
 
@@ -374,13 +385,34 @@ namespace FDNReverb {
     }
 
 #if AMBIENCE_MODSRC_PACKAGE
+    // splitmix32 のファイナライザ (ビット拡散)。
+    static inline uint32_t splitmix32(uint32_t z) noexcept {
+        z = (z ^ (z >> 16)) * 0x85EBCA6Bu;
+        z = (z ^ (z >> 13)) * 0xC2B2AE35u;
+        return z ^ (z >> 16);
+    }
+
+    // [phase3/release-prep seed-fix] インスタンス毎シードオフセットの混合。
+    // offset = 0 ではマスクが厳密に 0 になり base をそのまま返すため、従来
+    // (e9f574e6) とビット一致する。offset != 0 では (offset, k) 毎に拡散
+    // したマスクを XOR し、インスタンス間でイノベーション系列が一致
+    // しないようにする (加算方式のような系列のずれ違い衝突は生じない)。
+    // 結果は奇数に固定し、xorshift の零状態を避ける。
+    static inline uint32_t mixRandSeed(uint32_t base, uint32_t offset, uint32_t k) noexcept {
+        const uint32_t mask = splitmix32(offset * 0x9E3779B9u + k) ^ splitmix32(k);
+        return (base ^ mask) | 1u;
+    }
+
     // [phase3/mod-source] ランダム変調源の初期化: ストリーム毎に決定的シードを
     // 割り当て、LP 状態・補間端点・制御カウンタを初期状態に戻す。
     // コンストラクタと reset() の双方から呼ばれ、常に同一の初期状態になる。
+    // [phase3/release-prep seed-fix] シードにはインスタンス毎オフセット
+    // (modSeedOffset_) を混合する。オフセット 0 では従来と同一になる。
     void UniversalEngine::resetRandMod() {
         for (int k = 0; k < RAND_PAIRS * SERIAL_APF_STAGES; ++k) {
             auto& st = randStreams[k];
-            st.rngState = 0x9E3779B9u * static_cast<uint32_t>(k + 1) | 1u;
+            st.rngState = mixRandSeed(0x9E3779B9u * static_cast<uint32_t>(k + 1) | 1u,
+                                      modSeedOffset_, static_cast<uint32_t>(k));
             st.lp1 = 0.0f;
             st.lp2 = 0.0f;
         }

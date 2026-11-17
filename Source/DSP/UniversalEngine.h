@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <memory>
 #include <algorithm>
@@ -168,6 +169,16 @@ namespace FDNReverb {
 
         void panicReset() noexcept;
 
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/release-prep seed-fix] ランダム変調源のインスタンス毎
+        // シードオフセット。既定ではコンストラクタが生成順カウンタから
+        // 採番する。オフセット 0 ではシードは従来と完全一致する (ビット
+        // 一致)。測定ハーネス等の再現性が必要な経路では、生成後に本
+        // setter で 0 へ明示的に固定できる (次回 reset() から有効)。
+        void     setModSeedOffset(uint32_t offset) noexcept { modSeedOffset_ = offset; }
+        uint32_t getModSeedOffset() const noexcept { return modSeedOffset_; }
+#endif
+
         std::array<float, NUM_BANDS> getEffectiveRT60() const noexcept {
             return effectiveRT60;
         }
@@ -306,6 +317,10 @@ namespace FDNReverb {
         std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randValTo{};    // 補間終点
         std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randPairVals{}; // 当サンプルの補間値
         int randCtrlCounter{ 0 };
+        // [phase3/release-prep seed-fix] このインスタンスのシードオフセットと、
+        // プロセス内での生成順を採番する共有カウンタ (resetRandMod が参照)。
+        uint32_t modSeedOffset_{ 0 };
+        static std::atomic<uint32_t> s_instanceSeedCounter;
 #endif
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples{};
         std::array<float, FDN_ORDER>               currentFdnDelaySamples{};
