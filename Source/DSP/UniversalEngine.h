@@ -81,6 +81,55 @@ namespace FDNReverb {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  [phase3/mod-source 本番形] 平滑ランダム変調源 (Smoothed Random / Spin-Wander 型)
+    //  試作 (proto-tree) の軽量化版。設計の要点は試作と同一:
+    //  決定的 xorshift32 → 1 次 LP × 2 段で平滑化し、正弦 mix と RMS を揃えて
+    //  正規化、軟飽和で ±1.15 級に制限する (Wander 相当の歩幅制限)。
+    //  ストリームは「チャンネルペア (i, i+8) × APF 段」の 8×3 = 24 本。
+    //  ペア相手は同一ストリームの反転を使い、ピッチ偏移の一次成分を相殺する。
+    //  軽量化 (試作比):
+    //   - 軟飽和は libm tanh から代数シグモイド x/√(1+x²) へ置換
+    //     (奇対称・単調・原点傾き 1・|出力| < 1。sqrt/除算は IEEE 正確で、
+    //     プラットフォーム間の決定性も tanh より良い)。
+    //   - tick は制御レート (16 サンプル毎) に落とし、区間内は線形補間する。
+    //     源の帯域は ≤0.5 Hz 級であり、極を保存する係数換算
+    //     aStep = 1-(1-a)^16 と合わせ、軌跡の統計 (std/zcr/微分 std) は
+    //     毎サンプル版と同格になる (probe_opt.cpp で校正・実測)。
+    //   - 正規化は制御時間でも同形の解析式で squash 前 std を RAND_PRE_STD
+    //     (= 0.60、probe_opt 校正値) に揃える。squash 後 std は実測 ≈0.47 で、
+    //     毎サンプル tanh 版の実測 0.44〜0.49 の範囲内に収まる。
+    //  AMBIENCE_MODSRC_PACKAGE=0 でビルドするとパッケージ全体が無効化され、
+    //  エンジンは現行 (muse/dev 3f6627db) とビット一致する (検証済み)。
+    // ═══════════════════════════════════════════════════════════════════════════
+#ifndef AMBIENCE_MODSRC_PACKAGE
+#define AMBIENCE_MODSRC_PACKAGE 1
+#endif
+
+#if AMBIENCE_MODSRC_PACKAGE
+    struct RandModStream {
+        uint32_t rngState{ 1 };
+        float lp1{ 0.0f };
+        float lp2{ 0.0f };
+        float coeff{ 0.0f }; // 制御ステップあたりの 1-pole 係数 (ブロック毎に再計算)
+        float gain{ 0.0f };  // 正規化ゲイン (同上)
+
+        // 制御ステップ 1 回分 (16 サンプル相当) 進め、軟飽和後の値を返す。
+        inline float tickControl() noexcept {
+            rngState ^= rngState << 13;
+            rngState ^= rngState >> 17;
+            rngState ^= rngState << 5;
+            const float u = static_cast<float>(static_cast<int32_t>(rngState))
+                          * (1.0f / 2147483648.0f); // [-1, +1)
+            lp1 += coeff * (u - lp1);
+            lp2 += coeff * (lp1 - lp2);
+            const float x = gain * lp2 * (1.0f / 1.15f);
+            // Wander bound: 代数シグモイドで ±1.15 に軟飽和 (tanh の安価な近似)
+            return 1.15f * x / std::sqrt(1.0f + x * x);
+        }
+    };
+#endif
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  SimpleAllpass: 出力段ステレオ・オールパス・ディフューザー
     //  (振幅着色ゼロ・位相直交化によるステレオ相関低減・IACC 最適化)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -152,6 +201,9 @@ namespace FDNReverb {
         // [phase3/small-fixes] reset() 完全初期化: prepare() 終端状態の捕捉/復元
         void captureResetSnapshot();
         void restoreResetSnapshot();
+#if AMBIENCE_MODSRC_PACKAGE
+        void resetRandMod(); // [phase3/mod-source] ランダム源の決定論的再シード
+#endif
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
@@ -241,6 +293,20 @@ namespace FDNReverb {
         float absoCrossfadeInc{ 0.0f }; // 30ms クロスフェードの 1 サンプル増分
 
         std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs{};
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source 本番形] 平滑ランダム変調源の状態。
+        // 既定構成 = ランダム源 + APF 第 1〜3 段 + 深さ倍率 MODSRC_DMULT (試聴候補)。
+        static constexpr int   RAND_PAIRS = FDN_ORDER / 2;
+        static constexpr int   RAND_CTRL_INTERVAL = 16; // 制御レート間隔 (サンプル)
+        static constexpr float RAND_PRE_STD = 0.60f;    // squash 前 std 目標 (probe_opt 校正)
+        static constexpr float MODSRC_DMULT = 0.5f;     // 深さ倍率 (APF 経路のみ)
+        std::array<RandModStream, RAND_PAIRS * SERIAL_APF_STAGES> randStreams{};
+        std::array<float, RAND_PAIRS>              randPairRates{}; // ペアレート (両 ch の幾何平均)
+        std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randValFrom{};  // 補間始点
+        std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randValTo{};    // 補間終点
+        std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randPairVals{}; // 当サンプルの補間値
+        int randCtrlCounter{ 0 };
+#endif
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples{};
         std::array<float, FDN_ORDER>               currentFdnDelaySamples{};
         // ★ FDN 読み出し引数キャッシュ: FDN ベース遅延はパラメータ変更時のみ変化し
