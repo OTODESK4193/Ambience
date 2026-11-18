@@ -69,6 +69,14 @@ namespace FDNReverb {
             randPairRates[p] = std::sqrt(chorusRates[p] * chorusRates[p + RAND_PAIRS]);
         resetRandMod();
 #endif
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調源の固定レート表: 0.05–0.30 Hz を
+        // 黄金比の小数部で無理数的に分散させる (ModRate ノブとは独立。
+        // 行列変調は遅延変調ではなく経路再配分であり、速さの意味が異なる)。
+        for (int k = 0; k < MAT_STREAMS; ++k)
+            matRates[k] = 0.05f + 0.25f * std::fmod(static_cast<float>(k) * 0.6180339887f, 1.0f);
+        resetMatMod();
+#endif
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
     }
@@ -382,6 +390,11 @@ namespace FDNReverb {
         // (seq ≡ fresh の前提)。panicReset() は LFO と同様に触らない。
         resetRandMod();
 #endif
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調源も LFO/ランダム源と同様に
+        // 決定論的に復元する (panicReset() は触らない)。
+        resetMatMod();
+#endif
     }
 
 #if AMBIENCE_MODSRC_PACKAGE
@@ -420,6 +433,54 @@ namespace FDNReverb {
         for (auto& pair : randValTo)    pair.fill(0.0f);
         for (auto& pair : randPairVals) pair.fill(0.0f);
         randCtrlCounter = 0;
+    }
+#endif
+
+#if AMBIENCE_MATRIX_MOD
+    // [phase3/matrix-mod] 行列変調源の初期化: APF ランダム源とは別の
+    // 決定的シードを割り当て、LP 状態をゼロ、(cos, sin) 端点を恒等 (θ=0)
+    // に戻す。コンストラクタと reset() の双方から呼ばれ、常に同一の
+    // 初期状態になる (seq ≡ fresh の前提)。
+    // [phase3/release-prep seed-fix] 本採用 (2026-11-18) でシード
+    // オフセット (modSeedOffset_) の混合を追加した: resetRandMod と
+    // 同方式 (mixRandSeed) で、オフセット 0 ではマスクが厳密に 0 に
+    // なり試聴構成 (muse/exp-matrix-mod 6e3d76b5) とビット一致する。
+    // オフセットは AMBIENCE_MODSRC_PACKAGE 有効時にのみ存在するため、
+    // 混合はその場合に限る。
+    void UniversalEngine::resetMatMod() {
+        for (int k = 0; k < MAT_STREAMS; ++k) {
+            auto& st = matStreams[k];
+#if AMBIENCE_MODSRC_PACKAGE
+            st.rngState = mixRandSeed(0x85EBCA6Bu * static_cast<uint32_t>(k + 1) | 1u,
+                                      modSeedOffset_, static_cast<uint32_t>(k));
+#else
+            st.rngState = 0x85EBCA6Bu * static_cast<uint32_t>(k + 1) | 1u;
+#endif
+            st.lp1 = 0.0f;
+            st.lp2 = 0.0f;
+        }
+        matCosFrom.fill(1.0f); matCosTo.fill(1.0f); matCos.fill(1.0f);
+        matSinFrom.fill(0.0f); matSinTo.fill(0.0f); matSin.fill(0.0f);
+        matCtrlCounter = 0;
+    }
+
+    // [phase3/matrix-mod] 8ch 分割への Givens 回転バタフライ (ストライド
+    // 1/2/4 の 3 段、各 4 ペア = 12 回転)。streamBase は分割毎のストリーム
+    // 開始位置 (L 分割 = 0、R 分割 = 12)。各回転は厳密に直交し、3 段の合成も
+    // 直交行列になる (Kronecker 型構成)。
+    inline void UniversalEngine::applyMatRot8(std::array<float, 8>& a, int streamBase) noexcept {
+        int k = streamBase;
+        for (int s = 0; s < MAT_STAGES; ++s) {
+            const int h = 1 << s;
+            for (int base = 0; base < 8; base += 2 * h) {
+                for (int j = 0; j < h; ++j, ++k) {
+                    const float c = matCos[k], sn = matSin[k];
+                    const float x = a[base + j], y = a[base + j + h];
+                    a[base + j]     = c * x - sn * y;
+                    a[base + j + h] = sn * x + c * y;
+                }
+            }
+        }
     }
 #endif
 
@@ -1750,6 +1811,23 @@ namespace FDNReverb {
         }
 #endif
 
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調源の LP 係数・正規化ゲインをブロック
+        // 毎に更新する (レートは固定表 matRates、fs のみに依存)。換算式は
+        // APF ランダム源と同一: 制御ステップあたり aStep = 1-exp(-2π fc·16/fs)、
+        // 定常分散の解析式で squash 前 std を MAT_PRE_STD に揃える。
+        for (int k = 0; k < MAT_STREAMS; ++k) {
+            const float aStep = 1.0f - std::exp(-6.28318530718f * matRates[k]
+                                                * static_cast<float>(MAT_CTRL_INTERVAL) / fsf);
+            const float bStep = 1.0f - aStep;
+            const float varOut = (1.0f / 3.0f) * aStep * (1.0f + bStep * bStep)
+                               / ((2.0f - aStep) * (2.0f - aStep) * (2.0f - aStep));
+            auto& st = matStreams[k];
+            st.coeff = aStep;
+            st.gain = (aStep > 1.0e-7f) ? MAT_PRE_STD / std::sqrt(varOut) : 0.0f;
+        }
+#endif
+
         for (int n = 0; n < numSamples; ++n) {
             // ★ Wet-Only Graceful Mute State Machine (全8アルゴリズム対応・Panic連動)
             if (transitionState == TransitionState::FadingOut) {
@@ -1857,6 +1935,38 @@ namespace FDNReverb {
                                            + frac * (randValTo[p][s] - randValFrom[p][s]);
             }
             if (++randCtrlCounter >= RAND_CTRL_INTERVAL) randCtrlCounter = 0;
+#endif
+
+#if AMBIENCE_MATRIX_MOD
+            // [phase3/matrix-mod] 本番構成: 7 アルゴに適用し Spring は除外
+            // する (Spring では角度源も回転段も止め、レンダーは土台と
+            // ビット一致する)。制御レート (16 サンプル毎) で角度を進め、
+            // (cos, sin) 端点を更新し、区間内は線形補間する。角度は
+            // θ = MAT_AMP_RAD × MAT_DEPTH × (v / 1.15) で、ピーク |θ| が
+            // MAT_AMP_RAD × MAT_DEPTH (rad) になるよう正規化する。
+            const bool matModActive = (currentTopology != ReverbTopology::Spring);
+            if (matModActive) {
+                if (matCtrlCounter == 0) {
+                    for (int k = 0; k < MAT_STREAMS; ++k) {
+                        matCosFrom[k] = matCosTo[k];
+                        matSinFrom[k] = matSinTo[k];
+                        const float v = matStreams[k].tickControl();
+                        const float th = MAT_AMP_RAD * MAT_DEPTH
+                                       * v * (1.0f / 1.15f);
+                        matCosTo[k] = std::cos(th);
+                        matSinTo[k] = std::sin(th);
+                    }
+                }
+                {
+                    const float frac = static_cast<float>(matCtrlCounter)
+                                     * (1.0f / static_cast<float>(MAT_CTRL_INTERVAL));
+                    for (int k = 0; k < MAT_STREAMS; ++k) {
+                        matCos[k] = matCosFrom[k] + frac * (matCosTo[k] - matCosFrom[k]);
+                        matSin[k] = matSinFrom[k] + frac * (matSinTo[k] - matSinFrom[k]);
+                    }
+                }
+                if (++matCtrlCounter >= MAT_CTRL_INTERVAL) matCtrlCounter = 0;
+            }
 #endif
 
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
@@ -2073,10 +2183,32 @@ namespace FDNReverb {
                 for (int k = 0; k < 8; ++k) { blkA[k] = currentFb[2 * k]; blkB[k] = currentFb[2 * k + 1]; }
                 stereoFwht8(blkA); stereoFwht8(blkB);
                 stereoSignFlip8(blkA, false); stereoSignFlip8(blkB, true);
+#if AMBIENCE_MATRIX_MOD
+                // [phase3/matrix-mod] ユニタリ段 G(t) を混合の直後に直列挿入
+                // する。耳別分割の内側で回転させるため SPLIT8 の耳間分離は
+                // 保たれる。U'(t) = G(t)・D・H8 は任意の t でユニタリ。
+                // Spring は除外 (matModActive が偽の間は恒等のまま)。
+                if (matModActive) {
+                    applyMatRot8(blkA, 0);
+                    applyMatRot8(blkB, MAT_STREAMS / 2);
+                }
+#endif
                 for (int k = 0; k < 8; ++k) { currentFb[2 * k] = blkA[k]; currentFb[2 * k + 1] = blkB[k]; }
             } else {
                 fastWalshHadamardTransform(currentFb);
                 applySignFlipping(currentFb);
+#if AMBIENCE_MATRIX_MOD
+                // 非分割経路 (現行では splitStereo が常時 true のため到達しない)
+                // でも構造を揃える: 16ch を前後 8ch ずつに分け同じ回転段を適用
+                // する (合成は直交のまま)。Spring 除外は分割経路と同一条件。
+                if (matModActive) {
+                    std::array<float, 8> mh0, mh1;
+                    for (int k = 0; k < 8; ++k) { mh0[k] = currentFb[k]; mh1[k] = currentFb[k + 8]; }
+                    applyMatRot8(mh0, 0);
+                    applyMatRot8(mh1, MAT_STREAMS / 2);
+                    for (int k = 0; k < 8; ++k) { currentFb[k] = mh0[k]; currentFb[k + 8] = mh1[k]; }
+                }
+#endif
             }
 
             float evenSum = 0.0f, oddSum = 0.0f;
