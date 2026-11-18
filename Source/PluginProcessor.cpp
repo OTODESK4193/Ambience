@@ -100,6 +100,11 @@ void FDNReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 
     engine.prepare(sampleRate, maxBlock);
 
+    // サチュレータ段 (ADAA1 + 2x OS) のレイテンシをホストへ申告する。
+    // 実測 47.5 サンプルの切り上げ。amount=0 のバイパス時は無遅延だが、
+    // 申告は最悪値で一定とする (パラメータで変動させない)。
+    setLatencySamples(SaturatorADAAOS2::kLatencySamples);
+
     // 最大ブロックサイズで事前確保（オーディオスレッドでの再確保を根絶）
     wetBuffer.setSize(2, maxBlock);
     stereoBlockBuffer.setSize(2, maxBlock);
@@ -352,8 +357,15 @@ void FDNReverbAudioProcessor::processBlock(
             }
             --panicFadeSamplesRemaining;
             if (panicFadeSamplesRemaining == 0) {
-                // フェードアウト完了：完全無音の状態でエンジンリセット
-                engine.reset();
+                // フェードアウト完了：完全無音の状態で音声状態のみを消去する。
+                // [panic-fix] engine.reset() は prepare 終端スナップショットへ
+                // 動作点ごと巻き戻すため、パラメータ再送が無い限り後部入力段の
+                // ゲイン (diffuser/APF、目標値 0) が閉じたままになり、Panic 後
+                // の余韻が消えたまま戻らなかった (0a87da49 で混入)。Panic の
+                // 役割はテイルの消去のみなので panicReset() (音声状態の消去
+                // のみ、動作点は保持) を使う。reset() 本体と seq≡fresh の
+                // ためのスナップショット復元は従来通り変更しない。
+                engine.panicReset();
                 inputRMS_L.store(0.0f);
                 inputRMS_R.store(0.0f);
                 outputRMS_L.store(0.0f);

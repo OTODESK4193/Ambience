@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <memory>
 #include <algorithm>
@@ -13,7 +14,7 @@
 #include "BiquadFilters.h"
 #include "MagnitudeResponseFitter.h"
 #include "AcousticMetrics.h"
-#include "Saturator.h"
+#include "SaturatorADAAOS2.h"
 #include "OutputLimiter.h"
 #include "OutputEQ.h"
 #include "SDNEngine.h"
@@ -26,6 +27,23 @@
 #define AMBIENCE_USE_STAGE2_ABSORPTION 1
 
 namespace FDNReverb {
+
+    // [phase3/cpu-opt A-1 トライアル] 吸収 GEQ (Stage2) の SoA レイアウト。
+    // 状態は [段][ch] の double 列 (s1/s2 別配列)、係数は [段][係数][ch] の
+    // double 列 (係数 index: 0=b0, 1=b1, 2=b2, 3=a1, 4=a2)。係数は設計時の
+    // float 値を double 化して保持する (従来 tick 内の float->double キャスト
+    // と同値)。チャンネル毎の演算順序・丸めは BiquadState::tick と同一に保ち、
+    // チャンネル方向 AVX2 (double x4) で同一段を同時処理するための転置。
+    static constexpr int ABSO_SOA_CHANNELS = 16; // UniversalEngine::FDN_ORDER と一致
+    static constexpr int ABSO_SOA_PARAMS = 5;    // b0, b1, b2, a1, a2
+    using AbsStateSoA = std::array<std::array<double, ABSO_SOA_CHANNELS>, ABSO_STAGES_S2>;
+    using AbsCoeffSoA = std::array<std::array<std::array<double, ABSO_SOA_CHANNELS>, ABSO_SOA_PARAMS>, ABSO_STAGES_S2>;
+    // 従来の BiquadCoeffs 既定値 (b0=1, 他 0 = 恒等) と同じ初期値を作る。
+    inline AbsCoeffSoA makeIdentityAbsCoeffSoA() {
+        AbsCoeffSoA a{};
+        for (auto& stage : a) stage[0].fill(1.0);
+        return a;
+    }
 
     enum class ReverbTopology {
         Room,
@@ -81,6 +99,102 @@ namespace FDNReverb {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    //  [phase3/mod-source 本番形] 平滑ランダム変調源 (Smoothed Random / Spin-Wander 型)
+    //  試作 (proto-tree) の軽量化版。設計の要点は試作と同一:
+    //  決定的 xorshift32 → 1 次 LP × 2 段で平滑化し、正弦 mix と RMS を揃えて
+    //  正規化、軟飽和で ±1.15 級に制限する (Wander 相当の歩幅制限)。
+    //  ストリームは「チャンネルペア (i, i+8) × APF 段」の 8×3 = 24 本。
+    //  ペア相手は同一ストリームの反転を使い、ピッチ偏移の一次成分を相殺する。
+    //  軽量化 (試作比):
+    //   - 軟飽和は libm tanh から代数シグモイド x/√(1+x²) へ置換
+    //     (奇対称・単調・原点傾き 1・|出力| < 1。sqrt/除算は IEEE 正確で、
+    //     プラットフォーム間の決定性も tanh より良い)。
+    //   - tick は制御レート (16 サンプル毎) に落とし、区間内は線形補間する。
+    //     源の帯域は ≤0.5 Hz 級であり、極を保存する係数換算
+    //     aStep = 1-(1-a)^16 と合わせ、軌跡の統計 (std/zcr/微分 std) は
+    //     毎サンプル版と同格になる (probe_opt.cpp で校正・実測)。
+    //   - 正規化は制御時間でも同形の解析式で squash 前 std を RAND_PRE_STD
+    //     (= 0.60、probe_opt 校正値) に揃える。squash 後 std は実測 ≈0.47 で、
+    //     毎サンプル tanh 版の実測 0.44〜0.49 の範囲内に収まる。
+    //  AMBIENCE_MODSRC_PACKAGE=0 でビルドするとパッケージ全体が無効化され、
+    //  エンジンは現行 (muse/dev 3f6627db) とビット一致する (検証済み)。
+    // ═══════════════════════════════════════════════════════════════════════════
+#ifndef AMBIENCE_MODSRC_PACKAGE
+#define AMBIENCE_MODSRC_PACKAGE 1
+#endif
+
+#if AMBIENCE_MODSRC_PACKAGE
+    struct RandModStream {
+        uint32_t rngState{ 1 };
+        float lp1{ 0.0f };
+        float lp2{ 0.0f };
+        float coeff{ 0.0f }; // 制御ステップあたりの 1-pole 係数 (ブロック毎に再計算)
+        float gain{ 0.0f };  // 正規化ゲイン (同上)
+
+        // 制御ステップ 1 回分 (16 サンプル相当) 進め、軟飽和後の値を返す。
+        inline float tickControl() noexcept {
+            rngState ^= rngState << 13;
+            rngState ^= rngState >> 17;
+            rngState ^= rngState << 5;
+            const float u = static_cast<float>(static_cast<int32_t>(rngState))
+                          * (1.0f / 2147483648.0f); // [-1, +1)
+            lp1 += coeff * (u - lp1);
+            lp2 += coeff * (lp1 - lp2);
+            const float x = gain * lp2 * (1.0f / 1.15f);
+            // Wander bound: 代数シグモイドで ±1.15 に軟飽和 (tanh の安価な近似)
+            return 1.15f * x / std::sqrt(1.0f + x * x);
+        }
+    };
+#endif
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  [phase3/matrix-mod] ユニタリ帰還行列変調 (Schlecht & Habets, JASA 2015)
+    //  帰還混合 U (= 符号反転 ∘ FWHT、正規化済みでユニタリ) の直後に、時間変動する
+    //  直交段 G(t) を直列に挿入する。U'(t) = G(t)・U は任意の t でユニタリであり、
+    //  吸収 Γ (チャンネル毎 GEQ) と遅延長には一切触れないため、ピッチ変調ゼロの
+    //  まま経路間の AM 分散だけが得られ、安定性はユニタリ性から保証される。
+    //  G(t) は Coppola (DAFx-26) の Kronecker 型バタフライ: SPLIT8 の耳別 8ch
+    //  分割ごとにストライド 1/2/4 の Givens 回転 3 段 (12 回転 × 2 分割 = 24)。
+    //  回転角は決定的平滑ランダム源 (APF 変調源と同型の独立ストリーム) で駆動し、
+    //  制御レート (16 サンプル) で (cos, sin) 端点を更新して線形補間する。
+    //  補間された (cos, sin) のノルム偏差は区間内の角度変化 Δθ に対し (Δθ)^2/8 級
+    //  で、本源の帯域 (≤0.3 Hz) では Δθ ≤ 2.5e-4 rad → 相対 1e-8 級と無視できる。
+    //  角度の絶対量: MAT_AMP_RAD = ピーク 0.20 rad (rms ≈ 0.082 rad) を基準量
+    //  とし、本番深さ MAT_DEPTH = 0.5 で実効ピーク 0.10 rad とする。根拠と
+    //  スイープ実測は MATRIX_MOD.md。本番構成では 7 アルゴ (Room1/Room2/
+    //  Hall1/Hall2/Plate/Goldfoil/Inchindown) に適用し、Spring は応答が
+    //  桁違いに大きいため除外する (Spring のレンダーは土台とビット一致)。
+    //  AMBIENCE_MATRIX_MOD=0 でビルドすると全体が消え、土台とビット一致する。
+    // ═══════════════════════════════════════════════════════════════════════════
+#ifndef AMBIENCE_MATRIX_MOD
+#define AMBIENCE_MATRIX_MOD 1
+#endif
+
+#if AMBIENCE_MATRIX_MOD
+    struct MatModStream {
+        uint32_t rngState{ 1 };
+        float lp1{ 0.0f };
+        float lp2{ 0.0f };
+        float coeff{ 0.0f }; // 制御ステップあたりの 1-pole 係数 (ブロック毎に再計算)
+        float gain{ 0.0f };  // 正規化ゲイン (同上)
+
+        // 制御ステップ 1 回分 (16 サンプル相当) 進め、軟飽和後の値を返す。
+        // APF 変調源 (RandModStream) と同一アルゴリズムの独立実装。
+        inline float tickControl() noexcept {
+            rngState ^= rngState << 13;
+            rngState ^= rngState >> 17;
+            rngState ^= rngState << 5;
+            const float u = static_cast<float>(static_cast<int32_t>(rngState))
+                          * (1.0f / 2147483648.0f); // [-1, +1)
+            lp1 += coeff * (u - lp1);
+            lp2 += coeff * (lp1 - lp2);
+            const float x = gain * lp2 * (1.0f / 1.15f);
+            return 1.15f * x / std::sqrt(1.0f + x * x);
+        }
+    };
+#endif
+
+    // ═══════════════════════════════════════════════════════════════════════════
     //  SimpleAllpass: 出力段ステレオ・オールパス・ディフューザー
     //  (振幅着色ゼロ・位相直交化によるステレオ相関低減・IACC 最適化)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -119,6 +233,16 @@ namespace FDNReverb {
 
         void panicReset() noexcept;
 
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/release-prep seed-fix] ランダム変調源のインスタンス毎
+        // シードオフセット。既定ではコンストラクタが生成順カウンタから
+        // 採番する。オフセット 0 ではシードは従来と完全一致する (ビット
+        // 一致)。測定ハーネス等の再現性が必要な経路では、生成後に本
+        // setter で 0 へ明示的に固定できる (次回 reset() から有効)。
+        void     setModSeedOffset(uint32_t offset) noexcept { modSeedOffset_ = offset; }
+        uint32_t getModSeedOffset() const noexcept { return modSeedOffset_; }
+#endif
+
         std::array<float, NUM_BANDS> getEffectiveRT60() const noexcept {
             return effectiveRT60;
         }
@@ -147,6 +271,22 @@ namespace FDNReverb {
         void updateTopologyAndRouting();
         void calculatePrimePowerDelays();
         void updateAbsorptionFilters(bool targetIsB);
+        // [phase3/cpu-opt A-1] SoA 係数への書き込み (float->double は従来 tick のキャストと同値)
+        void storeAbsCoeffS2(bool targetIsB, int stage, int ch, const BiquadCoeffs& c) noexcept;
+        // [phase3/cpu-opt A-1] 1 バンク分の吸収カスケードを 16ch 一括処理する (io は 16ch 入出力)
+        void tickAbsorptionBankSoA(const AbsCoeffSoA& coeffs, AbsStateSoA& stS1, AbsStateSoA& stS2, float* io) noexcept;
+        void applySdnDerivedParams();
+        void updateSdnGeometry();
+        // [phase3/small-fixes] reset() 完全初期化: prepare() 終端状態の捕捉/復元
+        void captureResetSnapshot();
+        void restoreResetSnapshot();
+#if AMBIENCE_MODSRC_PACKAGE
+        void resetRandMod(); // [phase3/mod-source] ランダム源の決定論的再シード
+#endif
+#if AMBIENCE_MATRIX_MOD
+        void resetMatMod(); // [phase3/matrix-mod] 行列変調源の決定論的再シード
+        inline void applyMatRot8(std::array<float, 8>& a, int streamBase) noexcept;
+#endif
         inline void fastWalshHadamardTransform(std::array<float, 16>& v) noexcept;
         inline void applySignFlipping(std::array<float, 16>& v) noexcept;
 
@@ -162,6 +302,7 @@ namespace FDNReverb {
 
         bool topologyUpdatePending{ false };
         bool absorptionUpdatePending{ false };
+        bool sdnParamsUpdatePending{ false };
         int  samplesSinceLastAbsorptionUpdate{ 0 };
         int  absorptionRateLimitIntervalSamples{ 720 };
 
@@ -186,11 +327,28 @@ namespace FDNReverb {
         // Legacy ER taps replaced by SDN Core
         SDNShoebox3D                                 sdnEngine;
         SDNTopology2DMesh                            plateMesh;
+        // phase3/goldfoil-stereo: per-ear feed meshes (Goldfoil only).
+        // gfMeshL is driven by the L input alone, gfMeshR by R alone;
+        // their pickup vectors source the structural FDN feed for the
+        // matching ear's channels so the feed stops being a shared
+        // cross-path under SPLIT8. The shared plateMesh still produces
+        // the ER output exactly as before.
+        SDNTopology2DMesh                            gfMeshL;
+        SDNTopology2DMesh                            gfMeshR;
         SDNTopologySpring1D                          springChain;
         SDNTopologyInchindown                        inchindownEngine;
+        // [tank-stereo] Per-ear tank: a second, independent Inchindown
+        // tank instance for the R ear. The L tank (inchindownEngine) is
+        // driven by the L input alone and the R tank by the R input alone
+        // (same pattern as gfMeshL/gfMeshR), so the tank's late energy
+        // stops being a shared monaural cross-path under SPLIT8. Identical
+        // parameters on both instances: a centred source drives both tanks
+        // exactly as the legacy single tank, so centred renders stay
+        // bit-identical to the legacy design.
+        SDNTopologyInchindown                        inchindownEngineR;
 
-        std::array<LinearDelayLine, 4>               inputDiffusersM;
-        std::array<LinearDelayLine, 4>               inputDiffusersS;
+        std::array<LinearDelayLine, INPUT_DIFFUSER_STAGES> inputDiffusersM;
+        std::array<LinearDelayLine, INPUT_DIFFUSER_STAGES> inputDiffusersS;
         std::array<LinearDelayLine, FDN_ORDER>        fdnDelays;
         std::array<std::array<LinearDelayLine, SERIAL_APF_STAGES>, FDN_ORDER> nestedAllpassDelays;
 
@@ -201,10 +359,12 @@ namespace FDNReverb {
         OutputLimiter outputLimiter;
         OutputEQ      outputEQ;
 
-        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_A{};
-        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_B{};
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_A{};
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_B{};
+        static_assert(FDN_ORDER == ABSO_SOA_CHANNELS, "SoA layout assumes 16 FDN channels");
+        // [phase3/cpu-opt A-1] 吸収 GEQ の状態・係数は SoA レイアウトで保持する。
+        alignas(32) AbsStateSoA absorptionStateS1_A{}, absorptionStateS2_A{};
+        alignas(32) AbsStateSoA absorptionStateS1_B{}, absorptionStateS2_B{};
+        alignas(32) AbsCoeffSoA absorptionCoeffsSoA_A = makeIdentityAbsCoeffSoA();
+        alignas(32) AbsCoeffSoA absorptionCoeffsSoA_B = makeIdentityAbsCoeffSoA();
         
         // ★ 常時デュアル駆動・ビジー保護クロスフェード・ステートマシン
         enum class AbsoFadeState {
@@ -218,14 +378,89 @@ namespace FDNReverb {
         float absoCrossfadeInc{ 0.0f }; // 30ms クロスフェードの 1 サンプル増分
 
         std::array<DualGoldenLFO, FDN_ORDER>       dualLFOs{};
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source 本番形] 平滑ランダム変調源の状態。
+        // 既定構成 = ランダム源 + APF 第 1〜3 段 + 深さ倍率 MODSRC_DMULT (試聴候補)。
+        static constexpr int   RAND_PAIRS = FDN_ORDER / 2;
+        static constexpr int   RAND_CTRL_INTERVAL = 16; // 制御レート間隔 (サンプル)
+        static constexpr float RAND_PRE_STD = 0.60f;    // squash 前 std 目標 (probe_opt 校正)
+        static constexpr float MODSRC_DMULT = 0.5f;     // 深さ倍率 (APF 経路のみ)
+        std::array<RandModStream, RAND_PAIRS * SERIAL_APF_STAGES> randStreams{};
+        std::array<float, RAND_PAIRS>              randPairRates{}; // ペアレート (両 ch の幾何平均)
+        std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randValFrom{};  // 補間始点
+        std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randValTo{};    // 補間終点
+        std::array<std::array<float, SERIAL_APF_STAGES>, RAND_PAIRS> randPairVals{}; // 当サンプルの補間値
+        int randCtrlCounter{ 0 };
+        // [phase3/release-prep seed-fix] このインスタンスのシードオフセットと、
+        // プロセス内での生成順を採番する共有カウンタ (resetRandMod が参照)。
+        uint32_t modSeedOffset_{ 0 };
+        static std::atomic<uint32_t> s_instanceSeedCounter;
+#endif
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調の状態。ストリームは
+        // (分割 2 × 段 3 × ペア 4) = 24 本。角度は (cos, sin) 端点を
+        // 制御レートで更新し線形補間する。初期値は恒等 (θ=0) で、
+        // ストリームの LP が温まるにつれて変調が滑らかに立ち上がる。
+        static constexpr int   MAT_STAGES = 3;          // ストライド 1/2/4
+        static constexpr int   MAT_STREAMS = 24;        // 2 分割 × 3 段 × 4 ペア
+        static constexpr int   MAT_CTRL_INTERVAL = 16;  // 制御レート間隔 (サンプル)
+        static constexpr float MAT_PRE_STD = 0.60f;     // squash 前 std 目標 (APF 源と同一校正)
+        static constexpr float MAT_AMP_RAD = 0.20f;     // 基準ピーク回転角 (rad)
+        static constexpr float MAT_DEPTH = 0.5f;        // 本番深さ (実効ピーク 0.10 rad)
+        std::array<MatModStream, MAT_STREAMS> matStreams{};
+        std::array<float, MAT_STREAMS> matRates{};      // ストリーム毎の固定レート (Hz)
+        std::array<float, MAT_STREAMS> matCosFrom{}, matCosTo{};
+        std::array<float, MAT_STREAMS> matSinFrom{}, matSinTo{};
+        std::array<float, MAT_STREAMS> matCos{}, matSin{}; // 当サンプルの補間値
+        int matCtrlCounter{ 0 };
+#endif
         std::array<float, FDN_ORDER>               fdnBaseDelaySamples{};
         std::array<float, FDN_ORDER>               currentFdnDelaySamples{};
+        // ★ FDN 読み出し引数キャッシュ: FDN ベース遅延はパラメータ変更時のみ変化し
+        //   定常時は currentFdnDelaySamples == fdnBaseDelaySamples が厳密に成立する。
+        //   目標値に対する readInt / Hermite の引数を事前計算して使い回し、毎サンプルの
+        //   round/clamp/変換を省く。引数の値は従来経路の計算と完全同一（ビット完全）。
+        //   fdnReadCacheTarget が目標値と一致しないチャンネルはキャッシュ無効。
+        std::array<float, FDN_ORDER>               fdnReadCacheTarget{};
+        std::array<int,   FDN_ORDER>               fdnReadCacheId{};    // int時: readInt 引数 / frac時: 整数部 id
+        std::array<float, FDN_ORDER>               fdnReadCacheFrac{};  // frac時: 小数部 frac
+        std::array<char,  FDN_ORDER>               fdnReadCacheIsInt{}; // 1 = readInt 経路
         float                                      delaySmoothCoeff{ 0.0f };
         std::array<float, FDN_ORDER>               fbVec{};
+
+        // Goldfoil structural feed (phase3/goldfoil/STRUCTURAL.md): state of
+        // the 1-pole lowpass (fc = 1 kHz, coefficient set in prepare()) that
+        // conditions the per-channel mesh pickup vector before it is wired
+        // into the FDN delay-line inputs. Goldfoil only; all other
+        // topologies never touch this state.
+        std::array<float, FDN_ORDER>               gfMeshFeedLpState{};
+        float                                      gfMeshFeedLpCoeff{ 0.0f };
+        // Second feed-shaping stage (phase3/goldfoil/FEED8K.md): 6th-order
+        // Butterworth lowpass at 2.2 kHz (3 RBJ biquad sections, coefficients
+        // set in prepare()) cascaded after the 1 kHz 1-pole above. The mesh
+        // pickup is spectrally bright; without this stage its 3-6 kHz energy
+        // inflates the tail's upper-mid band (and, through analysis-filter
+        // skirt leakage, the measured 8 kHz decay). The stage passes the
+        // <= 3 kHz zero-filling band essentially intact.
+        std::array<std::array<float, 5>, 3>        gfMeshFeedBqCoeffs{}; // per section: b0,b1,b2,a1,a2
+        std::array<std::array<float, FDN_ORDER>, 3> gfMeshFeedBqX1{}, gfMeshFeedBqX2{};
+        std::array<std::array<float, FDN_ORDER>, 3> gfMeshFeedBqY1{}, gfMeshFeedBqY2{};
+        // Third feed-shaping stage (phase3/ringing): two RBJ peaking cuts
+        // (1750 Hz / -8 dB and 2600 Hz / -10 dB, Q = 2.5, coefficients set in
+        // prepare()) cascaded after the Butterworth stage. The mesh pickup
+        // carries a dense modal cluster at 1.7-2.9 kHz that the feed injects
+        // into the FDN at +7..+12 dB over the main-path excitation, where it
+        // rings as an audible metallic tone in the tail. The cuts trim only
+        // the feed's share of that cluster's excitation; loop poles, the
+        // <= 1.5 kHz zero-filling band and the HF shaping are untouched.
+        std::array<std::array<float, 5>, 2>        gfMeshFeedPkCoeffs{}; // per section: b0,b1,b2,a1,a2
+        std::array<std::array<float, FDN_ORDER>, 2> gfMeshFeedPkX1{}, gfMeshFeedPkX2{};
+        std::array<std::array<float, FDN_ORDER>, 2> gfMeshFeedPkY1{}, gfMeshFeedPkY2{};
 
         float apfGain{ 0.618f };
         bool  bypassER{ false };
         bool  bypassInputDiffusers{ false };
+        bool  inputDiffusersValid{ true }; // false if any diffuser delay line got nullptr at prepare
         float lateMixScale{ 1.0f };
         float lateMakeupGainLinear{ 1.0f };
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> lateMakeupGainSmoothed;
@@ -246,6 +481,10 @@ namespace FDNReverb {
 
         // ★ Graceful Bypass: ER スムーズゲイン
         float erSmoothedGain{ 1.0f };
+        // [ER law unification] per-path trims anchored at the preset default
+        // erLevel so both ER paths follow the same erLevel^2 law (see ER_PRO.md)
+        float erCoreTrim{ 1.0f };
+        float erIsmTrim{ 1.0f };
         float erSmoothCoeff{ 0.0f };
 
         float diffusionSensitivity{ 1.0f };
@@ -260,8 +499,8 @@ namespace FDNReverb {
 
         // ★ ループ不変量事前計算キャッシュ (Hot Loop CPU 最適化)
         std::array<float, FDN_ORDER> cachedFreqModScales{};
-        std::array<float, 4> cachedDiffuserDelaySmpM{};
-        std::array<float, 4> cachedDiffuserDelaySmpS{};
+        std::array<float, INPUT_DIFFUSER_STAGES> cachedDiffuserDelaySmpM{};
+        std::array<float, INPUT_DIFFUSER_STAGES> cachedDiffuserDelaySmpS{};
         std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelaySmp{};
         std::array<std::array<int, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfBaseDelayInt{};
         std::array<float, FDN_ORDER> dualLfoIncScale1{};
@@ -275,10 +514,11 @@ namespace FDNReverb {
         std::array<float, NUM_BANDS> targetRT60{};
         float theoreticalEDT{ 0.0f };
         float currentRT60Mid{ 1.5f };
+        float currentDesignRT60_1k{ 1.5f }; // effectiveRT60[5], captured in updateAbsorptionFilters
 
         AcousticMetrics acousticMetrics;
-        Saturator saturatorL;
-        Saturator saturatorR;
+        SaturatorADAAOS2 saturatorL;
+        SaturatorADAAOS2 saturatorR;
         DynamicEQDucker dynamicDucker;
         EarlyReflectionsISM ismEngine;
         std::vector<float> ismBufferL;
@@ -294,6 +534,64 @@ namespace FDNReverb {
         SimpleAllpass<53>  outApR1;
         SimpleAllpass<89>  outApR2;
         SimpleAllpass<127> outApR3;
+
+        // ── [phase3/small-fixes] reset() 完全初期化スナップショット ──
+        // prepare() 終端 (updateTopologyAndRouting + reset 完了直後) の状態を
+        // 捕捉し、reset() で復元する。対象は「reset()/panicReset() が戻さず、
+        // かつ次の setParams/遷移で決定論的に再導出される前に音へ影響する」
+        // 状態の全て: パラメータ変更検出の基準 (activeParams)、平滑値の
+        // 現在値/目標値、吸収係数バンク、FDN 基準遅延 (currentFdnDelaySamples
+        // のスナップ先)、SDN 基準遅延、ISM のパラメータオブジェクトと
+        // 変更検出キャッシュ、サチュレータの amount/モード。
+        bool           resetSnapshotValid{ false };
+        DSPParams      snapActiveParams{};
+        DSPParams      snapPendingParams{};
+        ReverbTopology snapCurrentTopology{ ReverbTopology::Room };
+        ReverbTopology snapPendingTopology{ ReverbTopology::Room };
+        AbsCoeffSoA snapCoeffsA = makeIdentityAbsCoeffSoA();
+        AbsCoeffSoA snapCoeffsB = makeIdentityAbsCoeffSoA();
+        std::array<float, NUM_BANDS> snapEffectiveRT60{};
+        std::array<float, NUM_BANDS> snapTargetRT60{};
+        float          snapTheoreticalEDT{ 0.0f };
+        float          snapCurrentRT60Mid{ 1.5f };
+        float          snapCurrentDesignRT60_1k{ 1.5f };
+        float          snapModDepthScale{ 1.0f };
+        float          snapLateMakeupGainLinear{ 1.0f };
+        float          snapApfGain{ 0.618f };
+        float          snapDiffusionSensitivity{ 1.0f };
+        bool           snapBypassER{ false };
+        bool           snapBypassInputDiffusers{ false };
+        float          snapPreDelaySamples{ 0.0f };
+        std::array<float, FDN_ORDER> snapFdnBaseDelaySamples{};
+        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> snapCachedApfBaseDelaySmp{};
+        std::array<std::array<int, SERIAL_APF_STAGES>, FDN_ORDER> snapCachedApfBaseDelayInt{};
+        int            snapCurrentERTapCount{ 0 };
+        std::array<float, MAX_ER_TAPS> snapCurrentERDelaySamples{};
+        std::array<float, MAX_ER_TAPS> snapCurrentERGains{};
+        float          snapSmPreDelayCur{ 0.0f }, snapSmPreDelayTgt{ 0.0f };
+        float          snapSmRoomSizeCur{ 1.0f }, snapSmRoomSizeTgt{ 1.0f };
+        float          snapSmDiffuserCur{ 0.0f }, snapSmDiffuserTgt{ 0.0f };
+        float          snapSmApfCur{ 0.0f },      snapSmApfTgt{ 0.0f };
+        float          snapSmWidthCur{ 1.0f },    snapSmWidthTgt{ 1.0f };
+        float          snapSmMakeupCur{ 0.0f },   snapSmMakeupTgt{ 1.0f };
+
+        // ── [phase3/small-fixes 試作] makeup 増加の保留・解放 ──
+        // Decay 下方向ドラッグでは rt60Mid の低下で makeup が最大 +6 dB
+        // 上昇する。長いテイルがループ内に残っている間に makeup だけが
+        // 先に上がると帯域包絡が静的端点を超える (DECAY_KNOB 残存項)。
+        // テイルが鳴っている状態でのフェード経由の再設計では増加分を
+        // 保留し、再設計が止んで hold 時間が経ってから解放する。
+        bool  makeupHoldActive{ false };
+        float makeupHeldTarget{ 1.0f };
+        int   makeupHoldSamplesLeft{ 0 };
+        int   makeupHoldSamplesTotal{ 14400 }; // prepare で fs × 0.300 に設定
+        bool  absorptionDesignFromFade{ false }; // processBlock の保留対象経路か
+        bool  tailWasActive{ false }; // reset 以降に有意な入力を処理したか
+        std::array<float, 8> snapSdnBaseDelaySamples{};
+        std::array<uint32_t, 6> snapSdnRngStates{};
+        EarlyReflectionsISM::StateSnapshot snapIsmState{};
+        SaturatorADAAOS2::ResetState snapSatL{};
+        SaturatorADAAOS2::ResetState snapSatR{};
     };
 
 } // namespace FDNReverb

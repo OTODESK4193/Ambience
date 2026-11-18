@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <atomic>
 #include <array>
+#include <vector>
 #include <memory>
 #include <cmath>
 #include <algorithm>
@@ -48,9 +49,29 @@ public:
     void prepare(double sampleRate, int maxBlockSize);
     void reset();
 
+    // [phase3/small-fixes] reset() 完全初期化用スナップショット。
+    // reset() は currentParams / pendingParams と updateParameters の
+    // 変更検出キャッシュ (last*) を戻さないため、呼び出し側が prepare
+    // 終端の状態を捕捉し reset() の後に復元できるようにする。
+    struct StateSnapshot {
+        std::shared_ptr<ISMParameters> current;
+        std::shared_ptr<ISMParameters> pending;
+        int lastAlgorithmIndex{ -1 };
+        float lastRoomSizeScale{ -1.0f };
+        float lastPreDelayMs{ -1.0f };
+        float lastHfDamping{ -1.0f };
+        float lastLfAbsorption{ -1.0f };
+        bool valid{ false };
+    };
+    StateSnapshot captureState();
+    void restoreState(const StateSnapshot& s);
+
     // 幾何座標・タップ更新 (非オーディオスレッド / パラメータ変更時)
+    // rt60Scaled1k / rt60Base1k: 1kHz 帯の実効 RT60 (decayScale 適用後 / プリセット素値)。
+    // タップゲインへ decayScale 連動の相対包絡を適用するために渡す (ism-link)。
     void updateParameters(int algorithmIndex, float roomSizeScale, float preDelayMs,
-                          float hfDamping, float lfAbsorption);
+                          float hfDamping, float lfAbsorption,
+                          float rt60Scaled1k, float rt60Base1k);
 
     // リアルタイムオーディオ処理 (AVX2 SIMD)
     void processBlock(const float* inL, const float* inR,
@@ -61,7 +82,8 @@ public:
 
 private:
     void computeGeometry(int algorithmIndex, float roomSizeScale, float preDelayMs,
-                         float hfDamping, float lfAbsorption, ISMParameters& outParams);
+                         float hfDamping, float lfAbsorption, ISMParameters& outParams,
+                         float rt60Scaled1k, float rt60Base1k);
 
     // 256bit レジスタ水平加算ヘルパー
     static inline float hsum_m256(__m256 v) noexcept {
@@ -77,10 +99,13 @@ private:
 
     double sampleRate{ 48000.0 };
 
-    // リングバッファ (サイズ 16384: 192kHzでも 85ms をカバー)
-    static constexpr int RING_BUFFER_SIZE = 16384;
-    static constexpr int RING_BUFFER_MASK = RING_BUFFER_SIZE - 1;
-    alignas(32) std::array<float, RING_BUFFER_SIZE> ringBufferL{};
+    // リングバッファ: サイズは prepare() で秒ベースに決める (プリディレイ
+    // 上限 500 ms + ER 窓 45 ms を当該サンプルレートで収める 2 の冪)。
+    // 旧実装は固定 16384 サンプル (192 kHz で 85 ms) で、Inchindown 既定の
+    // タップ (65+45 ms = 110 ms) すら収まらず、マスク読みがラップして
+    // 過去のサンプルを誤って読んでいた (phase3/inchindown/INCHINDOWN.md)。
+    std::vector<float> ringBufferL;
+    int ringBufferMask{ 0 };
     uint32_t writeIndex{ 0 };
 
     // パラメータダブルバッファリング
@@ -98,6 +123,8 @@ private:
     float lastPreDelayMs{ -1.0f };
     float lastHfDamping{ -1.0f };
     float lastLfAbsorption{ -1.0f };
+    float lastRt60Scaled1k{ -1.0f };
+    float lastRt60Base1k{ -1.0f };
 };
 
 } // namespace FDNReverb\n

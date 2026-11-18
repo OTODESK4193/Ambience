@@ -131,6 +131,34 @@ namespace FDNReverb {
         return c;
     }
 
+    // 倍精度版: 式は designSymmetricPeakBiquad と同一だが全演算を double で
+    // 行い、最後に float32 へ丸める。高 SR (96k/192k) では w0 が極小となり
+    // float32 の cos(w0) が 1 付近で量子化され、(b0+b1+b2)/(1+a1+a2) 型の
+    // 相殺残差で決まる低域応答が大きくずれる (実測: 192k/31.25Hz で
+    // 中心誤差 -0.08dB、スカート誤差 +0.55dB の事例)。倍精度設計 +
+    // float32 格納では同条件の誤差は 0.002dB 以下に収まる。
+    BiquadCoeffs MagnitudeResponseFitter::designSymmetricPeakBiquadPrecise(
+        float fcHz, float gainDB, float Q, double sampleRate) noexcept
+    {
+        double fcSafe = juce::jlimit(10.0, sampleRate * 0.49, static_cast<double>(fcHz));
+
+        double A = std::pow(10.0, static_cast<double>(gainDB) / 40.0);
+        double w0 = 2.0 * juce::MathConstants<double>::pi * fcSafe / sampleRate;
+        double cosW0 = std::cos(w0);
+        double sinW0 = std::sin(w0);
+        double alpha = sinW0 / (2.0 * std::max(0.1, static_cast<double>(Q)));
+
+        double a0 = 1.0 + alpha / A;
+
+        BiquadCoeffs c;
+        c.b0 = static_cast<float>((1.0 + alpha * A) / a0);
+        c.b1 = static_cast<float>(-2.0 * cosW0 / a0);
+        c.b2 = static_cast<float>((1.0 - alpha * A) / a0);
+        c.a1 = static_cast<float>(-2.0 * cosW0 / a0);
+        c.a2 = static_cast<float>((1.0 - alpha / A) / a0);
+        return c;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────────
     //  Stage 2 ヘルパー: Biquad 振幅応答 (dB) 計算
     // ─────────────────────────────────────────────────────────────────────────────
@@ -228,8 +256,9 @@ namespace FDNReverb {
     // ─────────────────────────────────────────────────────────────────────────────
     //  Stage 2: Interaction Matrix の事前計算
     // ─────────────────────────────────────────────────────────────────────────────
-    void MagnitudeResponseFitter::precomputeInteractionMatrix(double sampleRate) {
-        if (cacheValid && std::abs(cachedSampleRate - sampleRate) < 0.5) {
+    void MagnitudeResponseFitter::precomputeInteractionMatrix(double sampleRate, bool preciseDesign) {
+        if (cacheValid && cachedPrecise == preciseDesign
+            && std::abs(cachedSampleRate - sampleRate) < 0.5) {
             return;
         }
 
@@ -237,8 +266,11 @@ namespace FDNReverb {
         constexpr float kProbeGainDB = 1.0f;
 
         for (int j = 0; j < N; ++j) {
-            BiquadCoeffs c = designSymmetricPeakBiquad(
-                BAND_FREQ[j], kProbeGainDB, kBandQs[j], sampleRate);
+            BiquadCoeffs c = preciseDesign
+                ? designSymmetricPeakBiquadPrecise(
+                    BAND_FREQ[j], kProbeGainDB, kBandQs[j], sampleRate)
+                : designSymmetricPeakBiquad(
+                    BAND_FREQ[j], kProbeGainDB, kBandQs[j], sampleRate);
 
             for (int i = 0; i < N; ++i) {
                 float dB = biquadMagnitudeDB(c, BAND_FREQ[i], sampleRate);
@@ -275,6 +307,7 @@ namespace FDNReverb {
 
         cachedSampleRate = sampleRate;
         cacheValid = true;
+        cachedPrecise = preciseDesign;
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -299,19 +332,35 @@ namespace FDNReverb {
         float hfDamping,
         float lfAbsorption)
     {
-        precomputeInteractionMatrix(sampleRate);
+        std::array<float, NUM_BANDS> uniform;
+        uniform.fill(static_cast<float>(delaySamples));
+        return designStage2PerBand(uniform, sampleRate, rt60, hfDamping, lfAbsorption);
+    }
+
+    MagnitudeResponseFitter::DesignResultStage2 MagnitudeResponseFitter::designStage2PerBand(
+        const std::array<float, NUM_BANDS>& loopSamplesPerBand,
+        double sampleRate,
+        const std::array<float, NUM_BANDS>& rt60,
+        float hfDamping,
+        float lfAbsorption,
+        bool octaveCalibrate,
+        bool preciseDesign,
+        double cascadeCapDb,
+        bool deepLoss)
+    {
+        precomputeInteractionMatrix(sampleRate, preciseDesign);
 
         DesignResultStage2 result;
 
         constexpr int N = NUM_BANDS;
         const float fs = static_cast<float>(sampleRate);
-        const float m = static_cast<float>(delaySamples);
 
         // ── Step 1: 音響物理に基づく RT60 連続変形と遅延長 m 比例 dB 目標化 ──
         //   - LF Absorption: 160Hz 基準の低域シェルビング重みによる連続変形
         //   - HF Damping: ISO 9613-1 大気分子吸音 (2kHz 以上で f^2 則) による連続変形
         //   - 遅延線長 m (伝播距離) に正確に比例した目標ループゲイン targetDb[i] を算出
         std::array<float, NUM_BANDS> targetDb;
+        std::array<float, NUM_BANDS> targetT60;
         for (int i = 0; i < N; ++i) {
             const float freq = BAND_FREQ[i];
 
@@ -324,71 +373,295 @@ namespace FDNReverb {
             const float hfWeight = std::pow(std::max(0.0f, freq - 2000.0f) / 14000.0f, 2.0f);
             const float invT60 = (1.0f / currentT60) + (hfDamping * hfWeight * 2.0f);
             currentT60 = 1.0f / std::max(1e-4f, invT60);
+            targetT60[i] = currentT60;
 
             // 遅延線長 m に正確に比例した減衰量 (dB)
-            float db = -60.0f * m / (fs * currentT60);
+            // Phase3 PL-3: バンド別の実効ループ長 (APF 群遅延込み) を使う
+            float db = -60.0f * loopSamplesPerBand[i] / (fs * currentT60);
             db = std::clamp(db, -60.0f, -0.02f);
             targetDb[i] = db;
             result.targetDb[i] = db;
         }
 
-        // ── Step 2: 中域基準ゲイン midGain を抽出 ──
-        // (固定 0.998f は廃止し、Step 7 の動的 Passivity Guard で厳密に保証)
-        const float midDb = targetDb[4];
-        float midGainLinear = std::pow(10.0f, midDb / 20.0f);
-        result.midGainAbsorbed = midGainLinear;
+        // ── Steps 2/5/6/7: targetDb から GEQ 係数を解く (較正反復のため関数化) ──
+        // targetAdjust は Passivity Guard (関数末尾) が低域ターゲットを
+        // 局所的に深めるための補正量 (bands 0/1 のみ、初期値 0)。
+        std::array<double, N> targetAdjust{};
+        auto solveFromTargetDb = [&]() {
+            // ── Step 2: 中域基準ゲイン midGain を抽出 ──
+            // (固定 0.998f は廃止し、関数末尾の Passivity Guard で厳密に保証)
+            const float midDb = targetDb[4];
+            float midGainLinear = std::pow(10.0f, midDb / 20.0f);
+            result.midGainAbsorbed = midGainLinear;
 
-        // 残差 dB: 中域からの偏差 (GEQ がフィットすべき周波数特性)
-        std::array<double, NUM_BANDS> residualDb;
-        for (int i = 0; i < N; ++i) {
-            residualDb[i] = static_cast<double>(targetDb[i] - midDb);
-        }
-
-        // ── Step 5: WLS による GEQ 係数の決定 ──
-        std::array<double, NUM_BANDS> rhs;
-        for (int j = 0; j < N; ++j) {
-            double s = 0.0;
-            for (int k = 0; k < N; ++k) {
-                s += cachedB[k][j] * cachedW[k] * residualDb[k];
+            // 残差 dB: 中域からの偏差 (GEQ がフィットすべき周波数特性)
+            std::array<double, NUM_BANDS> residualDb;
+            for (int i = 0; i < N; ++i) {
+                residualDb[i] = static_cast<double>(targetDb[i]) + targetAdjust[i]
+                              - static_cast<double>(midDb);
             }
-            rhs[j] = s;
-        }
 
-        std::array<double, NUM_BANDS> gCmd;
-        solveLDLT10(cachedBtWB, rhs, gCmd);
-
-        // ── Step 6: 各 g_cmd[j] dB を Biquad 係数に変換 ──
-        // 安全範囲にクランプ (±18 dB 以内)
-        for (int j = 0; j < N; ++j) {
-            float gDb = static_cast<float>(juce::jlimit(-18.0, 18.0, gCmd[j]));
-            result.commandDb[j] = gDb;
-            result.geqStages[j] = designSymmetricPeakBiquad(
-                BAND_FREQ[j], gDb, kBandQs[j], sampleRate);
-        }
-
-        // ── Step 7: 動的 Passivity Guard & band 0 への midGain 吸収 ──
-        // WLS フィッティング後の Biquad カスケード全体の最大振幅ゲインを評価し、
-        // 全帯域でループゲイン <= 0.9995 を厳格に保証 (発振防止 & 長残響の維持)
-        float maxGeqGainLinear = 0.0f;
-        for (int evalBand = 0; evalBand < N; ++evalBand) {
-            float totalGainDb = 0.0f;
+            // ── Step 5: WLS による GEQ 係数の決定 ──
+            std::array<double, NUM_BANDS> rhs;
             for (int j = 0; j < N; ++j) {
-                totalGainDb += static_cast<float>(cachedB[evalBand][j]) * result.commandDb[j];
+                double s = 0.0;
+                for (int k = 0; k < N; ++k) {
+                    s += cachedB[k][j] * cachedW[k] * residualDb[k];
+                }
+                rhs[j] = s;
             }
-            const float linear = std::pow(10.0f, totalGainDb / 20.0f);
-            if (linear > maxGeqGainLinear) {
-                maxGeqGainLinear = linear;
+
+            std::array<double, NUM_BANDS> gCmd;
+            solveLDLT10(cachedBtWB, rhs, gCmd);
+
+            // ── Step 6: 各 g_cmd[j] dB を Biquad 係数に変換 ──
+            // 安全範囲にクランプ (±18 dB 以内)。deepLoss 指定時 (Inchindown
+            // のみ) は、残差が従来クランプを超える段だけクランプを
+            // max(18, min(60, |residualDb[j]|)) へ緩和する。必要損失が
+            // ±18 dB を超える設計 (超長ループ × 短 HF RT60、Inchindown の
+            // 8k で最大 -64 dB) では段ゲインが頭打ちになり帯域 T30 が
+            // 大幅に伸びるため (phase3/band8k/BAND8K.md §4.4/§5)。
+            for (int j = 0; j < N; ++j) {
+                double lim = 18.0;
+                if (deepLoss) lim = std::clamp(std::abs(residualDb[j]), 18.0, 60.0);
+                float gDb = static_cast<float>(juce::jlimit(-lim, lim, gCmd[j]));
+                result.commandDb[j] = gDb;
+                result.geqStages[j] = preciseDesign
+                    ? designSymmetricPeakBiquadPrecise(
+                        BAND_FREQ[j], gDb, kBandQs[j], sampleRate)
+                    : designSymmetricPeakBiquad(
+                        BAND_FREQ[j], gDb, kBandQs[j], sampleRate);
+            }
+
+            // ── Step 7: band 0 への midGain 吸収 ──
+            // Passivity の保証は設計全体の末尾で行う (関数末尾の
+            // Passivity Guard を参照)。ここでは未補正の midGain を
+            // そのまま吸収する。
+            result.geqStages[0] = absorbGainIntoBiquad(result.geqStages[0], midGainLinear);
+        };
+
+        solveFromTargetDb();
+
+        // ── Step 7.5 (deepLoss 時・飽和設計のみ): 中心損失イテレーション ──
+        // クランプ緩和で深くなった段のスカート漏れを他バンドのターゲット
+        // 補正で相殺し、全バンド中心で実現損失が targetDb に一致するよう
+        // 反復する (Step 9 と同じ真のカスケード評価を使用)。残差が従来
+        // クランプ (±18 dB) を超える設計でのみ発動し、それ以外の設計は
+        // 一切変わらない (phase3/band8k/BAND8K.md §5)。
+        if (deepLoss) {
+            bool sat = false;
+            for (int j = 0; j < N; ++j)
+                if (std::abs(static_cast<double>(targetDb[j]) - static_cast<double>(targetDb[4])) > 18.0)
+                    sat = true;
+            if (sat) {
+                for (int it = 0; it < 4; ++it) {
+                    std::array<double, N> adj{};
+                    double maxErr = 0.0;
+                    for (int i = 0; i < N; ++i) {
+                        double realized = 0.0;
+                        for (int j = 0; j < N; ++j)
+                            realized += static_cast<double>(biquadMagnitudeDB(
+                                result.geqStages[j], BAND_FREQ[i], sampleRate));
+                        adj[i] = static_cast<double>(targetDb[i]) - realized;
+                        maxErr = std::max(maxErr, std::abs(adj[i]));
+                    }
+                    if (maxErr < 0.25) break;
+                    for (int i = 0; i < N; ++i) targetAdjust[i] += 0.85 * adj[i];
+                    solveFromTargetDb();
+                }
             }
         }
 
-        const float totalMaxGain = midGainLinear * std::max(1.0f, maxGeqGainLinear);
-        if (totalMaxGain > 0.9995f) {
-            midGainLinear *= (0.9995f / totalMaxGain);
-        }
-        result.midGainAbsorbed = midGainLinear;
+        // ── Step 8 (任意): オクターブ較正イテレーション ──
+        // バンド中心で厳密に合わせる従来設計では、オクターブ帯域内の
+        // ループゲイン形状 (中心で最大損失・両端で損失減) まで制御できず、
+        // 帯域 EDC は最も損失の小さい部分帯域に支配されて実測 T30 が
+        // 目標より伸びる (phase3/spring8k/SPRING8K.md)。ここでは設計時に
+        // 急峻オクターブ測定 (8次 Butterworth) と同じ定義の合成 EDC を
+        // 評価し、乖離の大きいバンドの targetDb を反復修正する。
+        // 設計時のみの計算で、実行時コストはゼロ。
+        if (octaveCalibrate) {
+            // 合成 EDC によるバンド T60 推定 (このチャンネルの係数・ループ長)
+            auto syntheticBandT60 = [&](int b) -> float {
+                const float fc = BAND_FREQ[b];
+                const float lo = fc / 1.41421356f;
+                const float hi = std::min(fc * 1.41421356f, fs * 0.49f);
+                const float f0 = std::sqrt(lo * hi);
+                const float bw = hi - lo;
+                const float loop = loopSamplesPerBand[b];
+                constexpr int K = 25;
+                constexpr double dt = 0.002;
+                const double tMax = std::min(8.0, 2.5 * static_cast<double>(targetT60[b]) + 1.0);
+                const int steps = static_cast<int>(tMax / dt);
+                std::array<double, K> wgt{};
+                std::array<double, K> rate{};
+                double wSum = 0.0;
+                for (int k = 0; k < K; ++k) {
+                    const double frac = (static_cast<double>(k) + 0.5) / K;
+                    const float f = static_cast<float>(lo * std::pow(hi / lo, frac));
+                    double cascDb = 0.0;
+                    for (int j = 0; j < N; ++j)
+                        cascDb += static_cast<double>(biquadMagnitudeDB(result.geqStages[j], f, sampleRate));
+                    const double om = (static_cast<double>(f) * f - static_cast<double>(f0) * f0)
+                                    / (static_cast<double>(f) * bw);
+                    const double mag2 = 1.0 / (1.0 + std::pow(std::abs(om), 16.0));
+                    wgt[k] = mag2 * f; // log 等間隔ビン: df ∝ f
+                    wSum += wgt[k];
+                    rate[k] = -cascDb * static_cast<double>(fs) / loop; // dB/s
+                }
+                // EDC を構築し -5..-35 dB 区間で最小二乗フィット
+                double sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0;
+                int cnt = 0;
+                double e0 = 0.0;
+                for (int k = 0; k < K; ++k) e0 += wgt[k];
+                for (int sIdx = 0; sIdx <= steps; ++sIdx) {
+                    const double t = sIdx * dt;
+                    double e = 0.0;
+                    for (int k = 0; k < K; ++k)
+                        e += wgt[k] * std::pow(10.0, -rate[k] * t / 10.0);
+                    const double edc = 10.0 * std::log10(std::max(e / e0, 1e-30));
+                    if (edc <= -5.0 && edc >= -35.0) {
+                        sx += t; sy += edc; sxx += t * t; sxy += t * edc; ++cnt;
+                    }
+                    if (edc < -40.0) break;
+                }
+                if (cnt < 10 || wSum <= 0.0) return -1.0f;
+                const double denom = cnt * sxx - sx * sx;
+                if (std::abs(denom) < 1e-12) return -1.0f;
+                const double slope = (cnt * sxy - sx * sy) / denom;
+                if (slope >= -0.01) return -1.0f;
+                return static_cast<float>(-60.0 / slope);
+            };
 
-        // band 0 の係数に安全化された midGain を吸収
-        result.geqStages[0] = absorbGainIntoBiquad(result.geqStages[0], midGainLinear);
+            // 較正対象: 全測定帯域 (125〜8k)。モデル誤差が小さい帯域は
+            // デッドバンド (3%) で実質的に動かない。
+            constexpr int kCalBands[] = { 2, 3, 4, 5, 6, 7, 8 };
+            for (int iter = 0; iter < 5; ++iter) {
+                bool anyChange = false;
+                for (int b : kCalBands) {
+                    const float t60fit = syntheticBandT60(b);
+                    if (t60fit <= 0.0f) continue;
+                    const float err = t60fit / targetT60[b] - 1.0f;
+                    if (std::abs(err) < 0.03f) continue;
+                    const float rateTarget = 60.0f / targetT60[b];
+                    const float rateFit = 60.0f / t60fit;
+                    float dDb = (rateTarget - rateFit) * loopSamplesPerBand[b] / fs;
+                    dDb = std::clamp(dDb, -2.0f, 2.0f);
+                    targetDb[b] = std::clamp(targetDb[b] - 0.85f * dDb, -60.0f, -0.02f);
+                    result.targetDb[b] = targetDb[b];
+                    anyChange = true;
+                }
+                if (!anyChange) break;
+                solveFromTargetDb();
+            }
+        }
+
+        // ── Step 9: Passivity Guard (細密グリッド真値評価 + 低域局所補正) ──
+        // WLS フィット後の Biquad カスケード全体の真の最大振幅ゲインを、
+        // 細密対数グリッド (1 Hz 〜 Nyquist、48 点/oct) で二重精度評価し、
+        // 真の最大値が -0.05 dB 以下になるよう設計を抑え、全帯域で
+        // ループゲイン < 1 を厳格に保証する (発振防止 & 長残響の維持)。
+        //
+        // 旧実装はバンド中心 10 点における相互作用行列近似でのみ評価して
+        // いたため、band 0 (31.25 Hz) 以下と帯域間の超過を素通りした。
+        // 実測では 192 kHz の Inchindown で最大 +1.23 dB の超過があり、
+        // FDN ループの低域モードが自己増殖発振した
+        // (phase3/sr-followup-b/SR_FOLLOWUP_B.md)。超過の主因は band 0
+        // セクションの低域スカートで、高 SR では同セクションの係数が
+        // b ≈ (1, -2, 1) の退化形に近づき、その低域応答は float32 の
+        // 丸め残差で決まる (吸収前の係数で評価すると最大で約 0.55 dB
+        // ずれるため、評価は常に格納される最終 float32 係数で行う)。
+        // グリッド下限を 1 Hz とするのは、低域段の DC ゲインが係数
+        // 量子化で 0 dB からずれ、DC〜数 Hz に平坦な超過が生じうるため
+        // (192 kHz の Spring で +0.128 dB を実測)。
+        //
+        // 抑制方法は較正への影響が最も小さいものを選ぶ: 超過が低域
+        // (90 Hz 未満) にある場合は、平坦な midGain スケールではなく
+        // bands 0/1 のターゲットを局所的に深めて再解釈する。平坦
+        // スケールは全帯域の毎パス損失を一様に増やし、高 SR (長い
+        // ループ = 毎パス損失が小さい) では較正 RT60 を大きく壊す
+        // (192 kHz で T30@1k が Inchindown -33%、Goldfoil -37% に
+        // なることを実測)。ターゲット補正は band 0/1 近傍にしか
+        // 効かず、125 Hz 以上の較正はほぼ保たれる。低域補正で届かない
+        // 残余 (DC 残差等) のみ、最終係数への平坦スケールを最小量
+        // 適用する。本ガードは設計時のみの計算で、音声経路の
+        // コストは増えない。
+        {
+            auto cascadePeak = [&]() {
+                double mx = -1.0e30;
+                double fStar = 0.0;
+                constexpr double kGridMinHz = 1.0;
+                constexpr int kPointsPerOctave = 48;
+                const double gridMaxHz = sampleRate * 0.5;
+                const int numPoints = static_cast<int>(
+                    std::ceil(std::log2(gridMaxHz / kGridMinHz) * kPointsPerOctave)) + 1;
+                for (int gi = 0; gi < numPoints; ++gi) {
+                    const double fEval = kGridMinHz
+                        * std::pow(2.0, static_cast<double>(gi) / kPointsPerOctave);
+                    double totalDb = 0.0;
+                    for (int j = 0; j < N; ++j) {
+                        totalDb += static_cast<double>(biquadMagnitudeDB(
+                            result.geqStages[j], static_cast<float>(fEval), sampleRate));
+                    }
+                    if (totalDb > mx) { mx = totalDb; fStar = fEval; }
+                }
+                return std::pair<double, double>(mx, fStar);
+            };
+
+            const double kCascadeCapDb = cascadeCapDb; // 既定 -0.06 (公称 -0.05 dB − グリッド余裕 0.01 dB)
+            auto peak = cascadePeak();
+
+            // 低域局所補正: 超過量に応じて bands 0/1 のターゲットを深める
+            std::array<BiquadCoeffs, NUM_BANDS> bestStages = result.geqStages;
+            std::array<float, NUM_BANDS> bestCommandDb = result.commandDb;
+            std::array<double, N> bestAdjust = targetAdjust;
+            float bestMidGainAbsorbed = result.midGainAbsorbed;
+            double bestMaxDb = peak.first;
+            for (int iter = 0; iter < 8 && peak.first > kCascadeCapDb; ++iter) {
+                const double excess = peak.first - kCascadeCapDb;
+                if (peak.second < 45.0) {
+                    targetAdjust[0] -= excess * 1.15;
+                    targetAdjust[1] -= excess * 0.35;
+                } else if (peak.second < 90.0) {
+                    targetAdjust[0] -= excess * 0.50;
+                    targetAdjust[1] -= excess * 0.80;
+                } else {
+                    break; // 低域以外の超過は平坦スケール側で処理
+                }
+                solveFromTargetDb();
+                peak = cascadePeak();
+                if (peak.first < bestMaxDb) {
+                    bestMaxDb = peak.first;
+                    bestStages = result.geqStages;
+                    bestCommandDb = result.commandDb;
+                    bestAdjust = targetAdjust;
+                    bestMidGainAbsorbed = result.midGainAbsorbed;
+                }
+            }
+            result.geqStages = bestStages;
+            result.commandDb = bestCommandDb;
+            result.midGainAbsorbed = bestMidGainAbsorbed;
+            for (int i = 0; i < N; ++i)
+                result.targetDb[i] = static_cast<float>(
+                    static_cast<double>(targetDb[i]) + bestAdjust[i]);
+
+            // 残余の平坦スケール (最終 float32 係数に対して反復評価)
+            if (bestMaxDb > kCascadeCapDb) {
+                const BiquadCoeffs guardStage0 = result.geqStages[0];
+                float scaleLinear = 1.0f;
+                float bestScale = 1.0f;
+                double bestScaleMaxDb = bestMaxDb;
+                for (int iter = 0; iter < 8; ++iter) {
+                    result.geqStages[0] = absorbGainIntoBiquad(guardStage0, scaleLinear);
+                    const double maxDb = cascadePeak().first;
+                    if (maxDb < bestScaleMaxDb) { bestScaleMaxDb = maxDb; bestScale = scaleLinear; }
+                    if (maxDb <= kCascadeCapDb) break;
+                    scaleLinear *= static_cast<float>(std::pow(10.0, (kCascadeCapDb - maxDb) / 20.0));
+                }
+                result.geqStages[0] = absorbGainIntoBiquad(guardStage0, bestScale);
+                result.midGainAbsorbed = bestMidGainAbsorbed * bestScale;
+            }
+        }
 
         return result;
     }

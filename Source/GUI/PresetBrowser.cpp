@@ -576,7 +576,7 @@ void PresetBrowser::paint(juce::Graphics& g)
             // 2. アルゴリズム / カテゴリバッジ
             juce::String badgeText = item->isFactory ? ("ALGO: " + item->subCategory) : "USER PRESET";
             g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.0f, juce::Font::bold)));
-            int badgeW = (int)g.getCurrentFont().getStringWidthFloat(badgeText) + 12;
+            int badgeW = (int)juce::GlyphArrangement::getStringWidth(g.getCurrentFont(), badgeText) + 12;
             juce::Rectangle<int> badgeRect(inner.getX(), inner.getY() + 20, badgeW, 15);
             g.setColour(theme.primary.withAlpha(0.20f));
             g.fillRoundedRectangle(badgeRect.toFloat(), 3.0f);

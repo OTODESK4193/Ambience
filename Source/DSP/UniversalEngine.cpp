@@ -1,6 +1,15 @@
 #include "UniversalEngine.h"
 #include "../AlgorithmPresets.h"
 
+// [phase3/cpu-opt A-1 本採用] 吸収 GEQ の SIMD カーネルは FMA 形に固定する。
+// ビット一致の成立条件は「スカラー版 BiquadState::tick の丸めを SIMD 側が
+// 正確に鏡写しすること」であり、スカラー側の丸めはコンパイラの FMA 収縮
+// の有無で変わる。変種 (FMA 形/分離形) の判定は Windows/MSVC 実機で実施
+// 済み (phase3/cpu-opt/A1_WINDOWS_CHECK.md §7): プラグイン本体と同一の
+// /fp:fast + /arch:AVX2 条件で両変種とも土台と 80/80 ビット一致し、
+// 同 §4 の基準により、g++ ハーネスでもビット一致が検証済みの FMA 形を
+// 出荷形とした。分離形は実験ブランチ muse/exp-cpu-a1 (e8a46821) に保存。
+
 namespace FDNReverb {
 
     static bool isPrime(int n) {
@@ -38,7 +47,18 @@ namespace FDNReverb {
         }
     }
 
+#if AMBIENCE_MODSRC_PACKAGE
+    // [phase3/release-prep seed-fix] 生成順カウンタの実体。
+    std::atomic<uint32_t> UniversalEngine::s_instanceSeedCounter{ 0 };
+#endif
+
     UniversalEngine::UniversalEngine() {
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/release-prep seed-fix] 生成順に一意なシードオフセットを
+        // 採番する。プロセス内で最初に生成されたインスタンス (および
+        // ハーネスの単一エンジン経路) は 0 になり、従来とビット一致する。
+        modSeedOffset_ = s_instanceSeedCounter.fetch_add(1, std::memory_order_relaxed);
+#endif
         fbVec.fill(0.0f);
         DualGoldenLFO::initTable();
 
@@ -51,6 +71,21 @@ namespace FDNReverb {
             dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
             dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] ペアレート: ペア (i, i+8) の両チャンネルの
+        // chorusRates の幾何平均。ランダム源の初期化もここで行う。
+        for (int p = 0; p < RAND_PAIRS; ++p)
+            randPairRates[p] = std::sqrt(chorusRates[p] * chorusRates[p + RAND_PAIRS]);
+        resetRandMod();
+#endif
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調源の固定レート表: 0.05–0.30 Hz を
+        // 黄金比の小数部で無理数的に分散させる (ModRate ノブとは独立。
+        // 行列変調は遅延変調ではなく経路再配分であり、速さの意味が異なる)。
+        for (int k = 0; k < MAT_STREAMS; ++k)
+            matRates[k] = 0.05f + 0.25f * std::fmod(static_cast<float>(k) * 0.6180339887f, 1.0f);
+        resetMatMod();
+#endif
         inLpfStateL = 0.0f;
         inLpfStateR = 0.0f;
     }
@@ -70,7 +105,11 @@ namespace FDNReverb {
         // HALL2: 12,000 m3, V^(1/3) ~ 22.9m, mean path ~ 15.5m
         { 26.0f, 135.0f },
         // PLATE: EMT 140 (2D Steel Plate, High Density)
-        { 2.0f, 25.0f },
+        // Phase3 PL-1: widened 2-25 ms -> 3-40 ms to lift FDN modal density
+        // (Schroeder sum 66% -> ~100%) and dilute the 234 Hz outlier mode.
+        // Phase3 PL-2: -> 4-55 ms (density ~137%) to dilute the residual
+        // slowest eigenmode further (PL-1 left W2 prominence +1.2 dB @205 Hz).
+        { 4.0f, 55.0f },
         // SPRING: Vintage Tank (Dispersive Dispersion)
         { 15.0f, 50.0f },
         // GOLDFOIL: EMT 240 (Ultra-thin Gold Foil)
@@ -103,18 +142,71 @@ namespace FDNReverb {
         fs = sampleRate;
         DualGoldenLFO::initTable();
 
+        // Goldfoil mesh-feed lowpass coefficient (1-pole, fc = 1 kHz).
+        gfMeshFeedLpCoeff = 1.0f - std::exp(-6.28318530718f * 1000.0f / static_cast<float>(fs));
+
+        // Second feed-shaping stage: 6th-order Butterworth LP at 2.2 kHz
+        // (3 RBJ sections; see the header note and FEED8K.md).
+        {
+            static constexpr double kQ[3] = { 0.5176, 0.7071, 1.9319 };
+            for (int s = 0; s < 3; ++s) {
+                const double w = 6.283185307179586 * 2200.0 / fs;
+                const double alpha = std::sin(w) / (2.0 * kQ[s]);
+                const double cs = std::cos(w);
+                const double a0 = 1.0 + alpha;
+                gfMeshFeedBqCoeffs[s] = { static_cast<float>((1.0 - cs) * 0.5 / a0),
+                                          static_cast<float>((1.0 - cs) / a0),
+                                          static_cast<float>((1.0 - cs) * 0.5 / a0),
+                                          static_cast<float>(-2.0 * cs / a0),
+                                          static_cast<float>((1.0 - alpha) / a0) };
+            }
+        }
+
+        // Third feed-shaping stage: RBJ peaking cuts against the mesh
+        // pickup's 1.7-2.9 kHz modal cluster (phase3/ringing).
+        {
+            static constexpr double kPkFc[2] = { 1750.0, 2600.0 };
+            static constexpr double kPkDb[2] = { -8.0, -10.0 };
+            static constexpr double kPkQ = 2.5;
+            for (int s = 0; s < 2; ++s) {
+                const double w = 6.283185307179586 * kPkFc[s] / fs;
+                const double alpha = std::sin(w) / (2.0 * kPkQ);
+                const double cs = std::cos(w);
+                const double A = std::pow(10.0, kPkDb[s] / 40.0);
+                const double a0 = 1.0 + alpha / A;
+                gfMeshFeedPkCoeffs[s] = { static_cast<float>((1.0 + alpha * A) / a0),
+                                          static_cast<float>(-2.0 * cs / a0),
+                                          static_cast<float>((1.0 - alpha * A) / a0),
+                                          static_cast<float>(-2.0 * cs / a0),
+                                          static_cast<float>((1.0 - alpha / A) / a0) };
+            }
+        }
+
         auto getPow2 = [](size_t s) {
             size_t p = 16;
             while (p < s) p <<= 1;
             return p;
         };
 
+        // FDN delay-line capacity is derived from the longest designable
+        // delay: the largest ALGORITHM_DELAY_BOUNDS maximum (Inchindown
+        // 1500 ms) times the largest roomSizeScale the delay calculator
+        // accepts (2.5) = 3.75 s. The previous flat 2.0 s allocation could
+        // not hold that line: integer reads wrapped modulo the mask
+        // (143,999 -> 12,927 samples at 48 kHz) and fractional reads
+        // clamped, so the designed prime never sounded. Sizing follows
+        // seconds x sample rate, so it stays correct at every SR.
+        // (phase3/inchindown/INCHINDOWN.md)
+        float fdnAllocSec = 0.0f;
+        for (const auto& b : ALGORITHM_DELAY_BOUNDS)
+            fdnAllocSec = std::max(fdnAllocSec, b.maxDelayMs * 2.5f * 0.001f);
+
         size_t totalMemoryNeeded = 0;
         totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.5)) * 2;
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i)
             totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05)) * 2; // Mid & Side
         for (int i = 0; i < FDN_ORDER; ++i) {
-            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 2.0)); // ★ 2.0s 確保 (Inchindown対応)
+            totalMemoryNeeded += getPow2(static_cast<size_t>(fs * fdnAllocSec)); // FDN lines (sized above)
             for (int s = 0; s < SERIAL_APF_STAGES; ++s)
                 totalMemoryNeeded += getPow2(static_cast<size_t>(fs * 0.05));
         }
@@ -133,21 +225,27 @@ namespace FDNReverb {
         // Initialize SDN Engine
         sdnEngine.prepare(sampleRate, maxBlockSize);
         plateMesh.prepare(sampleRate, maxBlockSize);
+        gfMeshL.prepare(sampleRate, maxBlockSize);
+        gfMeshR.prepare(sampleRate, maxBlockSize);
         springChain.prepare(sampleRate, maxBlockSize);
         inchindownEngine.prepare(sampleRate, maxBlockSize);
+        inchindownEngineR.prepare(sampleRate, maxBlockSize);
         for (int i = 0; i < SDNShoebox3D::NUM_NODES; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask);
             sdnEngine.delayLines[i].init(ptr, mask);
         }
-        for (int i = 0; i < 4; ++i) {
+        inputDiffusersValid = true;
+        for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i) {
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
+            if (ptr == nullptr) inputDiffusersValid = false;
             inputDiffusersM[i].init(ptr, mask);
             ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
+            if (ptr == nullptr) inputDiffusersValid = false;
             inputDiffusersS[i].init(ptr, mask);
         }
 
         for (int i = 0; i < FDN_ORDER; ++i) {
-            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 2.0), mask); // ★ 2.0s 確保
+            ptr = memoryPool.requestMemory(static_cast<size_t>(fs * fdnAllocSec), mask);
             fdnDelays[i].init(ptr, mask);
             for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                 ptr = memoryPool.requestMemory(static_cast<size_t>(fs * 0.05), mask);
@@ -178,9 +276,16 @@ namespace FDNReverb {
             dualLfoIncScale2[i] = (dualLFOs[i].rateScale * 0.6180339887f) / fsf;
         }
 
-        for (int i = 0; i < 4; ++i) {
-            cachedDiffuserDelaySmpM[i] = (3.0f + i * 2.0f) * 0.001f * fsf;
-            cachedDiffuserDelaySmpS[i] = (3.5f + i * 2.3f) * 0.001f * fsf;
+        // [phase3/diffusion 候補(a)] 入力ディフューザ遅延セット再設計:
+        // 旧セットは等差数列 (M: 3/5/7/9ms = 全て 48 smp の倍数, GCD=48) で
+        // 出力が 1ms 格子に量子化されバースト NED 平均 0.058 しかなかった。
+        // 互いに素な素数遅延 (GCD=1) に置換し 6 段化。48k 基準サンプル数で
+        // 保持し SR 比でスケールする。詳細: phase3/diffusion/DIFFUSION.md
+        static constexpr float DIFF_SMP_M[INPUT_DIFFUSER_STAGES] = { 97.0f, 191.0f, 307.0f, 139.0f, 421.0f, 263.0f };
+        static constexpr float DIFF_SMP_S[INPUT_DIFFUSER_STAGES] = { 113.0f, 229.0f, 167.0f, 389.0f, 271.0f, 239.0f };
+        for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i) {
+            cachedDiffuserDelaySmpM[i] = DIFF_SMP_M[i] * (fsf / 48000.0f);
+            cachedDiffuserDelaySmpS[i] = DIFF_SMP_S[i] * (fsf / 48000.0f);
         }
 
         // ★ 入力段 Bandwidth LPF (12kHz 1次ローパス)
@@ -194,6 +299,7 @@ namespace FDNReverb {
         erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
 
         currentFdnDelaySamples.fill(0.0f);
+        fdnReadCacheTarget.fill(-1.0f); // 遅延ライン再初期化に合わせて読み出しキャッシュを無効化
 
         dcBlockerCoeff = 1.0f - (6.28318530718f * 5.0f / static_cast<float>(fs));
         dcX1.fill(0.0f); dcY1.fill(0.0f);
@@ -204,6 +310,7 @@ namespace FDNReverb {
         loopEnergyEnv = 0.0f;
 
         lateMakeupGainSmoothed.reset(sampleRate, 0.030); // 30ms sample-accurate linear smoothing
+        makeupHoldSamplesTotal = static_cast<int>(sampleRate * 0.300); // [small-fixes 試作] 保留 300ms
         preDelaySmoothed.reset(sampleRate, 0.025);
         roomSizeSmoothed.reset(sampleRate, 0.040);
         diffuserGainSmoothed.reset(sampleRate, 0.025);
@@ -235,12 +342,39 @@ namespace FDNReverb {
 
         updateTopologyAndRouting(); // ★ 初期トポロジー・ディレイ長・吸音フィルタの完全同期初期化
         reset();
+        // [phase3/small-fixes] この時点の状態が「新規インスタンスの初期状態」。
+        // 以後の reset() はここへ完全復元する (captureResetSnapshot 参照)。
+        captureResetSnapshot();
     }
 
     void UniversalEngine::reset() {
         memoryPool.clear();
         panicReset();
 
+        // [phase3/small-fixes] prepare 終端スナップショットの復元。
+        // activeParams を含むため、この後の erSmoothedGain /
+        // smoothedModAmount / smoothedModRate の導出も prepare 終端の
+        // 値 (既定パラメータ由来) に揃う。prepare() 内の reset() 呼び出し
+        // ではスナップショット未捕捉のため無効 (自然な初期状態のまま)。
+        if (resetSnapshotValid) restoreResetSnapshot();
+        makeupHoldActive = false; // [small-fixes 試作] prepare 終端と一致
+        tailWasActive = false;
+        topologyUpdatePending = false;
+        sdnParamsUpdatePending = false;
+        fdnReadCacheTarget.fill(-1.0f); // prepare と同じ読み出しキャッシュ無効化
+        fdnReadCacheId.fill(0);
+        fdnReadCacheFrac.fill(0.0f);
+        fdnReadCacheIsInt.fill(0);
+
+        gfMeshFeedLpState.fill(0.0f);
+        for (int s = 0; s < 3; ++s) {
+            gfMeshFeedBqX1[s].fill(0.0f); gfMeshFeedBqX2[s].fill(0.0f);
+            gfMeshFeedBqY1[s].fill(0.0f); gfMeshFeedBqY2[s].fill(0.0f);
+        }
+        for (int s = 0; s < 2; ++s) {
+            gfMeshFeedPkX1[s].fill(0.0f); gfMeshFeedPkX2[s].fill(0.0f);
+            gfMeshFeedPkY1[s].fill(0.0f); gfMeshFeedPkY2[s].fill(0.0f);
+        }
         currentFdnDelaySamples.fill(0.0f);
         erSmoothedGain = activeParams.erLevel * activeParams.erLevel;
         smoothedModAmount = activeParams.modAmount;
@@ -260,9 +394,210 @@ namespace FDNReverb {
             dualLFOs[i].phase1 = static_cast<float>(i) / 16.0f;
             dualLFOs[i].phase2 = std::fmod(static_cast<float>(i) * 0.6180339887f, 1.0f);
         }
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] ランダム源も LFO 位相と同様に決定論的に復元する
+        // (seq ≡ fresh の前提)。panicReset() は LFO と同様に触らない。
+        resetRandMod();
+#endif
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調源も LFO/ランダム源と同様に
+        // 決定論的に復元する (panicReset() は触らない)。
+        resetMatMod();
+#endif
+    }
+
+#if AMBIENCE_MODSRC_PACKAGE
+    // splitmix32 のファイナライザ (ビット拡散)。
+    static inline uint32_t splitmix32(uint32_t z) noexcept {
+        z = (z ^ (z >> 16)) * 0x85EBCA6Bu;
+        z = (z ^ (z >> 13)) * 0xC2B2AE35u;
+        return z ^ (z >> 16);
+    }
+
+    // [phase3/release-prep seed-fix] インスタンス毎シードオフセットの混合。
+    // offset = 0 ではマスクが厳密に 0 になり base をそのまま返すため、従来
+    // (e9f574e6) とビット一致する。offset != 0 では (offset, k) 毎に拡散
+    // したマスクを XOR し、インスタンス間でイノベーション系列が一致
+    // しないようにする (加算方式のような系列のずれ違い衝突は生じない)。
+    // 結果は奇数に固定し、xorshift の零状態を避ける。
+    static inline uint32_t mixRandSeed(uint32_t base, uint32_t offset, uint32_t k) noexcept {
+        const uint32_t mask = splitmix32(offset * 0x9E3779B9u + k) ^ splitmix32(k);
+        return (base ^ mask) | 1u;
+    }
+
+    // [phase3/mod-source] ランダム変調源の初期化: ストリーム毎に決定的シードを
+    // 割り当て、LP 状態・補間端点・制御カウンタを初期状態に戻す。
+    // コンストラクタと reset() の双方から呼ばれ、常に同一の初期状態になる。
+    // [phase3/release-prep seed-fix] シードにはインスタンス毎オフセット
+    // (modSeedOffset_) を混合する。オフセット 0 では従来と同一になる。
+    void UniversalEngine::resetRandMod() {
+        for (int k = 0; k < RAND_PAIRS * SERIAL_APF_STAGES; ++k) {
+            auto& st = randStreams[k];
+            st.rngState = mixRandSeed(0x9E3779B9u * static_cast<uint32_t>(k + 1) | 1u,
+                                      modSeedOffset_, static_cast<uint32_t>(k));
+            st.lp1 = 0.0f;
+            st.lp2 = 0.0f;
+        }
+        for (auto& pair : randValFrom)  pair.fill(0.0f);
+        for (auto& pair : randValTo)    pair.fill(0.0f);
+        for (auto& pair : randPairVals) pair.fill(0.0f);
+        randCtrlCounter = 0;
+    }
+#endif
+
+#if AMBIENCE_MATRIX_MOD
+    // [phase3/matrix-mod] 行列変調源の初期化: APF ランダム源とは別の
+    // 決定的シードを割り当て、LP 状態をゼロ、(cos, sin) 端点を恒等 (θ=0)
+    // に戻す。コンストラクタと reset() の双方から呼ばれ、常に同一の
+    // 初期状態になる (seq ≡ fresh の前提)。
+    // [phase3/release-prep seed-fix] 本採用 (2026-11-18) でシード
+    // オフセット (modSeedOffset_) の混合を追加した: resetRandMod と
+    // 同方式 (mixRandSeed) で、オフセット 0 ではマスクが厳密に 0 に
+    // なり試聴構成 (muse/exp-matrix-mod 6e3d76b5) とビット一致する。
+    // オフセットは AMBIENCE_MODSRC_PACKAGE 有効時にのみ存在するため、
+    // 混合はその場合に限る。
+    void UniversalEngine::resetMatMod() {
+        for (int k = 0; k < MAT_STREAMS; ++k) {
+            auto& st = matStreams[k];
+#if AMBIENCE_MODSRC_PACKAGE
+            st.rngState = mixRandSeed(0x85EBCA6Bu * static_cast<uint32_t>(k + 1) | 1u,
+                                      modSeedOffset_, static_cast<uint32_t>(k));
+#else
+            st.rngState = 0x85EBCA6Bu * static_cast<uint32_t>(k + 1) | 1u;
+#endif
+            st.lp1 = 0.0f;
+            st.lp2 = 0.0f;
+        }
+        matCosFrom.fill(1.0f); matCosTo.fill(1.0f); matCos.fill(1.0f);
+        matSinFrom.fill(0.0f); matSinTo.fill(0.0f); matSin.fill(0.0f);
+        matCtrlCounter = 0;
+    }
+
+    // [phase3/matrix-mod] 8ch 分割への Givens 回転バタフライ (ストライド
+    // 1/2/4 の 3 段、各 4 ペア = 12 回転)。streamBase は分割毎のストリーム
+    // 開始位置 (L 分割 = 0、R 分割 = 12)。各回転は厳密に直交し、3 段の合成も
+    // 直交行列になる (Kronecker 型構成)。
+    inline void UniversalEngine::applyMatRot8(std::array<float, 8>& a, int streamBase) noexcept {
+        int k = streamBase;
+        for (int s = 0; s < MAT_STAGES; ++s) {
+            const int h = 1 << s;
+            for (int base = 0; base < 8; base += 2 * h) {
+                for (int j = 0; j < h; ++j, ++k) {
+                    const float c = matCos[k], sn = matSin[k];
+                    const float x = a[base + j], y = a[base + j + h];
+                    a[base + j]     = c * x - sn * y;
+                    a[base + j + h] = sn * x + c * y;
+                }
+            }
+        }
+    }
+#endif
+
+    // [phase3/small-fixes] prepare() 終端の状態を捕捉する。reset() が従来
+    // 復元し損ねていた状態 (下記) を全て含む。信号履歴そのもの (遅延線・
+    // フィルタ状態変数・履歴バッファ) は memoryPool.clear() と
+    // panicReset() が消去するため対象外。
+    void UniversalEngine::captureResetSnapshot() {
+        snapActiveParams = activeParams;
+        snapPendingParams = pendingParams;
+        snapCurrentTopology = currentTopology;
+        snapPendingTopology = pendingTopology;
+        snapCoeffsA = absorptionCoeffsSoA_A;
+        snapCoeffsB = absorptionCoeffsSoA_B;
+        snapEffectiveRT60 = effectiveRT60;
+        snapTargetRT60 = targetRT60;
+        snapTheoreticalEDT = theoreticalEDT;
+        snapCurrentRT60Mid = currentRT60Mid;
+        snapCurrentDesignRT60_1k = currentDesignRT60_1k;
+        snapModDepthScale = modDepthScale;
+        snapLateMakeupGainLinear = lateMakeupGainLinear;
+        snapApfGain = apfGain;
+        snapDiffusionSensitivity = diffusionSensitivity;
+        snapBypassER = bypassER;
+        snapBypassInputDiffusers = bypassInputDiffusers;
+        snapPreDelaySamples = preDelaySamples;
+        snapFdnBaseDelaySamples = fdnBaseDelaySamples;
+        snapCachedApfBaseDelaySmp = cachedApfBaseDelaySmp;
+        snapCachedApfBaseDelayInt = cachedApfBaseDelayInt;
+        snapCurrentERTapCount = currentERTapCount;
+        snapCurrentERDelaySamples = currentERDelaySamples;
+        snapCurrentERGains = currentERGains;
+        snapSmPreDelayCur = preDelaySmoothed.getCurrentValue();
+        snapSmPreDelayTgt = preDelaySmoothed.getTargetValue();
+        snapSmRoomSizeCur = roomSizeSmoothed.getCurrentValue();
+        snapSmRoomSizeTgt = roomSizeSmoothed.getTargetValue();
+        snapSmDiffuserCur = diffuserGainSmoothed.getCurrentValue();
+        snapSmDiffuserTgt = diffuserGainSmoothed.getTargetValue();
+        snapSmApfCur = apfGainStageSmoothed.getCurrentValue();
+        snapSmApfTgt = apfGainStageSmoothed.getTargetValue();
+        snapSmWidthCur = stereoWidthSmoothed.getCurrentValue();
+        snapSmWidthTgt = stereoWidthSmoothed.getTargetValue();
+        snapSmMakeupCur = lateMakeupGainSmoothed.getCurrentValue();
+        snapSmMakeupTgt = lateMakeupGainSmoothed.getTargetValue();
+        snapSdnBaseDelaySamples = sdnEngine.captureBaseDelaySamples();
+        snapSdnRngStates = sdnEngine.captureModulatorRngStates();
+        snapIsmState = ismEngine.captureState();
+        snapSatL = saturatorL.captureResetState();
+        snapSatR = saturatorR.captureResetState();
+        resetSnapshotValid = true;
+    }
+
+    void UniversalEngine::restoreResetSnapshot() {
+        activeParams = snapActiveParams;
+        pendingParams = snapPendingParams;
+        currentTopology = snapCurrentTopology;
+        pendingTopology = snapPendingTopology;
+        absorptionCoeffsSoA_A = snapCoeffsA;
+        absorptionCoeffsSoA_B = snapCoeffsB;
+        effectiveRT60 = snapEffectiveRT60;
+        targetRT60 = snapTargetRT60;
+        theoreticalEDT = snapTheoreticalEDT;
+        currentRT60Mid = snapCurrentRT60Mid;
+        currentDesignRT60_1k = snapCurrentDesignRT60_1k;
+        modDepthScale = snapModDepthScale;
+        lateMakeupGainLinear = snapLateMakeupGainLinear;
+        apfGain = snapApfGain;
+        diffusionSensitivity = snapDiffusionSensitivity;
+        bypassER = snapBypassER;
+        bypassInputDiffusers = snapBypassInputDiffusers;
+        preDelaySamples = snapPreDelaySamples;
+        fdnBaseDelaySamples = snapFdnBaseDelaySamples;
+        cachedApfBaseDelaySmp = snapCachedApfBaseDelaySmp;
+        cachedApfBaseDelayInt = snapCachedApfBaseDelayInt;
+        currentERTapCount = snapCurrentERTapCount;
+        currentERDelaySamples = snapCurrentERDelaySamples;
+        currentERGains = snapCurrentERGains;
+        // 平滑値: 現在値を即値で戻し、目標値が異なる場合のみランプを張り直す。
+        // prepare 終端では lateMakeup のみ current != target で、ランプ残量は
+        // stepsToTarget 全量 (= setTargetValue の再設定と一致) である。
+        auto restoreSm = [](auto& sm, float cur, float tgt) {
+            sm.setCurrentAndTargetValue(cur);
+            if (tgt != cur) sm.setTargetValue(tgt);
+        };
+        restoreSm(preDelaySmoothed, snapSmPreDelayCur, snapSmPreDelayTgt);
+        restoreSm(roomSizeSmoothed, snapSmRoomSizeCur, snapSmRoomSizeTgt);
+        restoreSm(diffuserGainSmoothed, snapSmDiffuserCur, snapSmDiffuserTgt);
+        restoreSm(apfGainStageSmoothed, snapSmApfCur, snapSmApfTgt);
+        restoreSm(stereoWidthSmoothed, snapSmWidthCur, snapSmWidthTgt);
+        restoreSm(lateMakeupGainSmoothed, snapSmMakeupCur, snapSmMakeupTgt);
+        sdnEngine.restoreBaseDelaySamples(snapSdnBaseDelaySamples);
+        sdnEngine.restoreModulatorRngStates(snapSdnRngStates);
+        ismEngine.restoreState(snapIsmState);
+        saturatorL.restoreResetState(snapSatL);
+        saturatorR.restoreResetState(snapSatR);
     }
 
     void UniversalEngine::panicReset() noexcept {
+        // [panic-fix] プール上の遅延線 (preDelay / inputDiffusers /
+        // fdnDelays / nestedAllpass) の resetState() は書き込み位置を
+        // 戻すだけでバッファ内容を消さないため、プールを消去しないと
+        // 旧テイルがそのまま循環して残る (実測: 消去なしでは Panic 後も
+        // 無音入力で -24.6dBFS 級の残響が継続)。reset() は従来から本関数
+        // の前にプールを消去しており、本関数側で消去しても reset() の
+        // net な挙動は変わらない (冪等)。トポロジー遷移経由でも、設計
+        // コメントが前提としてきた「panicReset でテイルが消去済み」が
+        // 実際に成立するようになる。
+        memoryPool.clear();
         fbVec.fill(0.0f);
 
         preDelayLineL.resetState();
@@ -274,15 +609,29 @@ namespace FDNReverb {
             for (auto& dl : chDelays) dl.resetState();
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-        for (auto& lineFilters : absorptionFiltersS2_A)
-            for (auto& f : lineFilters) f.reset();
-        for (auto& lineFilters : absorptionFiltersS2_B)
-            for (auto& f : lineFilters) f.reset();
+        for (auto& row : absorptionStateS1_A) row.fill(0.0);
+        for (auto& row : absorptionStateS2_A) row.fill(0.0);
+        for (auto& row : absorptionStateS1_B) row.fill(0.0);
+        for (auto& row : absorptionStateS2_B) row.fill(0.0);
         absoCrossfadePos = 0.0f;
         absoFadeState = AbsoFadeState::IdleAtA;
 #else
         for (auto& f : absorptionFilters) f.reset();
 #endif
+
+        // [panic-fix] Goldfoil メッシュフィード整形フィルタの状態変数も
+        // 音声状態であり、残すと消去直後のメッシュへ小さな過渡が漏れる
+        // (実測: 無音入力で [10-100ms] 窓 RMS -60dB 級)。reset() が
+        // 消去してきた範囲に合わせ、本関数でも消去する。
+        gfMeshFeedLpState.fill(0.0f);
+        for (int s = 0; s < 3; ++s) {
+            gfMeshFeedBqX1[s].fill(0.0f); gfMeshFeedBqX2[s].fill(0.0f);
+            gfMeshFeedBqY1[s].fill(0.0f); gfMeshFeedBqY2[s].fill(0.0f);
+        }
+        for (int s = 0; s < 2; ++s) {
+            gfMeshFeedPkX1[s].fill(0.0f); gfMeshFeedPkX2[s].fill(0.0f);
+            gfMeshFeedPkY1[s].fill(0.0f); gfMeshFeedPkY2[s].fill(0.0f);
+        }
 
         acousticMetrics.reset();
         saturatorL.reset(); saturatorR.reset();
@@ -293,8 +642,11 @@ namespace FDNReverb {
         loopEnergyEnv = 0.0f;
         sdnEngine.reset();
         plateMesh.reset();
+        gfMeshL.reset();
+        gfMeshR.reset();
         springChain.reset();
         inchindownEngine.reset();
+        inchindownEngineR.reset();
         ismEngine.reset();
         erOffsetDelayL.fill(0.0f);
         erOffsetDelayR.fill(0.0f);
@@ -312,8 +664,13 @@ namespace FDNReverb {
         // ディレイ長の再計算を要するパラメータ（RoomSize のみ）
         const bool topologyNeedsUpdate = (activeParams.roomSizeScale != p.roomSizeScale);
 
-        // 吸音フィルタ再設計を要するパラメータ（17ノブ）
-        const bool absorptionNeedsUpdate = 
+        // 吸音フィルタ再設計を要するパラメータ
+        // [P6] トリガーは designStage2 の実入力のみに限定する。旧実装では
+        // scattering / erCrossoverMs / lateDensity / asymmetry / clarityDB の
+        // 変更でも同一係数の再設計 (約 656 回の pow 他) と 30ms の無意味な
+        // クロスフェードが発生し、フェード中は同一信号の cos+sin 合成で
+        // 最大 +3dB の膨らみまで生じていた。これら 5 つは設計入力ではない。
+        const bool absorptionNeedsUpdate =
                (activeParams.decayScale != p.decayScale)
             || (activeParams.hfDamping != p.hfDamping)
             || (activeParams.lfAbsorption != p.lfAbsorption)
@@ -321,12 +678,19 @@ namespace FDNReverb {
             || (activeParams.tiltMid != p.tiltMid)
             || (activeParams.tiltHigh != p.tiltHigh)
             || (activeParams.rtBands != p.rtBands)
-            || (activeParams.airAbsorbScale != p.airAbsorbScale)
-            || (activeParams.scattering != p.scattering)
+            || (activeParams.airAbsorbScale != p.airAbsorbScale);
+
+        // [P6] GEQ 再設計を伴わず SDN 派生値だけを更新すべきパラメータ
+        const bool sdnDerivedNeedsUpdate =
+               (activeParams.scattering != p.scattering)
             || (activeParams.erCrossoverMs != p.erCrossoverMs)
-            || (activeParams.lateDensity != p.lateDensity)
+            // [PRO wiring fix] Asymmetry had NO update trigger at all: turning
+            // the knob alone never reached updateGeometry (dead on all 8
+            // algorithms; the SDN is not even the sounding core on 4 of them).
+            // Air Absorb is included so the SDN-side LPF follows the knob too
+            // (it previously only changed inside the absorption redesign).
             || (activeParams.asymmetry != p.asymmetry)
-            || (activeParams.clarityDB != p.clarityDB);
+            || (activeParams.airAbsorbScale != p.airAbsorbScale);
 
         if (algoChanged) {
             ReverbTopology newTop = currentTopology;
@@ -351,6 +715,9 @@ namespace FDNReverb {
             if (absorptionNeedsUpdate) {
                 // サンプルベース・レート制御用フラグ
                 absorptionUpdatePending = true;
+            }
+            if (sdnDerivedNeedsUpdate) {
+                sdnParamsUpdatePending = true;
             }
         }
 
@@ -394,9 +761,56 @@ namespace FDNReverb {
         saturatorR.setMode(p.satTypeIdx);
     }
 
+    // Phase3 Goldfoil redesign (adopted candidate D24): explicit delay set.
+    // The ms-bounds -> log-spaced -> prime-snap generation is a lottery for the
+    // FDN's transmission-zero pattern: both widened sets tried in the metallic
+    // programme (2-30 ms, 2-24 ms) placed a deep steady-state zero on 1 kHz
+    // (fundamental -26.4 / -17.1 dB). This set is designed in samples at
+    // 48 kHz / roomSize 0.90 (the Goldfoil preset default): 16 distinct
+    // primes, sum ~7440 samples = Schroeder modal density ~50% (dev: 28%),
+    // screened with a simplified FDN steady-state model and verified with
+    // the steady-state sweep: on the 1/6-oct grid every point is within 6 dB
+    // of the dev response except one narrow zero at 158.7 Hz (dev has the
+    // same zero at ~160 Hz; see phase3/goldfoil/REDESIGN.md).
+    // Candidate D: fractional delays. Integer loop lengths share a common
+    // lattice with the (integer) serial-APF delays and the sample grid;
+    // golden-ratio fractional offsets make every total loop length
+    // incommensurate, smearing the transmission-zero pattern. The engine's
+    // delay read already interpolates non-integer delays.
+    // Robust-screening revision (phase3/goldfoil/ROBUST_SCREENING.md): the
+    // fractional parts were re-screened over the full condition grid
+    // (SR 44.1/48/96/192k x roomSize 0.30-2.00 + spot values) under a hard
+    // min-distance constraint. Every channel's delay now keeps a distance
+    // of >= 0.05 samples from the nearest integer at all 40 checked
+    // conditions (the previous set landed exactly on an integer at
+    // roomSize 2.00, ch0 = 173.00 samples, defeating the fractional-delay
+    // premise for that channel, and within 0.003 at roomSize 0.30).
+    // Design point (48k / 0.90) vs the previous set: ring 21.7 -> 20.9 dB,
+    // THDN 2.27 -> 2.01 %, T30@1k error +1.5 -> +3.1 % (gate +-3pt), the
+    // sweep keeps only the shared ~159 Hz zero. The grid exceedance
+    // profile vs dev is unchanged in character (worst margin +8, at
+    // 48k / roomSize 1.15, as before): within the constants-only scope no
+    // screened set beat it without breaking a design-point gate; see
+    // ROBUST_SCREENING.md for the full before/after and the rejected
+    // margin-optimal alternative.
+    static constexpr std::array<float, 16> GOLDFOIL_DELAY_SET_48K = { {
+        67.204f, 71.39f, 89.4705f, 113.558f, 137.5775f, 191.842f, 223.2695f, 257.156f,
+        337.6045f, 421.4115f, 499.8085f, 631.3845f, 757.8545f, 977.5775f, 1181.096f, 1481.4285f
+    } };
+
     void UniversalEngine::calculatePrimePowerDelays() {
         const float fsf = static_cast<float>(fs);
         const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+
+        if (safeAlgo == 6) { // Goldfoil: explicit set, scaled from the 48k/0.90 reference
+            const float sizeScaleGF = juce::jlimit(0.3f, 2.5f, activeParams.roomSizeScale);
+            const float rel = (fsf / 48000.0f) * (sizeScaleGF / 0.90f);
+            for (int i = 0; i < FDN_ORDER; ++i) {
+                fdnBaseDelaySamples[i] = std::max(11.0f, GOLDFOIL_DELAY_SET_48K[i] * rel + 24.0f * (fsf / 48000.0f));
+            }
+            return;
+        }
+
         const auto& bounds = ALGORITHM_DELAY_BOUNDS[safeAlgo];
 
         // RoomSize ノブ (0.3 ~ 2.0) による線形スケーリング
@@ -443,11 +857,7 @@ namespace FDNReverb {
 
         // 吸音フィルタ初期化（AとBの双方に初期係数を適用）
         updateAbsorptionFilters(false);
-        for (int i = 0; i < FDN_ORDER; ++i) {
-            for (int b = 0; b < NUM_BANDS; ++b) {
-                absorptionCoeffsS2_B[i][b] = absorptionCoeffsS2_A[i][b];
-            }
-        }
+        absorptionCoeffsSoA_B = absorptionCoeffsSoA_A;
 
         switch (currentTopology) {
         case ReverbTopology::Room:
@@ -478,28 +888,7 @@ namespace FDNReverb {
 
         // ★ 【SDN コア ジオメトリ更新 (Asymmetry 連動)】
         float erSizeScale = 0.5f + activeParams.roomSizeScale;
-        const float asym = activeParams.asymmetry;
-        
-        switch (currentTopology) {
-        case ReverbTopology::Room:
-            sdnEngine.updateGeometry(4.6f * erSizeScale, 7.4f * erSizeScale, 2.89f * erSizeScale, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f, asym);
-            break;
-        case ReverbTopology::Hall:
-            sdnEngine.updateGeometry(13.5f * erSizeScale, 27.0f * erSizeScale, 10.8f * erSizeScale, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f, asym);
-            break;
-        case ReverbTopology::Plate:
-            sdnEngine.updateGeometry(2.0f * erSizeScale, 1.0f * erSizeScale, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f, asym);
-            break;
-        case ReverbTopology::Spring:
-            sdnEngine.updateGeometry(0.3f * erSizeScale, 0.3f * erSizeScale, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f, asym);
-            break;
-        case ReverbTopology::Goldfoil:
-            sdnEngine.updateGeometry(0.27f * erSizeScale, 0.29f * erSizeScale, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f, asym);
-            break;
-        case ReverbTopology::Inchindown:
-            sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f, asym);
-            break;
-        }
+        updateSdnGeometry();
 
         // ★ SDN 壁面散乱度 (Scattering 連動)
         sdnEngine.scattering = juce::jlimit(0.0f, 1.0f, activeParams.scattering);
@@ -521,10 +910,18 @@ namespace FDNReverb {
             plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, true);
         } else if (currentTopology == ReverbTopology::Goldfoil) {
             plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshL.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshR.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
         } else if (currentTopology == ReverbTopology::Spring) {
             springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
         } else if (currentTopology == ReverbTopology::Inchindown) {
-            inchindownEngine.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.0f);
+            // The tank must be driven by the Decay Time the FDN implements,
+            // not by the ER-crossover pseudo-RT60 (sdnRt60 <= 0.5 s): at
+            // 0.5 s the 237 m long-axis per-trip broadband gain is ~2e-11,
+            // so the namesake long-axis nodes are silent and the core dies
+            // within ~2 s. (phase3/inchindown/INCHINDOWN.md)
+            inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
+            inchindownEngineR.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
         }
         
         // ★ 【ER ビジュアライザー用動的タップ抽出ブリッジ】
@@ -565,8 +962,120 @@ namespace FDNReverb {
         saturatorL.setMode(activeParams.satTypeIdx);
         saturatorR.setMode(activeParams.satTypeIdx);
         dynamicDucker.setParameters(activeParams.duckingAmount, activeParams.duckingAttackMs, activeParams.duckingRelMs, activeParams.duckingThreshDB);
-        ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale, activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption);
+        {
+            // [ism-link] ISM タップ包絡の連動用に 1kHz 帯 (BAND_FREQ[5]) の
+            // プリセット RT60 と decayScale 適用後の値を渡す。
+            const int ismAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+            const float ismRt60Base1k = ALL_PRESETS[ismAlgo]->acoustics.rt60[5];
+            ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale, activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption,
+                                       ismRt60Base1k * activeParams.decayScale, ismRt60Base1k);
+        }
 
+        // [ER law unification] anchor trims at this algorithm's preset default
+        // erLevel: the core used to see erLevel^2 at this stage (erLevel^4 at
+        // the mix), the ISM erLevel^1 (erLevel^3 at the mix). With the trims
+        // both paths total erLevel^2 at the mix and match at the default.
+        {
+            const int defIdx = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+            const float erDef = PRESET_DEFAULTS[defIdx].erLevel;
+            erCoreTrim = erDef * erDef;
+            erIsmTrim = erDef;
+        }
+
+    }
+
+    // phase3/stereo SPLIT8 implementation support (STEREO_IMPL.md):
+    // per-algorithm band-T30 recalibration factors (multipliers on the
+    // design RT60 targets) and late-makeup trims (dB) for the split-FDN
+    // path. Splitting the shared 16ch network into two 8ch per-ear
+    // networks changes each band's modal statistics, so the design
+    // targets are trimmed per band to reproduce the current head's
+    // measured band T30, and the late makeup is trimmed to restore the
+    // total IR energy lost with the crossLeak contribution.
+    // Goldfoil (index 6) joined the split path in phase3/goldfoil-stereo
+    // (e2 + 2.6 kHz fix); its band row is the identity — the split design
+    // measured within JND of the shared design at every band on the
+    // prototype base (T30@1k −2.7%), so no recalibration was identified
+    // for it. Bands follow BAND_FREQ
+    // (31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000, 16000 Hz).
+    // Rebase note (phase3/stereo/STEREO_REBASE.md): the Room1 / Room2 /
+    // Spring / Inchindown rows and all makeup trims were re-identified
+    // on the f309b2fb base (B3 + Inchindown fixes + OS2 + diffusion (a)
+    // + F3 landed after the original identification); the Hall1 /
+    // Hall2 / Plate band rows are unchanged from the original
+    // identification and still meet gates there.
+    static constexpr std::array<std::array<float, NUM_BANDS>, NUM_ALGORITHMS> SPLIT8_BAND_CORR = { {
+        { 0.8021f, 0.8021f, 0.8021f, 1.1300f, 1.0485f, 1.1074f, 0.9245f, 1.0418f, 0.9882f, 0.9882f }, // Room1 [phase3/room1-late P3: 250 Hz re-identified on 836d1b16+ERPRO base, full SR x scale grid vs nominal; 125 and 8k entries deliberately unchanged]
+        { 0.9483f, 0.9483f, 0.9483f, 1.0001f, 1.0600f, 0.9927f, 0.9906f, 1.0027f, 1.0028f, 1.0028f }, // Room2
+        { 0.9753f, 0.9753f, 0.9753f, 1.0001f, 1.0146f, 0.9669f, 1.0128f, 0.9963f, 0.9949f, 0.9949f }, // Hall1
+        { 1.0177f, 1.0177f, 1.0177f, 0.9941f, 0.9957f, 1.0249f, 1.0248f, 0.9810f, 0.9984f, 0.9984f }, // Hall2
+        { 0.9997f, 0.9997f, 0.9997f, 1.0260f, 1.0859f, 1.0274f, 0.9545f, 0.9992f, 0.9231f, 0.9231f }, // Plate
+        { 1.0129f, 1.0129f, 1.0129f, 1.0518f, 0.9851f, 1.0114f, 0.9400f, 1.0063f, 0.9871f, 0.9871f }, // Spring
+        { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }, // Goldfoil (identity)
+        { 0.9626f, 0.9626f, 0.9626f, 1.0178f, 1.0804f, 1.0003f, 1.0140f, 0.9948f, 1.0163f, 1.0163f }  // Inchindown
+    } };
+    // Makeup trims are applied in the audio path (processBlock, keyed on
+    // activeParams.algorithmIndex), NOT in this design function: a
+    // design-time trim leaks into the prepare()-time design (which runs
+    // with the default algorithm index) and shifts the lateMakeupGain
+    // smoother's starting target, which audibly perturbs even Goldfoil's
+    // first ~400 samples; and Room1's design-time total already sits at
+    // the +12 dB makeup clamp, nullifying any in-limit trim there.
+    // Rebase round 3: values identified with the split-mode width
+    // remap (below) active; the remap retains side energy that the
+    // legacy stage scaled down, raising the dual-mono IR energy by
+    // +0.24...+0.59 dB, and these trims absorb that so the patch as a
+    // whole stays level-neutral at preset defaults.
+    // Goldfoil's +0.19 dB was identified separately at its split apply
+    // (phase3/goldfoil-stereo, on the a7a9a27b base with the protoB feed
+    // cuts and the APF offset already in): the split path measured
+    // -0.19 dB of total IR energy (impC) against the shared path.
+    static constexpr std::array<float, NUM_ALGORITHMS> SPLIT8_MAKEUP_DB = { {
+        // Room1     Room2     Hall1     Hall2     Plate     Spring    Goldfoil  Inchindown
+        -0.48f,     -0.26f,     -0.18f,     -0.10f,     -0.08f,     -0.31f,     0.19f,       1.30f
+    } };
+
+    // [phase3/cpu-opt A-1] SoA 係数への書き込み。float->double 変換は従来
+    // BiquadState::tick 内で行われていたキャストと同値であり、設計結果は不変。
+    void UniversalEngine::storeAbsCoeffS2(bool targetIsB, int stage, int ch, const BiquadCoeffs& c) noexcept {
+        auto& bank = targetIsB ? absorptionCoeffsSoA_B : absorptionCoeffsSoA_A;
+        bank[stage][0][ch] = static_cast<double>(c.b0);
+        bank[stage][1][ch] = static_cast<double>(c.b1);
+        bank[stage][2][ch] = static_cast<double>(c.b2);
+        bank[stage][3][ch] = static_cast<double>(c.a1);
+        bank[stage][4][ch] = static_cast<double>(c.a2);
+    }
+
+    // [phase3/cpu-opt A-1] 吸収カスケード (DF-II 転置・11段) を 16ch 一括で処理する。
+    // チャンネル毎の演算は BiquadState::tick の式と丸めを正確に鏡写しする
+    // (FMA 形に固定。ファイル冒頭の注記を参照):
+    //   yd  = fma(b0, x, s1)
+    //   s1' = fma(b1, x, -(a1*yd)) + s2
+    //   s2' = fma(b2, x, -(a2*yd))
+    // (スカラー版は -O2 -mfma でこの FMA 収縮形にコンパイルされることを
+    //  逆アセンブルで確認済み。レーン間の演算は存在しないためビット一致。)
+    void UniversalEngine::tickAbsorptionBankSoA(const AbsCoeffSoA& coeffs, AbsStateSoA& stS1, AbsStateSoA& stS2, float* io) noexcept {
+        for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+            const auto& cs = coeffs[s];
+            double* s1row = stS1[s].data();
+            double* s2row = stS2[s].data();
+            for (int g = 0; g < FDN_ORDER; g += 4) {
+                const __m256d xv = _mm256_cvtps_pd(_mm_loadu_ps(io + g));
+                const __m256d s1 = _mm256_loadu_pd(s1row + g);
+                const __m256d s2 = _mm256_loadu_pd(s2row + g);
+                const __m256d b0 = _mm256_loadu_pd(cs[0].data() + g);
+                const __m256d b1 = _mm256_loadu_pd(cs[1].data() + g);
+                const __m256d b2 = _mm256_loadu_pd(cs[2].data() + g);
+                const __m256d a1 = _mm256_loadu_pd(cs[3].data() + g);
+                const __m256d a2 = _mm256_loadu_pd(cs[4].data() + g);
+                const __m256d yd = _mm256_fmadd_pd(b0, xv, s1);
+                const __m256d ns1 = _mm256_add_pd(_mm256_fmsub_pd(b1, xv, _mm256_mul_pd(a1, yd)), s2);
+                const __m256d ns2 = _mm256_fmsub_pd(b2, xv, _mm256_mul_pd(a2, yd));
+                _mm256_storeu_pd(s1row + g, ns1);
+                _mm256_storeu_pd(s2row + g, ns2);
+                _mm_storeu_ps(io + g, _mm256_cvtpd_ps(yd));
+            }
+        }
     }
 
     void UniversalEngine::updateAbsorptionFilters(bool targetIsB) {
@@ -604,15 +1113,38 @@ namespace FDNReverb {
         for (int b = 0; b < NUM_BANDS; ++b)
             scaledRT60[b] *= activeParams.rtBands[b];
 
-        // 大気減衰 (ISO 9613-1 指数べき乗モデル)
+        // phase3/stereo SPLIT8: per-algorithm band recalibration for the
+        // split (per-ear) networks (see SPLIT8_BAND_CORR above). Applied
+        // to the design targets only; the audio path is untouched.
+        // Goldfoil's row is the identity (see the table comment), so
+        // applying it unconditionally is exact for Goldfoil.
+        {
+            const auto& splitCorr = SPLIT8_BAND_CORR[safeAlgo];
+            for (int b = 0; b < NUM_BANDS; ++b)
+                scaledRT60[b] *= splitCorr[b];
+        }
+
+        // 大気減衰 [PRO wiring fix: 連続法則化]
+        // 旧実装は bands 7-9 への連鎖 min() キャップで、キャップが掛かるか
+        // 否かがプリセット RT60 表の帯域比に依存した (例: Spring の 8k は
+        // 比 0.248 のため scale 2.5 でも不発、逆に scale<1 は全アルゴ不発)。
+        // 新法則は ISO 9613-1 の吸収係数 alpha(f) [dB/m, 20C/70%RH 近似] を
+        // 使い 1/T60 に (scale-1) * alpha * c/60 を加える連続形。全帯域・
+        // 全アルゴで単調、scale=1 で厳密に無変更 (従来とビット一致)。
         const float safeAirScale = std::clamp(activeParams.airAbsorbScale, 0.0f, 5.0f);
         if (std::abs(safeAirScale - 1.0f) > 1e-4f) {
-            float ratio7 = std::pow(0.90f, safeAirScale);
-            float ratio8 = std::pow(0.75f, safeAirScale);
-            float ratio9 = std::pow(0.60f, safeAirScale);
-            scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
-            scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
-            scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
+            static constexpr float kAirAlpha[NUM_BANDS] = {
+                0.0001f, 0.0002f, 0.0004f, 0.0010f, 0.0019f,
+                0.0037f, 0.0097f, 0.0328f, 0.1050f, 0.2900f }; // 31.25Hz..16kHz
+            const float dScale = safeAirScale - 1.0f;
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                const float invOld = 1.0f / scaledRT60[b];
+                float inv = invOld + dScale * kAirAlpha[b] * (343.0f / 60.0f);
+                // 相対クランプ: 伸長側は T60 が元の 2.5 倍を超えない (負の
+                // 1/T60 や 60s 天井への張り付きを防ぐ)。
+                inv = std::max(inv, 0.4f * invOld);
+                scaledRT60[b] = 1.0f / std::max(inv, 1.0f / 60.0f);
+            }
         }
 
         // GUI 表示用に物理減衰を反映した実効 RT60
@@ -630,19 +1162,264 @@ namespace FDNReverb {
         }
         targetRT60 = displayRT60;
         effectiveRT60 = targetRT60;
+        currentDesignRT60_1k = effectiveRT60[5];
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
         // ★ 状態変数（s1, s2）のコピーは完全に排除！新係数のみを非アクティブ側（targetIsB）に書き込む
+        // Phase3 PL-3: APF の群遅延は周波数依存 (Schroeder APF:
+        // tau(w) = m (1-g^2) / (1+g^2+2g cos(w m))) で、公称遅延和と最大で
+        // (1+g)/(1-g) 倍ずれる。バンド中心ごとに実効ループ長を求めて設計する。
+        // g は setParams と同一式で再計算する (設計時点の目標値)。
+        const float diffForDesign = std::clamp(activeParams.diffusion * diffusionSensitivity, 0.0f, 1.0f);
+        const float lateDensityScaleForDesign = std::clamp(activeParams.lateDensity / 0.7f, 0.1f, 1.4286f);
+        const float gApfDesign = std::clamp(
+            apfGain * std::pow(diffForDesign, 0.75f) * 0.76f * lateDensityScaleForDesign,
+            0.0f, 0.7071f);
+        // Phase3 PL-3d: per-band design is applied ONLY to Spring.
+        // Measured: Spring cepstrum 21.5 -> 17.2 dB (adopt). On Plate it
+        // improved band T30 further (250 Hz +19 -> +13%) but worsened
+        // cepstrum (+1.2 dB), NED (0 -> 1.4%) and the 205 Hz tone
+        // prominence, so Plate keeps PL-2 + the nominal P2 design.
+        // Room/Hall/Inchindown were neutral, Goldfoil negative
+        // (ring 35.6 -> 39.9 dB): they also keep the P2 design.
+        const bool usePerBandDesign =
+            (currentTopology == ReverbTopology::Spring);
         for (int i = 0; i < FDN_ORDER; ++i) {
-            auto s2 = fitter.designStage2(
-                static_cast<int>(fdnBaseDelaySamples[i]), fs, scaledRT60,
-                activeParams.hfDamping, activeParams.lfAbsorption);
-            for (int b = 0; b < NUM_BANDS; ++b) {
-                if (targetIsB) {
-                    absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
-                } else {
-                    absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
+            // Phase2 P2: 実際のループ周期で設計する。帰還路には FDN ディレイ本体に加えて
+            // 直列3段 APF の遅延合計と fbVec の 1 サンプルが含まれる。従来は本体長だけで
+            // 設計していたため、実効 T60 が (本体+APF)/本体 倍に伸びていた（実測で確認）。
+            if (!usePerBandDesign) {
+                float apfDelaySum = 0.0f;
+                for (int s = 0; s < SERIAL_APF_STAGES; ++s)
+                    apfDelaySum += cachedApfBaseDelaySmp[i][s];
+                const int effectiveLoopSamples = static_cast<int>(std::round(
+                    fdnBaseDelaySamples[i] + apfDelaySum + 1.0f));
+                // Inchindown (phase3/band8k/BAND8K.md +
+                // phase3/inchindown-lf/INCHINDOWN_LF.md): its ultra-long
+                // RT60 breaks three generic-design behaviours, so it designs
+                // through a dedicated PerBand call:
+                // (1) the 8k band needs up to -64 dB per-trip loss on the
+                //     longest channels, far beyond the fitter's stock
+                //     +-18 dB per-stage clamp (realized loss saturates at
+                //     ~24 dB, 8k T30 +193% steep) -> deepLoss path
+                //     (relaxed clamp + centre-loss iteration, saturated
+                //     designs only);
+                // (2) float32 section design loses the LF response at high
+                //     sample rates -> double-precision sections;
+                // (3) the passivity guard's -0.06 dB cap sits above the
+                //     natural inter-band valleys of a correct shallow
+                //     design, so its LF deepening deforms the 125 Hz
+                //     calibration -> cap relaxed to -0.02 dB (still
+                //     strictly passive).
+                // All other topologies keep the stock path bit-identically.
+                if (currentTopology == ReverbTopology::Inchindown) {
+                    std::array<float, NUM_BANDS> uniformLoop;
+                    uniformLoop.fill(static_cast<float>(effectiveLoopSamples));
+                    auto s2x = fitter.designStage2PerBand(
+                        uniformLoop, fs, scaledRT60,
+                        activeParams.hfDamping, activeParams.lfAbsorption,
+                        false, true, -0.02, true);
+                    for (int b = 0; b < NUM_BANDS; ++b)
+                        storeAbsCoeffS2(targetIsB, b, i, s2x.geqStages[b]);
+                    continue;
                 }
+                auto s2n = fitter.designStage2(
+                    effectiveLoopSamples, fs, scaledRT60,
+                    activeParams.hfDamping, activeParams.lfAbsorption);
+                for (int b = 0; b < NUM_BANDS; ++b)
+                    storeAbsCoeffS2(targetIsB, b, i, s2n.geqStages[b]);
+                continue;
+            }
+            std::array<float, NUM_BANDS> loopPerBand;
+            for (int b = 0; b < NUM_BANDS; ++b) {
+                float loopB = fdnBaseDelaySamples[i] + 1.0f;
+                for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                    const float mApf = cachedApfBaseDelaySmp[i][s];
+                    // tau(f) oscillates with period fs/m Hz; sampling it at the
+                    // band centre alone is meaningless at HF. Average tau over
+                    // the octave band (8 log-spaced points): tends to m at HF,
+                    // captures the smooth LF peak (f ~ fs/(2m)) faithfully.
+                    double tauSum = 0.0;
+                    for (int k = 0; k < 8; ++k) {
+                        const double frac = (static_cast<double>(k) + 0.5) / 8.0;
+                        const double fEval = static_cast<double>(BAND_FREQ[b])
+                                           * std::pow(2.0, frac - 0.5);
+                        const double w = 2.0 * 3.141592653589793 * fEval
+                                       * static_cast<double>(mApf) / fs;
+                        const double denom = 1.0 + static_cast<double>(gApfDesign) * gApfDesign
+                                           + 2.0 * gApfDesign * std::cos(w);
+                        tauSum += static_cast<double>(mApf) * (1.0 - static_cast<double>(gApfDesign) * gApfDesign)
+                                / std::max(0.01, denom);
+                    }
+                    loopB += static_cast<float>(tauSum / 8.0);
+                }
+                loopPerBand[b] = loopB;
+            }
+            auto s2 = fitter.designStage2PerBand(
+                loopPerBand, fs, scaledRT60,
+                activeParams.hfDamping, activeParams.lfAbsorption,
+                true); // Spring: オクターブ較正 (phase3/spring8k/SPRING8K.md)
+            for (int b = 0; b < NUM_BANDS; ++b)
+                storeAbsCoeffS2(targetIsB, b, i, s2.geqStages[b]);
+        }
+        // ─────────────────────────────────────────────────────────────
+        // Phase3 plate234 candidate B3: APF group-delay compensation stage
+        // (stage index NUM_BANDS). The serial Schroeder APFs inflate the
+        // true loop period tau(f) above the nominal period used by the P2
+        // design, peaking where the stage-3 group delay peaks
+        // (f = fs / (2*m3) = 195-250 Hz at 48 kHz, staggered per channel).
+        // Modal decay rate = per-trip loss * fs / tau(f) therefore dips
+        // ~24% around 205-225 Hz, leaving a slow modal basin that rings.
+        // This stage adds a shallow peaking cut at the tau-peak frequency
+        // whose depth is derived from the same tau model, restoring a
+        // flat modal decay rate. Plate only; every other topology gets
+        // an exact identity stage (bit-transparent).
+        {
+            if (currentTopology == ReverbTopology::Plate) {
+                const double q = 2.5;
+                // Per-channel design: each channel's tau peak sits at its
+                // own stage-3 frequency fs / (2*m3_i) (195-250 Hz), and the
+                // excess (tau_i - nominal_i) is largest for the shortest
+                // channels, whose modes dominate the late tail. A single
+                // shared depth under-doses exactly those channels, so the
+                // cut is designed per channel from its own tau model.
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    const double m3 = static_cast<double>(cachedApfBaseDelaySmp[i][2]);
+                    const double fc = std::clamp(fs / (2.0 * m3), 150.0, 300.0);
+                    const double w = 2.0 * 3.141592653589793 * fc / fs;
+                    double nom = static_cast<double>(fdnBaseDelaySamples[i]) + 1.0;
+                    double tau = static_cast<double>(fdnBaseDelaySamples[i]) + 1.0;
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                        const double m = static_cast<double>(cachedApfBaseDelaySmp[i][s]);
+                        nom += m;
+                        const double den = 1.0 + gApfDesign * gApfDesign
+                            + 2.0 * gApfDesign * std::cos(w * m);
+                        tau += m * (1.0 - gApfDesign * gApfDesign) / std::max(0.01, den);
+                    }
+                    // design decay rate at fc from the (scaled) RT60
+                    // targets, log-interpolated between the 125/250 Hz bands
+                    const double frac = std::clamp(std::log2(fc / 125.0), 0.0, 1.0);
+                    const double rt60fc = std::exp(
+                        (1.0 - frac) * std::log(static_cast<double>(scaledRT60[2]))
+                        + frac * std::log(static_cast<double>(scaledRT60[3])));
+                    const double designRate = 60.0 / std::max(0.05, rt60fc); // dB/s
+                    double depthDb = designRate * (tau - nom) / fs;
+                    depthDb = std::clamp(depthDb, 0.0, 0.45);
+                    // RBJ peaking cut, gain = -depthDb
+                    const double A = std::pow(10.0, -depthDb / 40.0);
+                    const double alpha = std::sin(w) / (2.0 * q);
+                    const double cw = std::cos(w);
+                    const double a0 = 1.0 + alpha / A;
+                    BiquadCoeffs comp{};
+                    comp.b0 = static_cast<float>((1.0 + alpha * A) / a0);
+                    comp.b1 = static_cast<float>((-2.0 * cw) / a0);
+                    comp.b2 = static_cast<float>((1.0 - alpha * A) / a0);
+                    comp.a1 = static_cast<float>((-2.0 * cw) / a0);
+                    comp.a2 = static_cast<float>((1.0 - alpha / A) / a0);
+                    storeAbsCoeffS2(targetIsB, NUM_BANDS, i, comp);
+                }
+            } else if (currentTopology == ReverbTopology::Goldfoil) {
+                // phase3/goldfoil-stereo 2.6k fix (GOLDFOIL_26K_PROTO):
+                // per-channel modal compensation for the split (8ch/ear)
+                // networks, on the same stage hook as B3. Splitting halves
+                // the modal density, and the implied per-channel decay rate
+                //   r_i(f) = per-trip loss_i(f) * fs / tau_i(f)
+                // has a pocket at 2-3.5 kHz: tau_i is inflated where the
+                // serial APFs' group delays align, and the GEQ loss there
+                // sits below target (spectroscopy: worst channel
+                // r = 19.7 dB/s vs design 33.9 at 2625 Hz). In the shared
+                // 16ch network the pocket is averaged out; in an 8ch ear
+                // network the slowest mode stands alone (design-point
+                // ring absolute PSD +4.4 dB before this fix). This stage
+                // cancels each channel's own worst deficit in the window
+                // with an RBJ peaking cut whose depth restores the design
+                // rate at the pocket frequency:
+                //   depth = kappa * (r_des(f*) - r_min) * tau(f*) / fs
+                // kappa = 0.85, Q = 6.0, window 2100-3400 Hz, depth capped
+                // at 0.9 dB (prototype-measured cuts: 0.13-0.29 dB).
+                // Goldfoil only; every other topology keeps the exact
+                // identity stage below (bit-transparent). Design-time
+                // only: the audio path cost is unchanged.
+                const double kappa = 0.85;
+                const double q26   = 6.0;
+                const double dMax  = 0.9;
+                const double fLo   = 2100.0;
+                const double fHi   = 3400.0;
+                const double gg    = static_cast<double>(gApfDesign);
+                const auto& bank26 = targetIsB ? absorptionCoeffsSoA_B : absorptionCoeffsSoA_A;
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    // grid search (1/24 oct) for the slowest implied rate
+                    double fStar = 0.0, rMin = 1e30, tauStar = 0.0;
+                    const int nSteps = static_cast<int>(std::ceil(std::log2(fHi / fLo) * 24.0));
+                    for (int k = 0; k <= nSteps; ++k) {
+                        const double f = fLo * std::pow(2.0, k / 24.0);
+                        const double w = 2.0 * 3.141592653589793 * f / fs;
+                        const double c1 = std::cos(w), s1 = std::sin(w);
+                        const double c2 = std::cos(2.0 * w), s2 = std::sin(2.0 * w);
+                        double lossDb = 0.0;
+                        for (int b = 0; b < NUM_BANDS; ++b) {
+                            // [phase3/cpu-opt A-1] SoA 係数 (double 化済み) の読み。
+                            // 値は従来の float 係数を double 化したものと同一。
+                            const double cfB0 = bank26[b][0][i];
+                            const double cfB1 = bank26[b][1][i];
+                            const double cfB2 = bank26[b][2][i];
+                            const double cfA1 = bank26[b][3][i];
+                            const double cfA2 = bank26[b][4][i];
+                            const double nRe = cfB0 + cfB1 * c1 + cfB2 * c2;
+                            const double nIm = -(cfB1 * s1 + cfB2 * s2);
+                            const double dRe = 1.0 + cfA1 * c1 + cfA2 * c2;
+                            const double dIm = -(cfA1 * s1 + cfA2 * s2);
+                            const double magSq = (nRe * nRe + nIm * nIm)
+                                               / std::max(1e-24, dRe * dRe + dIm * dIm);
+                            lossDb += -10.0 * std::log10(std::max(1e-24, magSq));
+                        }
+                        double tau = static_cast<double>(fdnBaseDelaySamples[i]) + 1.0;
+                        for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                            const double m = static_cast<double>(cachedApfBaseDelaySmp[i][s]);
+                            const double den = 1.0 + gg * gg + 2.0 * gg * std::cos(w * m);
+                            tau += m * (1.0 - gg * gg) / std::max(0.01, den);
+                        }
+                        const double r = lossDb * fs / tau;
+                        if (r < rMin) { rMin = r; fStar = f; tauStar = tau; }
+                    }
+                    // design rate at f* from the (scaled) RT60 targets,
+                    // log-interpolated between the bracketing bands
+                    double rt60Star = static_cast<double>(scaledRT60[NUM_BANDS - 1]);
+                    if (fStar <= BAND_FREQ[0]) {
+                        rt60Star = static_cast<double>(scaledRT60[0]);
+                    } else {
+                        for (int b = 0; b < NUM_BANDS - 1; ++b) {
+                            if (fStar >= BAND_FREQ[b] && fStar <= BAND_FREQ[b + 1]) {
+                                const double frac = std::log2(fStar / BAND_FREQ[b]);
+                                rt60Star = std::exp(
+                                    (1.0 - frac) * std::log(static_cast<double>(scaledRT60[b]))
+                                    + frac * std::log(static_cast<double>(scaledRT60[b + 1])));
+                                break;
+                            }
+                        }
+                    }
+                    const double designRate = 60.0 / std::max(0.05, rt60Star); // dB/s
+                    double depthDb = kappa * (designRate - rMin) * tauStar / fs;
+                    depthDb = std::clamp(depthDb, 0.0, dMax);
+                    BiquadCoeffs comp{};
+                    if (depthDb > 0.02) {
+                        const double w = 2.0 * 3.141592653589793 * fStar / fs;
+                        const double A = std::pow(10.0, -depthDb / 40.0);
+                        const double alpha = std::sin(w) / (2.0 * q26);
+                        const double cw = std::cos(w);
+                        const double a0 = 1.0 + alpha / A;
+                        comp.b0 = static_cast<float>((1.0 + alpha * A) / a0);
+                        comp.b1 = static_cast<float>((-2.0 * cw) / a0);
+                        comp.b2 = static_cast<float>((1.0 - alpha * A) / a0);
+                        comp.a1 = static_cast<float>((-2.0 * cw) / a0);
+                        comp.a2 = static_cast<float>((1.0 - alpha / A) / a0);
+                    }
+                    storeAbsCoeffS2(targetIsB, NUM_BANDS, i, comp);
+                }
+            } else {
+                const BiquadCoeffs identity{};
+                for (int i = 0; i < FDN_ORDER; ++i)
+                    storeAbsCoeffS2(targetIsB, NUM_BANDS, i, identity);
             }
         }
 #endif
@@ -664,7 +1441,11 @@ namespace FDNReverb {
         }
         theoreticalEDT = currentRT60Mid * edtCoeff;
 
-        modDepthScale = 1.0f + juce::jlimit(0.0f, 2.0f, (rt60Mid - 1.0f) * 0.5f);
+        // [phase3/modulation F3] RT60 連動の深さスケール (最大 ×3) は撤廃し 1.0 固定。
+        // 変調の利益 (密度・平坦度) は深さの全条件で JND 未満と実測されたため、
+        // 副作用 (持続音 AM・サイドバンド) だけを適正化する。深さ係数も
+        // 0.0022 → 0.00055 (×0.25) に再校正済み (下記 depthSamples 参照)。
+        modDepthScale = 1.0f;
 
         constexpr float baseDB = 5.0f;
         float decayCompDB = -10.0f * std::log10(std::max(0.1f, rt60Mid));
@@ -676,9 +1457,68 @@ namespace FDNReverb {
         float algoOffset = algorithmOffsetDB[juce::jlimit(0, 7, activeParams.algorithmIndex)];
         const float totalMakeupDB = juce::jlimit(-6.0f, 12.0f, baseDB + decayCompDB + algoOffset);
         lateMakeupGainLinear = juce::Decibels::decibelsToGain(totalMakeupDB);
-        lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+        // [phase3/small-fixes 試作] makeup 増加の保留・解放 (詳細は
+        // UniversalEngine.h の makeupHold* メンバー参照)。フェード経由の
+        // 再設計 かつ テイルが鳴っている場合のみ増加を保留する。トポロジー
+        // 経由 (切替直後は panicReset でテイルが消去済み) と減少は即時。
+        // テイルが無い状態 (静的レンダーのウォームアップ中など) も即時で、
+        // 静止時の出力は従来とビット同一に保たれる。
+        if (!absorptionDesignFromFade) {
+            makeupHoldActive = false;
+            lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+        } else if (lateMakeupGainLinear > lateMakeupGainSmoothed.getTargetValue()) {
+            if (tailWasActive) {
+                makeupHoldActive = true;
+                makeupHeldTarget = lateMakeupGainLinear;
+                makeupHoldSamplesLeft = makeupHoldSamplesTotal;
+            } else {
+                lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+            }
+        } else {
+            makeupHoldActive = false;
+            lateMakeupGainSmoothed.setTargetValue(lateMakeupGainLinear);
+        }
 
-        // SDN 吸音の更新
+        // SDN 吸音の更新 (安価な派生値のみ; [P6] で独立関数化)
+        applySdnDerivedParams();
+    }
+
+    // [P6] SDN 側の派生パラメータ (damping / lpfCoeff / scattering) のみを更新する。
+    // designStage2 の入力ではない erCrossoverMs / scattering の変更は、
+    // GEQ 再設計を経ずにここだけで反映できる (出力はビット同一)。
+    // [PRO wiring fix] SDN geometry (roomSize + Asymmetry), factored out of
+    // updateTopologyAndRouting so a knob turn can refresh it on its own.
+    // updateGeometry only recomputes baseDelaySamples; the per-sample delay
+    // smoother (0.0004/sample) glides to the new values, so this is click-free
+    // and cheap (6 nodes). NOTE: on Plate/Spring/Goldfoil/Inchindown the SDN
+    // is not the sounding core, so Asymmetry stays inaudible there by design
+    // of the topology routing, not by a wiring fault.
+    void UniversalEngine::updateSdnGeometry() {
+        const float erSizeScale = 0.5f + activeParams.roomSizeScale;
+        const float asym = activeParams.asymmetry;
+        switch (currentTopology) {
+        case ReverbTopology::Room:
+            sdnEngine.updateGeometry(4.6f * erSizeScale, 7.4f * erSizeScale, 2.89f * erSizeScale, 1.0f, 1.5f, 1.2f, 3.5f, 5.5f, 1.2f, asym);
+            break;
+        case ReverbTopology::Hall:
+            sdnEngine.updateGeometry(13.5f * erSizeScale, 27.0f * erSizeScale, 10.8f * erSizeScale, 3.0f, 5.0f, 1.7f, 10.0f, 20.0f, 1.7f, asym);
+            break;
+        case ReverbTopology::Plate:
+            sdnEngine.updateGeometry(2.0f * erSizeScale, 1.0f * erSizeScale, 0.001f, 0.3f, 0.7f, 0.0005f, 1.5f, 0.4f, 0.0005f, asym);
+            break;
+        case ReverbTopology::Spring:
+            sdnEngine.updateGeometry(0.3f * erSizeScale, 0.3f * erSizeScale, 0.01f, 0.0f, 0.15f, 0.005f, 0.3f, 0.15f, 0.005f, asym);
+            break;
+        case ReverbTopology::Goldfoil:
+            sdnEngine.updateGeometry(0.27f * erSizeScale, 0.29f * erSizeScale, 0.00002f, 0.05f, 0.14f, 0.00001f, 0.20f, 0.10f, 0.00001f, asym);
+            break;
+        case ReverbTopology::Inchindown:
+            sdnEngine.updateGeometry(9.0f * erSizeScale, 237.0f * erSizeScale, 13.5f * erSizeScale, 4.5f, 10.0f, 6.0f, 4.5f, 50.0f, 6.0f, asym);
+            break;
+        }
+    }
+
+    void UniversalEngine::applySdnDerivedParams() {
         const float fsf = static_cast<float>(fs);
         const float erSizeScale = 0.5f + activeParams.roomSizeScale;
         const float sdnAvgDelaySmp = 0.02f * fsf * erSizeScale;
@@ -691,6 +1531,30 @@ namespace FDNReverb {
         const float hfCutoff = std::clamp((10000.0f * (1.1f - activeParams.hfDamping)) / (0.6f + 0.4f * effectiveAirAbsorb), 800.0f, 20000.0f);
         sdnEngine.lpfCoeff = 1.0f - std::exp(-6.2831853f * hfCutoff / fsf);
         sdnEngine.scattering = juce::jlimit(0.0f, 1.0f, activeParams.scattering);
+
+        // [PRO wiring fix] Asymmetry: refresh geometry on knob turns too.
+        updateSdnGeometry();
+
+        // [PRO wiring fix] ER Crossover never reached the dedicated cores:
+        // mesh/spring setParameters ran only inside updateTopologyAndRouting
+        // (algorithm/room-size changes), so the knob was dead on Plate,
+        // Spring and Goldfoil. Propagate the same sdnRt60 law here.
+        // Inchindown is deliberately excluded: its tank is driven by
+        // currentDesignRT60_1k (see the Fix B note in
+        // updateTopologyAndRouting); feeding it sdnRt60 (<= 0.5 s) would
+        // re-break the tank.
+        if (currentTopology == ReverbTopology::Plate) {
+            plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, true);
+        } else if (currentTopology == ReverbTopology::Goldfoil) {
+            plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            // [tip adaptation] the split build's per-ear meshes are the
+            // feed source; updateTopologyAndRouting sets all three, so the
+            // derived-params propagation mirrors that here.
+            gfMeshL.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshR.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+        } else if (currentTopology == ReverbTopology::Spring) {
+            springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
+        }
     }
 
     inline void UniversalEngine::fastWalshHadamardTransform(std::array<float, 16>& a) noexcept {
@@ -744,6 +1608,32 @@ namespace FDNReverb {
         for (int i = 0; i < 16; ++i) v[i] *= s[i];
     }
 
+    // phase3/stereo SPLIT8 (STEREO_IMPL.md): 8-point unitary FWHT
+    // (1/sqrt(8) scaling) + sign flipping for the per-ear partition
+    // networks. Sign patterns reuse the two halves of the 16ch
+    // applySignFlipping table.
+    static inline void stereoFwht8(std::array<float, 8>& a) noexcept {
+        const float t0 = a[0] + a[1], t1 = a[0] - a[1];
+        const float t2 = a[2] + a[3], t3 = a[2] - a[3];
+        const float t4 = a[4] + a[5], t5 = a[4] - a[5];
+        const float t6 = a[6] + a[7], t7 = a[6] - a[7];
+        const float u0 = t0 + t2, u2 = t0 - t2;
+        const float u1 = t1 + t3, u3 = t1 - t3;
+        const float u4 = t4 + t6, u6 = t4 - t6;
+        const float u5 = t5 + t7, u7 = t5 - t7;
+        constexpr float s = 0.35355339f; // 1/sqrt(8)
+        a[0] = (u0 + u4) * s; a[4] = (u0 - u4) * s;
+        a[1] = (u1 + u5) * s; a[5] = (u1 - u5) * s;
+        a[2] = (u2 + u6) * s; a[6] = (u2 - u6) * s;
+        a[3] = (u3 + u7) * s; a[7] = (u3 - u7) * s;
+    }
+    static inline void stereoSignFlip8(std::array<float, 8>& v, bool secondHalf) noexcept {
+        static constexpr float s0[8] = { 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f };
+        static constexpr float s1[8] = { 1.0f,  1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f };
+        const float* s = secondHalf ? s1 : s0;
+        for (int i = 0; i < 8; ++i) v[i] *= s[i];
+    }
+
     void UniversalEngine::processBlock(const float* inL, const float* inR,
         float* outL, float* outR, int numSamples) noexcept {
         juce::ScopedNoDenormals noDenormals;
@@ -755,9 +1645,36 @@ namespace FDNReverb {
             return;
         }
 
+        // [phase3/small-fixes 試作] テイル活動の検出と makeup 保留の解放。
+        // 保留はブロック単位で数え、解放は通常の 30 ms ランプで行う。
+        if (!tailWasActive) {
+            for (int i = 0; i < numSamples; ++i) {
+                if (std::abs(inL[i]) > 1.0e-4f || std::abs(inR[i]) > 1.0e-4f) { tailWasActive = true; break; }
+            }
+        }
+        if (makeupHoldActive) {
+            makeupHoldSamplesLeft -= numSamples;
+            if (makeupHoldSamplesLeft <= 0) {
+                makeupHoldActive = false;
+                lateMakeupGainSmoothed.setTargetValue(makeupHeldTarget);
+            }
+        }
+
         if (topologyUpdatePending) {
             updateTopologyAndRouting();
             topologyUpdatePending = false;
+        }
+
+        // phase3/stereo SPLIT8: per-algorithm late-energy makeup trim
+        // (see SPLIT8_MAKEUP_DB). Goldfoil's trim restores the total IR
+        // energy its split path loses (phase3/goldfoil-stereo apply).
+        const int curAlgoIdx = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+        const float splitMakeupLin = juce::Decibels::decibelsToGain(SPLIT8_MAKEUP_DB[curAlgoIdx]);
+
+        // [P6] GEQ 再設計を伴わない SDN 派生値の即時反映
+        if (sdnParamsUpdatePending) {
+            applySdnDerivedParams();
+            sdnParamsUpdatePending = false;
         }
 
         // ★ サンプルベース・レート制御 ＆ ビジー保護トリガー (15ms間隔 / アイドル時のみ遷移)
@@ -765,20 +1682,39 @@ namespace FDNReverb {
         const bool isCrossfadeIdle = (absoFadeState == AbsoFadeState::IdleAtA || absoFadeState == AbsoFadeState::IdleAtB);
         if (absorptionUpdatePending && isCrossfadeIdle && (samplesSinceLastAbsorptionUpdate >= absorptionRateLimitIntervalSamples)) {
             const bool targetIsB = (absoFadeState == AbsoFadeState::IdleAtA);
+            absorptionDesignFromFade = true;
             updateAbsorptionFilters(targetIsB);
+            absorptionDesignFromFade = false;
+            // [inchindown-decay fix] The tank's RT60 feed lives only in
+            // updateTopologyAndRouting, which a Decay-knob turn (absorption-
+            // only update) never reaches: without this re-feed the tank
+            // keeps its load-time RT60 (35 s at the preset) at every knob
+            // position while the FDN tracks. Re-feed with the fresh design
+            // value, same arguments as the topology path.
+            if (currentTopology == ReverbTopology::Inchindown) {
+                const float erSizeScaleTank = 0.5f + activeParams.roomSizeScale;
+                inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScaleTank, 1.0f);
+                inchindownEngineR.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScaleTank, 1.0f);
+            }
+            // [ism-link] ISM タップ包絡の decayScale 連動も同じ理由で吸収更新
+            // 経路で再供給する: ISM の updateParameters は updateTopology-
+            // AndRouting からしか呼ばれておらず、Decay ノブ変更だけでは新しい
+            // decayScale が ISM 幾何に届かなかった。値が変わっていない場合は
+            // updateParameters 側の変更検出で再計算をスキップする。
+            {
+                const int ismAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+                const float ismRt60Base1k = ALL_PRESETS[ismAlgo]->acoustics.rt60[5];
+                ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale,
+                                           activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption,
+                                           ismRt60Base1k * activeParams.decayScale, ismRt60Base1k);
+            }
             // ★ 状態変数ディープコピー（クリックノイズ完全ゼロの状態転送）
             if (targetIsB) {
-                for (int i = 0; i < FDN_ORDER; ++i) {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        absorptionFiltersS2_B[i][s] = absorptionFiltersS2_A[i][s];
-                    }
-                }
+                absorptionStateS1_B = absorptionStateS1_A;
+                absorptionStateS2_B = absorptionStateS2_A;
             } else {
-                for (int i = 0; i < FDN_ORDER; ++i) {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        absorptionFiltersS2_A[i][s] = absorptionFiltersS2_B[i][s];
-                    }
-                }
+                absorptionStateS1_A = absorptionStateS1_B;
+                absorptionStateS2_A = absorptionStateS2_B;
             }
             absoFadeState = targetIsB ? AbsoFadeState::FadingToB : AbsoFadeState::FadingToA;
             samplesSinceLastAbsorptionUpdate = 0;
@@ -797,14 +1733,19 @@ namespace FDNReverb {
 
         constexpr float apfModFrac[SERIAL_APF_STAGES] = { 0.25f, 0.20f, 0.15f };
 
-        // ★ C80 自動調整サーボ (Clarity)
-        acousticMetrics.updateServo(activeParams.clarityDB, numSamples);
-        const float erServo = acousticMetrics.getERServoGain();
-        const float lateServo = acousticMetrics.getLateServoGain();
+        // ★ Clarity は単一法則に統一 [PRO wiring fix]
+        // 旧実装は (a) 直接ゲイン ±0.25dB/dB と (b) AcousticMetrics サーボ
+        // ±0.25dB/dB (100ms 追従・入力活動ゲート付き) の二重適用で、定常時は
+        // 合計 ±0.5dB/dB になる一方、静かな素材ではサーボが 1.0 に戻り
+        // 実効量が素材依存だった。サーボ適用を廃し直接法則を ±0.5dB/dB に
+        // することで定常時の総量を保ったまま時間・素材依存を除く。
+        // clarity=0 では従来と完全一致 (サーボも厳密に 1.0 バイパス)。
+        const float erServo = 1.0f;
+        const float lateServo = 1.0f;
 
         // ★ Clarity ゲインのブロック単位事前計算 (毎サンプルの std::pow / decibelsToGain を完全排除)
         const float cDb = std::clamp(activeParams.clarityDB, -6.0f, 6.0f);
-        const float clarityShift = cDb * 0.25f; // 最大 ±1.5dB
+        const float clarityShift = cDb * 0.5f; // 最大 ±3dB (単一法則)
         const float gClarityER   = juce::Decibels::decibelsToGain(+clarityShift);
         const float gClarityLate = juce::Decibels::decibelsToGain(-clarityShift);
 
@@ -814,12 +1755,36 @@ namespace FDNReverb {
             smoothedModAmount = activeParams.modAmount;
         }
         std::array<float, FDN_ORDER> cachedApfSafeMod{};
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] 全段分の事前計算 (s=2 の値は従来の cachedApfSafeMod と同一式)
+        std::array<std::array<float, SERIAL_APF_STAGES>, FDN_ORDER> cachedApfSafeModAll{};
+#endif
         bool usePrecomputedSafeMod = false;
         if (modAmountStationary) {
             const float modAmtCurvedStat = smoothedModAmount * smoothedModAmount;
-            const float depthSamplesStat = modAmtCurvedStat * 0.0022f * fsf * modDepthScale;
+#if AMBIENCE_MODSRC_PACKAGE
+            const float depthSamplesStat = modAmtCurvedStat * 0.00055f * fsf * modDepthScale * MODSRC_DMULT;
+#else
+            const float depthSamplesStat = modAmtCurvedStat * 0.00055f * fsf * modDepthScale;
+#endif
             if (depthSamplesStat > 0.01f) {
                 for (int i = 0; i < FDN_ORDER; ++i) {
+#if AMBIENCE_MODSRC_PACKAGE
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                        const float baseDelay = cachedApfBaseDelaySmp[i][s];
+                        const float maxSafeMod = baseDelay * 0.15f;
+                        const float targetMod = depthSamplesStat * apfModFrac[s] * cachedFreqModScales[i];
+                        const float knee = maxSafeMod * 0.75f;
+                        float safeMod = targetMod;
+                        if (targetMod > knee) {
+                            const float excess = targetMod - knee;
+                            const float room = maxSafeMod - knee;
+                            safeMod = knee + room * std::tanh(excess / room);
+                        }
+                        cachedApfSafeModAll[i][s] = safeMod;
+                    }
+                    cachedApfSafeMod[i] = cachedApfSafeModAll[i][2];
+#else
                     const float baseDelay = cachedApfBaseDelaySmp[i][2];
                     const float maxSafeMod = baseDelay * 0.15f;
                     const float targetMod = depthSamplesStat * apfModFrac[2] * cachedFreqModScales[i];
@@ -831,6 +1796,7 @@ namespace FDNReverb {
                         safeMod = knee + room * std::tanh(excess / room);
                     }
                     cachedApfSafeMod[i] = safeMod;
+#endif
                 }
             }
             usePrecomputedSafeMod = true;
@@ -850,8 +1816,53 @@ namespace FDNReverb {
             std::fill(ismBufferR.begin(), ismBufferR.begin() + numSamples, 0.0f);
 
             // 未使用の ismSeedBuffer を排除し nullptr を渡すことで不要なメモリ書き込みをスキップ
-            ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), nullptr, numSamples, activeParams.erLevel);
+            // [ER law unification] ISM runs at unity internal level; the preset
+            // trim at the add site + shared final-mix law replace its private
+            // linear erLevel factor (previously erLevel^3 total at the output).
+            ismEngine.processBlock(inL, inR, ismBufferL.data(), ismBufferR.data(), nullptr, numSamples, 1.0f);
         }
+
+#if AMBIENCE_MODSRC_PACKAGE
+        // [phase3/mod-source] ランダム源の LP 係数・正規化ゲインをブロック毎に
+        // 更新する (ModRate の平滑値に追従)。fc = ModRate × ペアレート とし、
+        // 軌跡のゼロ交差レートが正弦 LFO1 の周波数と一致する換算 (プローブ実測)。
+        // 制御ステップ (16 サンプル) あたりの係数は極を保存する
+        // aStep = 1 - exp(-2π fc · 16 / fs)。正規化: 白色一様乱数 (分散 1/3) を
+        // 2 段 1-pole に通した定常分散 var = (1/3) * a (1 + b^2) / (2 - a)^3
+        // (b = 1 - a、制御時間でも同形) を解析的に使い、squash 前 std を
+        // RAND_PRE_STD に揃える。
+        for (int p = 0; p < RAND_PAIRS; ++p) {
+            const float fc = smoothedModRate * randPairRates[p];
+            const float aStep = 1.0f - std::exp(-6.28318530718f * fc
+                                                * static_cast<float>(RAND_CTRL_INTERVAL) / fsf);
+            const float bStep = 1.0f - aStep;
+            const float varOut = (1.0f / 3.0f) * aStep * (1.0f + bStep * bStep)
+                               / ((2.0f - aStep) * (2.0f - aStep) * (2.0f - aStep));
+            const float g = (aStep > 1.0e-7f) ? RAND_PRE_STD / std::sqrt(varOut) : 0.0f;
+            for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                auto& st = randStreams[p * SERIAL_APF_STAGES + s];
+                st.coeff = aStep;
+                st.gain = g;
+            }
+        }
+#endif
+
+#if AMBIENCE_MATRIX_MOD
+        // [phase3/matrix-mod] 行列変調源の LP 係数・正規化ゲインをブロック
+        // 毎に更新する (レートは固定表 matRates、fs のみに依存)。換算式は
+        // APF ランダム源と同一: 制御ステップあたり aStep = 1-exp(-2π fc·16/fs)、
+        // 定常分散の解析式で squash 前 std を MAT_PRE_STD に揃える。
+        for (int k = 0; k < MAT_STREAMS; ++k) {
+            const float aStep = 1.0f - std::exp(-6.28318530718f * matRates[k]
+                                                * static_cast<float>(MAT_CTRL_INTERVAL) / fsf);
+            const float bStep = 1.0f - aStep;
+            const float varOut = (1.0f / 3.0f) * aStep * (1.0f + bStep * bStep)
+                               / ((2.0f - aStep) * (2.0f - aStep) * (2.0f - aStep));
+            auto& st = matStreams[k];
+            st.coeff = aStep;
+            st.gain = (aStep > 1.0e-7f) ? MAT_PRE_STD / std::sqrt(varOut) : 0.0f;
+        }
+#endif
 
         for (int n = 0; n < numSamples; ++n) {
             // ★ Wet-Only Graceful Mute State Machine (全8アルゴリズム対応・Panic連動)
@@ -903,7 +1914,16 @@ namespace FDNReverb {
                 }
             }
 
-            // ★ 等パワーゲイン計算（アイドル時は超越関数完全スキップ、フェード時のみ三角関数計算）
+            // ★ 線形（凸結合）ゲイン計算（アイドル時は分岐のみ、フェード時も乗算のみ）
+            // [DecayKnob fix] 旧実装の等パワー (cos/sin) 合成は「無相関な2信号」
+            // 前提だが、A/B 両バンクは同一入力・同一初期状態から分岐する強相関
+            // 信号であり、実測では全帯域・全フェード位置で合成ゲインが端点に
+            // 対し最大 +3.01 dB (cos+sin の理論最大) 上乗せされていた。FDN
+            // ループ内ではこの上乗せが周回ごとに蓄積し、Decay ドラッグ中に
+            // テイルが再上昇する (最大 +50 dB 級の包絡膨らみ、Plate 低域)。
+            // 線形フェードは凸結合であり、各周波数で合成応答が複素平面上の
+            // 線分上に収まるため |H| が端点の最大を超えないことが保証される。
+            // 詳細: phase3/decay-knob/DECAY_KNOB.md
             float absoGainA = 1.0f;
             float absoGainB = 0.0f;
             if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
@@ -913,9 +1933,8 @@ namespace FDNReverb {
                 absoGainA = 0.0f;
                 absoGainB = 1.0f;
             } else {
-                const float fadeRad = absoCrossfadePos * 1.5707963268f;
-                absoGainA = std::cos(fadeRad);
-                absoGainB = std::sin(fadeRad);
+                absoGainA = 1.0f - absoCrossfadePos;
+                absoGainB = absoCrossfadePos;
             }
 
             // ★ スムーザーからサンプル値を取得
@@ -931,8 +1950,68 @@ namespace FDNReverb {
                 dualLFOs[i].phaseInc2 = smoothedModRate * dualLfoIncScale2[i];
             }
 
+#if AMBIENCE_MODSRC_PACKAGE
+            // [phase3/mod-source] ランダム源: 制御レート (16 サンプル毎) で tick し、
+            // 区間内は線形補間で毎サンプルの値を得る (深さゼロでも位相が進み続ける
+            // 正弦 LFO と同じ扱い)。値はペア単位で保持し、チャンネル i>=8 は
+            // ペア相手の反転を使う (逆位相ペアリング)。
+            if (randCtrlCounter == 0) {
+                for (int p = 0; p < RAND_PAIRS; ++p)
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
+                        randValFrom[p][s] = randValTo[p][s];
+                        randValTo[p][s] = randStreams[p * SERIAL_APF_STAGES + s].tickControl();
+                    }
+            }
+            {
+                const float frac = static_cast<float>(randCtrlCounter)
+                                 * (1.0f / static_cast<float>(RAND_CTRL_INTERVAL));
+                for (int p = 0; p < RAND_PAIRS; ++p)
+                    for (int s = 0; s < SERIAL_APF_STAGES; ++s)
+                        randPairVals[p][s] = randValFrom[p][s]
+                                           + frac * (randValTo[p][s] - randValFrom[p][s]);
+            }
+            if (++randCtrlCounter >= RAND_CTRL_INTERVAL) randCtrlCounter = 0;
+#endif
+
+#if AMBIENCE_MATRIX_MOD
+            // [phase3/matrix-mod] 本番構成: 7 アルゴに適用し Spring は除外
+            // する (Spring では角度源も回転段も止め、レンダーは土台と
+            // ビット一致する)。制御レート (16 サンプル毎) で角度を進め、
+            // (cos, sin) 端点を更新し、区間内は線形補間する。角度は
+            // θ = MAT_AMP_RAD × MAT_DEPTH × (v / 1.15) で、ピーク |θ| が
+            // MAT_AMP_RAD × MAT_DEPTH (rad) になるよう正規化する。
+            const bool matModActive = (currentTopology != ReverbTopology::Spring);
+            if (matModActive) {
+                if (matCtrlCounter == 0) {
+                    for (int k = 0; k < MAT_STREAMS; ++k) {
+                        matCosFrom[k] = matCosTo[k];
+                        matSinFrom[k] = matSinTo[k];
+                        const float v = matStreams[k].tickControl();
+                        const float th = MAT_AMP_RAD * MAT_DEPTH
+                                       * v * (1.0f / 1.15f);
+                        matCosTo[k] = std::cos(th);
+                        matSinTo[k] = std::sin(th);
+                    }
+                }
+                {
+                    const float frac = static_cast<float>(matCtrlCounter)
+                                     * (1.0f / static_cast<float>(MAT_CTRL_INTERVAL));
+                    for (int k = 0; k < MAT_STREAMS; ++k) {
+                        matCos[k] = matCosFrom[k] + frac * (matCosTo[k] - matCosFrom[k]);
+                        matSin[k] = matSinFrom[k] + frac * (matSinTo[k] - matSinFrom[k]);
+                    }
+                }
+                if (++matCtrlCounter >= MAT_CTRL_INTERVAL) matCtrlCounter = 0;
+            }
+#endif
+
             const float modAmtCurved = smoothedModAmount * smoothedModAmount;
-            const float depthSamples = modAmtCurved * 0.0022f * fsf * modDepthScale;
+            const float depthSamples = modAmtCurved * 0.00055f * fsf * modDepthScale;
+#if AMBIENCE_MODSRC_PACKAGE
+            // [phase3/mod-source] 深さ倍率は APF 変調経路にのみ掛ける
+            // (SDN Brownian 側の modDepth は従来通り depthSamples から取る)。
+            const float apfDepthSamples = depthSamples * MODSRC_DMULT;
+#endif
 
             preDelayLineL.write(inL[n]);
             preDelayLineR.write(inR[n]);
@@ -959,22 +2038,49 @@ namespace FDNReverb {
 
             float erOutL = 0.0f, erOutR = 0.0f;
 
-            // ★ Mid / Side 双方を 4段ディフューザーで完全拡散 (ハードバイパス撤廃・サンプル線形平滑化)
-            float fdnInputMid = midIn;
-            float fdnInputSide = sideIn;
-            if (!bypassInputDiffusers) {
-                for (int i = 0; i < 4; ++i) {
+            // phase3/stereo SPLIT8 (STEREO_IMPL.md): every topology now
+            // runs the per-ear split FDN. Goldfoil originally kept the
+            // legacy shared-FDN path bit-exactly (its structural mesh
+            // feed was a shared cross-path); it joined in
+            // phase3/goldfoil-stereo with a per-ear feed redesign (e2)
+            // plus the 2.6 kHz modal compensation, so the legacy path is
+            // no longer taken by any topology. In split mode the two
+            // variables below carry the per-ear streams
+            // (fdnInputMid = L stream, fdnInputSide = R stream) instead
+            // of Mid/Side.
+            const bool splitStereo = true;
+
+            // ★ Mid / Side 双方を 6段ディフューザーで完全拡散 (ハードバイパス撤廃・サンプル線形平滑化)
+            // SPLIT8: the two diffuser chains carry the raw per-ear
+            // signals (M chain = L, S chain = R) instead of Mid/Side.
+            // Position information lives in the correlation between Mid
+            // and Side; diffusing them through separate chains destroys
+            // that correlation, after which L = M+S and R = M-S have
+            // equal energy and no split FDN can recover the position
+            // (phase3/stereo/STEREO.md §2a, §3). Each chain keeps its own
+            // delay set: in split mode the M chain's prime set
+            // (DIFF_SMP_M) serves L and the S chain's (DIFF_SMP_S) serves
+            // R, with the same per-stage taper — the 6-stage extension of
+            // the assignment the SPLIT8 prep used on the 4-stage sets.
+            float fdnInputMid = splitStereo ? inLpfStateL : midIn;
+            float fdnInputSide = splitStereo ? inLpfStateR : sideIn;
+            if (!bypassInputDiffusers && inputDiffusersValid) {
+                // [phase3/diffusion 候補(a)] 段別ゲインテーパ (Dattorro 型:
+                // 前段を強く、後段を弱く)。curDiffuserGain は段1のゲイン。
+                static constexpr float DIFF_TAPER[INPUT_DIFFUSER_STAGES] = { 1.0f, 1.0f, 0.9286f, 0.8333f, 0.8333f, 0.7743f };
+                for (int i = 0; i < INPUT_DIFFUSER_STAGES; ++i) {
+                    const float stageGain = curDiffuserGain * DIFF_TAPER[i];
                     float dm = inputDiffusersM[i].read(cachedDiffuserDelaySmpM[i]);
-                    float wm = fdnInputMid + curDiffuserGain * dm;
+                    float wm = fdnInputMid + stageGain * dm;
                     if (!std::isfinite(wm)) [[unlikely]] wm = 0.0f;
                     inputDiffusersM[i].write(wm);
-                    fdnInputMid = dm - curDiffuserGain * wm;
+                    fdnInputMid = dm - stageGain * wm;
 
                     float ds = inputDiffusersS[i].read(cachedDiffuserDelaySmpS[i]);
-                    float ws = fdnInputSide + curDiffuserGain * ds;
+                    float ws = fdnInputSide + stageGain * ds;
                     if (!std::isfinite(ws)) [[unlikely]] ws = 0.0f;
                     inputDiffusersS[i].write(ws);
-                    fdnInputSide = ds - curDiffuserGain * ws;
+                    fdnInputSide = ds - stageGain * ws;
                 }
             }
 
@@ -996,7 +2102,23 @@ namespace FDNReverb {
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.tickModulatorsOnly();
                 } else if (isInchindown) {
-                    inchindownEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR, fdnMeshInject);
+                    // [tank-stereo] Per-ear tanks: each ear's tank
+                    // instance is driven by that ear's input alone
+                    // (inL == inR == the ear's signal — the same drive a
+                    // centred source gives the legacy single tank) and only
+                    // that ear's own output is taken, so no tank energy
+                    // crosses between the ears. Both instances carry
+                    // identical parameters, so a centred source reproduces
+                    // the legacy tank output bit-exactly (each instance
+                    // replays the legacy trajectory). The R tank's pickup
+                    // vector goes to a scratch buffer: Inchindown never
+                    // consumes fdnMeshInject (only Goldfoil does).
+                    float tankOutL = 0.0f, tankDropL = 0.0f, tankDropR = 0.0f, tankOutR = 0.0f;
+                    alignas(32) float tankInjScratch[16];
+                    inchindownEngine.processOneSample(inLpfStateL, inLpfStateL, tankOutL, tankDropL, fdnMeshInject);
+                    inchindownEngineR.processOneSample(inLpfStateR, inLpfStateR, tankDropR, tankOutR, tankInjScratch);
+                    erOutL = tankOutL;
+                    erOutR = tankOutR;
                     sdnEngine.modDepth = depthSamples * 0.2f;
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.tickModulatorsOnly();
@@ -1005,16 +2127,83 @@ namespace FDNReverb {
                     sdnEngine.modRate = smoothedModRate;
                     sdnEngine.processOneSample(inLpfStateL, inLpfStateR, erOutL, erOutR);
                 }
-                erOutL *= erSmoothedGain;
-                erOutR *= erSmoothedGain;
+                // [ER law unification] core path carries the constant preset
+                // trim; the erLevel^2 law is applied once at the final mix.
+                erOutL *= erCoreTrim;
+                erOutR *= erCoreTrim;
             }
 
             if (!bypassER) {
-                erOutL += ismBufferL[n];
-                erOutR += ismBufferR[n];
+                erOutL += ismBufferL[n] * erIsmTrim;
+                erOutR += ismBufferR[n] * erIsmTrim;
                 // SDN / 2D Mesh 散乱出力をFDNへ注入 (LateDensity 連動ハイブリッド結合: 事前計算ゲイン適用)
-                fdnInputMid += (erOutL + erOutR) * lateInjectGain;
-                fdnInputSide += (erOutL - erOutR) * lateInjectGain;
+                if (splitStereo) {
+                    // Per-ear streams: inject each ear's core output into
+                    // its own stream. The factor 2 matches the legacy
+                    // design's excitation for a mono source (Mid receives
+                    // (erL+erR)*g, i.e. 2*e*g when erL == erR == e).
+                    fdnInputMid += erOutL * lateInjectGain * 2.0f;
+                    fdnInputSide += erOutR * lateInjectGain * 2.0f;
+                } else {
+                    fdnInputMid += (erOutL + erOutR) * lateInjectGain;
+                    fdnInputSide += (erOutL - erOutR) * lateInjectGain;
+                }
+            }
+
+            // Goldfoil structural feed (phase3/goldfoil/STRUCTURAL.md):
+            // lowpass the per-channel mesh pickup vector (fdnMeshInject,
+            // computed above by the 2D mesh but otherwise unused) at 1 kHz,
+            // then through the 6th-order Butterworth stage at 2.2 kHz
+            // (FEED8K.md: keeps the <= 3 kHz zero-filling band, removes the
+            // bright 3-6 kHz content that inflates the HF tail).
+            // The conditioned vector is added to the FDN delay-line inputs
+            // in the channel loop below. The mesh's decorrelated per-channel
+            // excitation breaks the fixed phasor geometry of the single
+            // broadcast FDN input, flattening the deep transmission zeros
+            // the long-delay FDN otherwise produces at non-design room
+            // sizes; the lowpass keeps the mesh's HF modal content out of
+            // the sustained tail. Feedforward only: loop poles unchanged.
+            if (currentTopology == ReverbTopology::Goldfoil) {
+                if (!bypassER) {
+                    // phase3/goldfoil-stereo: per-ear feed source. Each
+                    // ear's own mesh instance is driven by that ear's
+                    // input alone, through the same dual-point excitation
+                    // geometry as the shared mesh (with inL == inR the
+                    // ear-mesh field equals the shared field, so a
+                    // centred source feeds bit-comparably to the legacy
+                    // design). Channel i takes pickup i from its own
+                    // ear's mesh (even = L, odd = R, the SPLIT8
+                    // partition), so no feed energy crosses the ears.
+                    // The shared plateMesh above still produces the ER
+                    // output; its pickup vector is no longer used here.
+                    alignas(32) float gfInjL[16], gfInjR[16];
+                    float dummyL = 0.0f, dummyR = 0.0f;
+                    gfMeshL.processOneSample(inLpfStateL, inLpfStateL, dummyL, dummyR, gfInjL);
+                    gfMeshR.processOneSample(inLpfStateR, inLpfStateR, dummyL, dummyR, gfInjR);
+                    for (int i = 0; i < FDN_ORDER; ++i)
+                        fdnMeshInject[i] = ((i & 1) == 0) ? gfInjL[i] : gfInjR[i];
+                }
+                for (int i = 0; i < FDN_ORDER; ++i) {
+                    gfMeshFeedLpState[i] += gfMeshFeedLpCoeff * (fdnMeshInject[i] - gfMeshFeedLpState[i]);
+                    float v = gfMeshFeedLpState[i];
+                    for (int s = 0; s < 3; ++s) {
+                        const auto& c = gfMeshFeedBqCoeffs[s];
+                        const float y = c[0] * v + c[1] * gfMeshFeedBqX1[s][i] + c[2] * gfMeshFeedBqX2[s][i]
+                                      - c[3] * gfMeshFeedBqY1[s][i] - c[4] * gfMeshFeedBqY2[s][i];
+                        gfMeshFeedBqX2[s][i] = gfMeshFeedBqX1[s][i]; gfMeshFeedBqX1[s][i] = v;
+                        gfMeshFeedBqY2[s][i] = gfMeshFeedBqY1[s][i]; gfMeshFeedBqY1[s][i] = y;
+                        v = y;
+                    }
+                    for (int s = 0; s < 2; ++s) {
+                        const auto& c = gfMeshFeedPkCoeffs[s];
+                        const float y = c[0] * v + c[1] * gfMeshFeedPkX1[s][i] + c[2] * gfMeshFeedPkX2[s][i]
+                                      - c[3] * gfMeshFeedPkY1[s][i] - c[4] * gfMeshFeedPkY2[s][i];
+                        gfMeshFeedPkX2[s][i] = gfMeshFeedPkX1[s][i]; gfMeshFeedPkX1[s][i] = v;
+                        gfMeshFeedPkY2[s][i] = gfMeshFeedPkY1[s][i]; gfMeshFeedPkY1[s][i] = y;
+                        v = y;
+                    }
+                    fdnMeshInject[i] = v;
+                }
             }
 
             // ★ 空間相関の対称性破壊 (Asymmetric Injection / Extraction)
@@ -1022,16 +2211,63 @@ namespace FDNReverb {
             static constexpr float extractSign[16] = { 1.0f, -1.0f,  1.0f,  1.0f, -1.0f, -1.0f, -1.0f,  1.0f, -1.0f,  1.0f, -1.0f, -1.0f,  1.0f,  1.0f,  1.0f, -1.0f };
 
             std::array<float, 16> currentFb = fbVec;
-            fastWalshHadamardTransform(currentFb);
-            applySignFlipping(currentFb);
+            if (splitStereo) {
+                // Partition mixing: even channels form the L network, odd
+                // channels the R network; each gets its own 8ch FWHT, so
+                // no energy crosses between the ears inside the loop.
+                std::array<float, 8> blkA, blkB;
+                for (int k = 0; k < 8; ++k) { blkA[k] = currentFb[2 * k]; blkB[k] = currentFb[2 * k + 1]; }
+                stereoFwht8(blkA); stereoFwht8(blkB);
+                stereoSignFlip8(blkA, false); stereoSignFlip8(blkB, true);
+#if AMBIENCE_MATRIX_MOD
+                // [phase3/matrix-mod] ユニタリ段 G(t) を混合の直後に直列挿入
+                // する。耳別分割の内側で回転させるため SPLIT8 の耳間分離は
+                // 保たれる。U'(t) = G(t)・D・H8 は任意の t でユニタリ。
+                // Spring は除外 (matModActive が偽の間は恒等のまま)。
+                if (matModActive) {
+                    applyMatRot8(blkA, 0);
+                    applyMatRot8(blkB, MAT_STREAMS / 2);
+                }
+#endif
+                for (int k = 0; k < 8; ++k) { currentFb[2 * k] = blkA[k]; currentFb[2 * k + 1] = blkB[k]; }
+            } else {
+                fastWalshHadamardTransform(currentFb);
+                applySignFlipping(currentFb);
+#if AMBIENCE_MATRIX_MOD
+                // 非分割経路 (現行では splitStereo が常時 true のため到達しない)
+                // でも構造を揃える: 16ch を前後 8ch ずつに分け同じ回転段を適用
+                // する (合成は直交のまま)。Spring 除外は分割経路と同一条件。
+                if (matModActive) {
+                    std::array<float, 8> mh0, mh1;
+                    for (int k = 0; k < 8; ++k) { mh0[k] = currentFb[k]; mh1[k] = currentFb[k + 8]; }
+                    applyMatRot8(mh0, 0);
+                    applyMatRot8(mh1, MAT_STREAMS / 2);
+                    for (int k = 0; k < 8; ++k) { currentFb[k] = mh0[k]; currentFb[k + 8] = mh1[k]; }
+                }
+#endif
+            }
 
             float evenSum = 0.0f, oddSum = 0.0f;
             std::array<float, 16> nextFb;
             std::array<float, 16> apfOutVec;
             float maxChPeak = 0.0f;
 
+            // [phase3/cpu-opt A-1] 吸収 GEQ のチャンネル方向 SIMD 化に伴い、
+            // チャンネルループを3フェーズに分割する。各フェーズ内では
+            // チャンネル独立の処理だけを従来と同一順序で実行するため、
+            // 値の列は従来と完全一致する (遅延線への書き込みは元々別ループ)。
+            // フェーズ1: 遅延平滑 + 読み (結果は geqVec へ)
+            std::array<float, FDN_ORDER> geqVec{};
+#if !AMBIENCE_MODSRC_PACKAGE
+            std::array<float, FDN_ORDER> chorusVals{};
+#endif
             for (int i = 0; i < FDN_ORDER; ++i) {
-                const float chorusVal = dualLFOs[i].tick();
+#if AMBIENCE_MODSRC_PACKAGE
+                // [phase3/mod-source] 変調値はランダム源 (randPairVals) から取るため
+                // 正弦 LFO の tick は行わない (LFO 状態は他の経路から読まれない)。
+#else
+                chorusVals[i] = dualLFOs[i].tick();
+#endif
                 
                 // ★ FDNベースディレイの 1-pole スムージング & Fractional リード
                 const float targetSmp = fdnBaseDelaySamples[i];
@@ -1045,38 +2281,60 @@ namespace FDNReverb {
                 }
 
                 float d;
-                const int intDelay = static_cast<int>(std::round(currentFdnDelaySamples[i]));
-                if (std::abs(currentFdnDelaySamples[i] - static_cast<float>(intDelay)) < 1e-5f) {
-                    d = fdnDelays[i].readInt(intDelay);
+                if (currentFdnDelaySamples[i] == targetSmp && fdnReadCacheTarget[i] == targetSmp) [[likely]] {
+                    // ★ 定常時高速経路: 遅延は目標値に一致したまま静止しているため、
+                    //   引数は事前計算済みのものを使う（値は従来経路の計算と完全同一）
+                    d = fdnReadCacheIsInt[i] ? fdnDelays[i].readInt(fdnReadCacheId[i])
+                                             : fdnDelays[i].readPrepared(fdnReadCacheId[i], fdnReadCacheFrac[i]);
                 } else {
-                    d = fdnDelays[i].read(currentFdnDelaySamples[i] - 1.0f);
+                    const int intDelay = static_cast<int>(std::round(currentFdnDelaySamples[i]));
+                    if (std::abs(currentFdnDelaySamples[i] - static_cast<float>(intDelay)) < 1e-5f) {
+                        d = fdnDelays[i].readInt(intDelay);
+                        if (currentFdnDelaySamples[i] == targetSmp) {
+                            fdnReadCacheTarget[i] = targetSmp;
+                            fdnReadCacheIsInt[i] = 1;
+                            fdnReadCacheId[i] = intDelay;
+                        }
+                    } else {
+                        d = fdnDelays[i].read(currentFdnDelaySamples[i] - 1.0f);
+                        if (currentFdnDelaySamples[i] == targetSmp && fdnDelays[i].hasBuffer()) {
+                            int pid; float pfrac;
+                            fdnDelays[i].prepareReadArgs(currentFdnDelaySamples[i] - 1.0f, pid, pfrac);
+                            fdnReadCacheTarget[i] = targetSmp;
+                            fdnReadCacheIsInt[i] = 0;
+                            fdnReadCacheId[i] = pid;
+                            fdnReadCacheFrac[i] = pfrac;
+                        }
+                    }
                 }
 
+                geqVec[i] = d;
+            }
+
+            // フェーズ2: 吸収 GEQ (SoA・チャンネル方向 AVX2 で 16ch 一括)
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-                // ★ 状態転送付きシングルバンク駆動（定常時は160基のみ計算、フェード時のみ両バンク計算）
-                if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        d = absorptionFiltersS2_A[i][s].tick(d, absorptionCoeffsS2_A[i][s]);
-                    }
-                } else if (absoFadeState == AbsoFadeState::IdleAtB) {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        d = absorptionFiltersS2_B[i][s].tick(d, absorptionCoeffsS2_B[i][s]);
-                    }
-                } else {
-                    // クロスフェード中（30ms間）のみ両バンクを計算し、等パワー合成
-                    float outA = d;
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        outA = absorptionFiltersS2_A[i][s].tick(outA, absorptionCoeffsS2_A[i][s]);
-                    }
-                    float outB = d;
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        outB = absorptionFiltersS2_B[i][s].tick(outB, absorptionCoeffsS2_B[i][s]);
-                    }
-                    d = outA * absoGainA + outB * absoGainB;
-                }
+            // ★ 状態転送付きシングルバンク駆動（定常時は160基のみ計算、フェード時のみ両バンク計算）
+            if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_A, absorptionStateS1_A, absorptionStateS2_A, geqVec.data());
+            } else if (absoFadeState == AbsoFadeState::IdleAtB) {
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_B, absorptionStateS1_B, absorptionStateS2_B, geqVec.data());
+            } else {
+                // クロスフェード中（30ms間）のみ両バンクを計算し、線形合成
+                std::array<float, FDN_ORDER> outA = geqVec;
+                std::array<float, FDN_ORDER> outB = geqVec;
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_A, absorptionStateS1_A, absorptionStateS2_A, outA.data());
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_B, absorptionStateS1_B, absorptionStateS2_B, outB.data());
+                for (int i = 0; i < FDN_ORDER; ++i)
+                    geqVec[i] = outA[i] * absoGainA + outB[i] * absoGainB;
+            }
 #else
-                d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
+            for (int i = 0; i < FDN_ORDER; ++i)
+                geqVec[i] = absorptionFilters[i].tick(geqVec[i], currentAbsorptionCoeffs[i]);
 #endif
+
+            // フェーズ3: DC ブロッカー + APF 以降 (チャンネル独立・従来と同一順序)
+            for (int i = 0; i < FDN_ORDER; ++i) {
+                float d = geqVec[i];
 
                 d += 1e-25f;
 
@@ -1093,6 +2351,39 @@ namespace FDNReverb {
                 for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                     const float baseDelay = cachedApfBaseDelaySmp[i][s];
                     float delayed;
+#if AMBIENCE_MODSRC_PACKAGE
+                    // [phase3/mod-source] 変調は第 1〜3 段すべてに適用し、変調値は
+                    // ランダム源 (ペアストリーム、i>=8 は反転 = 逆位相ペア) から取る。
+                    if (apfDepthSamples > 0.01f) {
+                        float safeMod;
+                        if (usePrecomputedSafeMod) [[likely]] {
+                            safeMod = cachedApfSafeModAll[i][s];
+                        } else {
+                            const float maxSafeMod = baseDelay * 0.15f;
+                            const float targetMod = apfDepthSamples * apfModFrac[s] * cachedFreqModScales[i];
+                            const float knee = maxSafeMod * 0.75f;
+                            safeMod = targetMod;
+                            if (targetMod > knee) {
+                                const float excess = targetMod - knee;
+                                const float room = maxSafeMod - knee;
+                                safeMod = knee + room * std::tanh(excess / room);
+                            }
+                        }
+                        const float modVal = randPairVals[i & (RAND_PAIRS - 1)][s]
+                                           * ((i >= RAND_PAIRS) ? -1.0f : 1.0f);
+                        // [phase3/goldfoil-1k] Goldfoil のみ、段2 APF の変調読み取りへ
+                        // -0.75 サンプル (48kHz 基準・時間一定形) の静的オフセットを加える。
+                        // 分数遅延読み取りの位相が作る干渉零点が設計点の 1000.0Hz に
+                        // 重なる問題 (対 dev Δ-12.7dB) への最小手当て。零点を 1001.8Hz へ
+                        // 退かし Δ-3.4dB に収める。根拠と全ゲート検証は GOLDFOIL_1K.md。
+                        const float gfApfTrim = (s == 2 && currentTopology == ReverbTopology::Goldfoil)
+                            ? -0.75f * (fsf / 48000.0f) : 0.0f;
+                        const float apfDelaySmp = baseDelay + modVal * safeMod + gfApfTrim;
+                        delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
+                    } else {
+                        delayed = nestedAllpassDelays[i][s].readInt(cachedApfBaseDelayInt[i][s]);
+                    }
+#else
                     
                     if (s == 2 && depthSamples > 0.01f) {
                         float safeMod;
@@ -1109,11 +2400,19 @@ namespace FDNReverb {
                                 safeMod = knee + room * std::tanh(excess / room);
                             }
                         }
-                        const float apfDelaySmp = baseDelay + chorusVal * safeMod;
+                        // [phase3/goldfoil-1k] Goldfoil のみ、段2 APF の変調読み取りへ
+                        // -0.75 サンプル (48kHz 基準・時間一定形) の静的オフセットを加える。
+                        // 分数遅延読み取りの位相が作る干渉零点が設計点の 1000.0Hz に
+                        // 重なる問題 (対 dev Δ-12.7dB) への最小手当て。零点を 1001.8Hz へ
+                        // 退かし Δ-3.4dB に収める。根拠と全ゲート検証は GOLDFOIL_1K.md。
+                        const float gfApfTrim = (currentTopology == ReverbTopology::Goldfoil)
+                            ? -0.75f * (fsf / 48000.0f) : 0.0f;
+                        const float apfDelaySmp = baseDelay + chorusVals[i] * safeMod + gfApfTrim;
                         delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
                     } else {
                         delayed = nestedAllpassDelays[i][s].readInt(cachedApfBaseDelayInt[i][s]);
                     }
+#endif
 
                     const float v = apfOut - curApfGainStage * delayed;
                     nestedAllpassDelays[i][s].write(v);
@@ -1153,9 +2452,21 @@ namespace FDNReverb {
                 const float limitedApfOut = apfOutVec[i] * gLoop;
                 nextFb[i] = limitedApfOut;
 
-                const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
-                float fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
+                float fdnInputForThisCh;
+                if (splitStereo) {
+                    // Each channel is fed only by its own ear's stream.
+                    fdnInputForThisCh = (((i & 1) == 0) ? fdnInputMid : fdnInputSide) * injectSign[i] * 0.25f;
+                } else {
+                    const float sideForCh = (i % 2 == 0 ? +fdnInputSide : -fdnInputSide) * sideBoost;
+                    fdnInputForThisCh = (fdnInputMid * injectSign[i] + sideForCh) * 0.25f;
+                }
                 float fdnWriteVal = fdnInputForThisCh + currentFb[i];
+                // Goldfoil structural feed: add the lowpassed per-channel
+                // mesh pickup (see the conditioning block above). The gain
+                // is relative to the raw pickup values (which already carry
+                // the mesh's MESH_SIGN extraction signs).
+                if (currentTopology == ReverbTopology::Goldfoil)
+                    fdnWriteVal += fdnMeshInject[i] * 4.0f;
                 if (!std::isfinite(fdnWriteVal)) [[unlikely]] fdnWriteVal = 0.0f;
                 fdnDelays[i].write(fdnWriteVal);
 
@@ -1164,10 +2475,18 @@ namespace FDNReverb {
                 else              oddSum  += extractedOut;
             }
 
-            const float curCrossLeak = 1.0f - curWidth;
-            // 16ch FDNのL/R出力 (各8chの非相関サミング: 1/sqrt(8) = 0.3535f)
-            const float fdnOutL = (evenSum + oddSum * curCrossLeak) * 0.353553f;
-            const float fdnOutR = (oddSum + evenSum * curCrossLeak) * 0.353553f;
+            float fdnOutL, fdnOutR;
+            if (splitStereo) {
+                // Per-ear extraction: no crossLeak. Stereo width is still
+                // applied by the final Mid/Side stage below, unchanged.
+                fdnOutL = evenSum * 0.353553f;
+                fdnOutR = oddSum * 0.353553f;
+            } else {
+                const float curCrossLeak = 1.0f - curWidth;
+                // 16ch FDNのL/R出力 (各8chの非相関サミング: 1/sqrt(8) = 0.3535f)
+                fdnOutL = (evenSum + oddSum * curCrossLeak) * 0.353553f;
+                fdnOutR = (oddSum + evenSum * curCrossLeak) * 0.353553f;
+            }
             fbVec = nextFb;
 
             const float erMakeupGain = 2.5f; // 音響テスト・残響バランス完全維持
@@ -1192,8 +2511,8 @@ namespace FDNReverb {
             // ★ ModAmt 変調時の Hermite 補間通過損失を動的補正（音量低下ゼロ化）
             const float modLossComp = 1.0f + (0.08f + 0.08f * std::min(5.0f, currentRT60Mid)) * modAmtCurved;
             const float curLateMakeupGain = lateMakeupGainSmoothed.getNextValue();
-            const float lateMixL = fdnOutL * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate;
-            const float lateMixR = fdnOutR * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate;
+            const float lateMixL = fdnOutL * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate * splitMakeupLin;
+            const float lateMixR = fdnOutR * curLateMakeupGain * lateLevel * lateServo * modLossComp * gClarityLate * splitMakeupLin;
 
             // ★ Vintage Warmth ADAA Saturator (出力段 L/R 独立 1次 ADAA 処理)
             float satL = saturatorL.processSample(lateMixL);
@@ -1215,8 +2534,20 @@ namespace FDNReverb {
             dynamicDucker.processStereo(inL[n], inR[n], wetL, wetR);
 
             // ★ 最終出力段 Mid/Side（和差）幅制御 (条件分岐完全撤廃・全域 C^∞ 連続平滑化)
+            // phase3/stereo width-cap revision (STEREO_REBASE.md): in split
+            // mode the legacy M/S stage caps the late-field ILD at
+            // 20*log10((1+w)/(1-w)) (Spring default w=0.70 -> 15.1 dB,
+            // Room1 w=0.75 -> 16.9 dB), discarding most of the separation
+            // the split FDN delivers (wet ILD at w=1: Spring 24.4 dB,
+            // Room1 25.8 dB). Remap the width curve in split mode only:
+            // wEff = 1-(1-w)^1.5 (endpoints and monotonicity preserved,
+            // w=0 stays exact mono). Goldfoil never takes the split path,
+            // so its renders stay bit-identical.
+            const float effWidth = splitStereo
+                ? 1.0f - (1.0f - curWidth) * std::sqrt(1.0f - curWidth)
+                : curWidth;
             const float mid  = 0.5f * (wetL + wetR);
-            const float side = 0.5f * (wetL - wetR) * curWidth;
+            const float side = 0.5f * (wetL - wetR) * effWidth;
             wetL = mid + side;
             wetR = mid - side;
 

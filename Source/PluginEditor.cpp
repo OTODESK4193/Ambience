@@ -1169,7 +1169,7 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
         if (title.isNotEmpty()) {
             juce::Font badgeFont(juce::FontOptions("Helvetica Neue", 8.5f, juce::Font::bold));
             g.setFont(badgeFont);
-            const float textW = badgeFont.getStringWidthFloat(title) + 16.0f;
+            const float textW = juce::GlyphArrangement::getStringWidth(badgeFont, title) + 16.0f;
             juce::Rectangle<float> badgeRect(cx + 8.0f, cy - 7.0f, textW, 14.0f);
 
             // バッジ背景

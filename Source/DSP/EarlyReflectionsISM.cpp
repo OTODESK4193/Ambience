@@ -9,28 +9,75 @@ EarlyReflectionsISM::EarlyReflectionsISM() {
 
 void EarlyReflectionsISM::prepare(double sr, int /*maxBlockSize*/) {
     sampleRate = sr;
+    // Ring capacity from seconds: max pre-delay (0.500 s, the parameter
+    // range) + ER window (0.045 s), plus interpolation headroom, rounded
+    // up to a power of two at this sample rate (never below the legacy
+    // 16384). Delays that fit the old buffer read bit-identically.
+    size_t need = static_cast<size_t>(0.545 * sr) + 64;
+    size_t sz = 16384;
+    while (sz < need) sz <<= 1;
+    ringBufferL.assign(sz, 0.0f);
+    ringBufferMask = static_cast<int>(sz - 1);
     reset();
     ISMParameters initialParams;
-    computeGeometry(0, 1.0f, 10.0f, 0.5f, 0.5f, initialParams);
+    computeGeometry(0, 1.0f, 10.0f, 0.5f, 0.5f, initialParams, 0.0f, 0.0f);
     currentParams = std::make_shared<ISMParameters>(initialParams);
     pendingParams.store(nullptr);
 }
 
 void EarlyReflectionsISM::reset() {
-    ringBufferL.fill(0.0f);
+    std::fill(ringBufferL.begin(), ringBufferL.end(), 0.0f);
     writeIndex = 0;
     smoothedErLevel = 0.0f;
     lastAlgorithmIndex = -1;
 }
 
+EarlyReflectionsISM::StateSnapshot EarlyReflectionsISM::captureState() {
+    StateSnapshot s;
+    // ISMParameters は processBlock が chunk.filterState を書き換える
+    // 可変オブジェクトなので、ポインタ共有ではなく深いコピーで捕捉する。
+    // 復元側もスナップショットのコピーを直接渡さず毎回複製を作るため、
+    // 処理による filterState の汚染がスナップショットへ逆流しない。
+    s.current = currentParams ? std::make_shared<ISMParameters>(*currentParams) : nullptr;
+    auto pend = pendingParams.load(std::memory_order_acquire);
+    s.pending = pend ? std::make_shared<ISMParameters>(*pend) : nullptr;
+    s.lastAlgorithmIndex = lastAlgorithmIndex;
+    s.lastRoomSizeScale = lastRoomSizeScale;
+    s.lastPreDelayMs = lastPreDelayMs;
+    s.lastHfDamping = lastHfDamping;
+    s.lastLfAbsorption = lastLfAbsorption;
+    s.valid = true;
+    return s;
+}
+
+void EarlyReflectionsISM::restoreState(const StateSnapshot& s) {
+    if (!s.valid) return;
+    currentParams = s.current ? std::make_shared<ISMParameters>(*s.current) : nullptr;
+    pendingParams.store(s.pending ? std::make_shared<ISMParameters>(*s.pending) : nullptr,
+                        std::memory_order_release);
+    lastAlgorithmIndex = s.lastAlgorithmIndex;
+    lastRoomSizeScale = s.lastRoomSizeScale;
+    lastPreDelayMs = s.lastPreDelayMs;
+    lastHfDamping = s.lastHfDamping;
+    lastLfAbsorption = s.lastLfAbsorption;
+}
+
 void EarlyReflectionsISM::updateParameters(int algorithmIndex, float roomSizeScale,
-                                          float preDelayMs, float hfDamping, float lfAbsorption)
+                                          float preDelayMs, float hfDamping, float lfAbsorption,
+                                          float rt60Scaled1k, float rt60Base1k)
 {
+    // RT60 は 0.1〜35 s とレンジが広いため相対変化で判定する (未設定時は必ず再計算)
+    const bool rt60Unchanged =
+        lastRt60Scaled1k > 0.0f && lastRt60Base1k > 0.0f &&
+        std::abs(rt60Scaled1k - lastRt60Scaled1k) <= 0.002f * lastRt60Scaled1k &&
+        std::abs(rt60Base1k - lastRt60Base1k) <= 0.002f * lastRt60Base1k;
+
     if (algorithmIndex == lastAlgorithmIndex &&
         std::abs(roomSizeScale - lastRoomSizeScale) < 0.001f &&
         std::abs(preDelayMs - lastPreDelayMs) < 0.05f &&
         std::abs(hfDamping - lastHfDamping) < 0.005f &&
-        std::abs(lfAbsorption - lastLfAbsorption) < 0.005f)
+        std::abs(lfAbsorption - lastLfAbsorption) < 0.005f &&
+        rt60Unchanged)
     {
         return;
     }
@@ -40,15 +87,19 @@ void EarlyReflectionsISM::updateParameters(int algorithmIndex, float roomSizeSca
     lastPreDelayMs = preDelayMs;
     lastHfDamping = hfDamping;
     lastLfAbsorption = lfAbsorption;
+    lastRt60Scaled1k = rt60Scaled1k;
+    lastRt60Base1k = rt60Base1k;
 
     auto newParams = std::make_shared<ISMParameters>();
-    computeGeometry(algorithmIndex, roomSizeScale, preDelayMs, hfDamping, lfAbsorption, *newParams);
+    computeGeometry(algorithmIndex, roomSizeScale, preDelayMs, hfDamping, lfAbsorption, *newParams,
+                    rt60Scaled1k, rt60Base1k);
     pendingParams.store(newParams, std::memory_order_release);
 }
 
 void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScale,
                                          float preDelayMs, float hfDamping, float /*lfAbsorption*/,
-                                         ISMParameters& outParams)
+                                         ISMParameters& outParams,
+                                         float rt60Scaled1k, float rt60Base1k)
 {
     outParams.activeTaps = 0;
     outParams.numActiveChunks = 0;
@@ -60,8 +111,13 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
     const float preDelaySamples = (preDelayMs * 0.001f) * fs;
     const float sizeScale = std::clamp(roomSizeScale, 0.2f, 5.0f);
 
-    // 空間容積に応じた物理的初期反射窓 (Room: 35ms, Hall/Plate/Spring/Inch: 45ms)
-    const float roomErWindowSec = (algorithmIndex == 0 || algorithmIndex == 1) ? 0.035f : 0.045f;
+    // 空間容積に応じた物理的初期反射窓 (Room: 35ms, その他: 45ms)。
+    // 大空間分岐 (Hall1/Hall2/Inchindown) のみ窓を sizeScale 倍する: 固定45msでは
+    // 大空間幾何の最小反射路長 (Hall2 61.5ms / Inchindown 54.8ms) が窓を超え、
+    // 全タップが棄却されて ISM が完全に死ぬため。
+    const float roomErWindowSec = ((algorithmIndex == 0 || algorithmIndex == 1) ? 0.035f : 0.045f)
+        * ((algorithmIndex == 2 || algorithmIndex == 3 || algorithmIndex == 7)
+               ? std::max(1.0f, sizeScale) : 1.0f);
     const float maxErDelaySamples = preDelaySamples + (roomErWindowSec * fs);
 
     struct RawTap {
@@ -328,6 +384,16 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
     outParams.activeTaps = numTaps;
     outParams.numActiveChunks = (numTaps + 7) / 8;
 
+    // [ism-link] decayScale 連動の相対包絡 (phase3/sr-followup-a §2.4 の試作を本番化):
+    // ISM タップゲインは距離則のみで RT60 を持たず、Decay を下げても初期反射だけが
+    // 固定包絡で残り、広帯域 T30 が +32〜+50% 膨らんでいた (Room1 x05、全 SR)。
+    // タップ遅延に応じた相対減衰 exp(−ln1000 · t · (1/RT60_scaled − 1/RT60_base))
+    // を掛け、ISM 包絡を FDN の実効 RT60 に追従させる。decayScale=1
+    // (scaled == base) では適用自体をスキップするため既定はビット一致。
+    const bool ismEnvActive = rt60Scaled1k > 0.0f && rt60Base1k > 0.0f && rt60Scaled1k != rt60Base1k;
+    const float ismEnvRate = ismEnvActive
+        ? -6.9078f * (1.0f / rt60Scaled1k - 1.0f / rt60Base1k) : 0.0f; // per second, ln(1000)=6.9078
+
     for (int c = 0; c < NUM_ISM_CHUNKS; ++c) {
         auto& chunk = outParams.chunks[c];
         for (int i = 0; i < 8; ++i) {
@@ -341,6 +407,11 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
                 chunk.delayFrac[i]   = fPart;
                 chunk.gainL[i]        = rawTaps[tapIndex].gainL;
                 chunk.gainR[i]        = rawTaps[tapIndex].gainR;
+                if (ismEnvActive) {
+                    const float envF = std::exp(ismEnvRate * (s / fs));
+                    chunk.gainL[i] *= envF;
+                    chunk.gainR[i] *= envF;
+                }
                 chunk.filterCoef[i]  = rawTaps[tapIndex].filterCoef;
                 chunk.filterState[i] = 0.0f;
             } else {
@@ -359,6 +430,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
                                       float* earlyWetL, float* earlyWetR,
                                       float* clusterSeed, int numSamples, float erLevel)
 {
+    if (ringBufferL.empty()) return; // prepare() not called yet
     if (erLevel <= 0.001f && smoothedErLevel <= 0.001f) {
         return;
     }
@@ -372,7 +444,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
 
     const auto& chunks = currentParams->chunks;
     const int numChunks = currentParams->numActiveChunks;
-    const __m256i maskReg = _mm256_set1_epi32(RING_BUFFER_MASK);
+    const __m256i maskReg = _mm256_set1_epi32(ringBufferMask);
 
     for (int i = 0; i < numSamples; ++i) {
         smoothedErLevel += 0.01f * (erLevel - smoothedErLevel);
@@ -428,7 +500,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
         if (currentParams->useVelvetNoise && numVelvetPulses > 0) {
             float vSumL = 0.0f, vSumR = 0.0f;
             for (int p = 0; p < numVelvetPulses; ++p) {
-                int rIdx = (static_cast<int32_t>(writeIndex) - velvetPulses[p].delaySample) & RING_BUFFER_MASK;
+                int rIdx = (static_cast<int32_t>(writeIndex) - velvetPulses[p].delaySample) & ringBufferMask;
                 float vSample = ringBufferL[rIdx];
                 vSumL += vSample * velvetPulses[p].gainL;
                 vSumR += vSample * velvetPulses[p].gainR;
@@ -444,7 +516,7 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
             clusterSeed[i] += (outL_sample + outR_sample) * 0.7071f;
         }
 
-        writeIndex = (writeIndex + 1) & RING_BUFFER_MASK;
+        writeIndex = (writeIndex + 1) & static_cast<uint32_t>(ringBufferMask);
     }
 }
 

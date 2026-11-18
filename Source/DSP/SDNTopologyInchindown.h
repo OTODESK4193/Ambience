@@ -80,7 +80,11 @@ public:
     void setParameters(float rt60, float hfDamping, float roomSizeScale, float airAbsorption = 1.0f) noexcept {
         const float fsf = static_cast<float>(fs);
         const float sizeScale = std::clamp(roomSizeScale, 0.5f, 2.5f);
-        const float clampedRt60 = std::clamp(rt60, 0.5f, 120.0f);
+        // [inchindown-decay fix] Lower floor 0.5 -> 0.05 s: with the RT60
+        // feed tracking the Decay knob, the 0.5 s floor would leave the
+        // tank 5x longer than a 0.10 s knob setting. Per-pass gains stay
+        // < 1 for any positive RT60, so the lower floor is stable.
+        const float clampedRt60 = std::clamp(rt60, 0.05f, 120.0f);
 
         // 1. 遅延サンプル数更新
         for (int i = 0; i < 4; ++i) {
