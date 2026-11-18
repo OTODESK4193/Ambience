@@ -149,7 +149,12 @@ public:
         const bool bypass = (amountCurrent < 1e-6 && amountInc == 0.0);
 
         const double x = static_cast<double>(inF);
+        // [phase3/cpu-opt A-3] inHist is a double-written ring (period 128,
+        // storage 256): every sample is stored at inPos and inPos + 128 so
+        // the interpolation window below reads linearly (histAt). Values,
+        // MAC order and double precision are unchanged.
         inHist[inPos] = x;
+        inHist[inPos + 128] = x;
 
         // Polyphase interpolation: two 2fs samples from the base-rate history.
         // u0 uses even taps, u1 odd taps (zero-stuffed convolution, gain 2).
@@ -159,16 +164,27 @@ public:
         inPos = (inPos + 1) & 127;
 
         const std::int64_t t0 = 2 * nin;
-        vHist[(size_t)(t0 & 255)] = static_cast<double>(inner.processSample(static_cast<float>(u0)));
-        vHist[(size_t)((t0 + 1) & 255)] = static_cast<double>(inner.processSample(static_cast<float>(u1)));
+        // [phase3/cpu-opt A-3] vHist is likewise double-written (period 256,
+        // storage 512) so the decimation window reads linearly.
+        const size_t vPos0 = static_cast<size_t>(t0 & 255);
+        const double v0 = static_cast<double>(inner.processSample(static_cast<float>(u0)));
+        vHist[vPos0] = v0;
+        vHist[vPos0 + 256] = v0;
+        const size_t vPos1 = static_cast<size_t>((t0 + 1) & 255);
+        const double v1 = static_cast<double>(inner.processSample(static_cast<float>(u1)));
+        vHist[vPos1] = v1;
+        vHist[vPos1 + 256] = v1;
 
         float out = 0.0f;
         if (nin >= 47) {
             const std::int64_t m = nin - 47; // output base index
+            // Ring position of 2fs index 2m; the window 2m..2m+94 is the
+            // linear span vHist[vBase .. vBase + 94].
+            const size_t vBase = static_cast<size_t>((2 * m) & 255);
             double acc = 0.0;
             // Window of v centred at 2m+47 (2fs index), taps j = 0..94.
             for (int j = 0; j < kTaps; ++j)
-                acc += tapsD[j] * vHist[(size_t)((2 * m + 94 - j) & 255)];
+                acc += tapsD[j] * vHist[vBase + 94 - static_cast<size_t>(j)];
             out = static_cast<float>(acc);
         }
         ++nin;
@@ -208,8 +224,8 @@ private:
     double fs{ 48000.0 };
     std::array<double, kTaps> tapsI{}; // interpolation (DC gain 2)
     std::array<double, kTaps> tapsD{}; // decimation (DC gain 1)
-    std::array<double, 128> inHist{};
-    std::array<double, 256> vHist{};
+    std::array<double, 256> inHist{}; // [A-3] double-written ring, period 128
+    std::array<double, 512> vHist{};  // [A-3] double-written ring, period 256
     int inPos{ 0 };
     std::int64_t nin{ 0 };
     int modeFadeCountdown{ 0 };
@@ -224,8 +240,11 @@ private:
     bool pathFadePrimed{ false };
 
     // Base-rate input history: histAt(k) = x[n - k], k = 0..47.
+    // [phase3/cpu-opt A-3] Linear read into the double-written ring: index
+    // inPos + 128 - k always holds x[n - k] (the primary copy when
+    // inPos < k, the duplicate otherwise).
     inline double histAt(int k) const noexcept {
-        return inHist[(inPos - k) & 127];
+        return inHist[inPos + 128 - k];
     }
 
     static double besselI0(double x) noexcept {
