@@ -1,15 +1,15 @@
 # Ambience
 
-![Release](https://img.shields.io/badge/release-v2.0.2-blue)
+![Release](https://img.shields.io/badge/release-v3.0.0-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
-![JUCE](https://img.shields.io/badge/JUCE-8.0.x-blue)
+![JUCE](https://img.shields.io/badge/JUCE-9.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Downloads](https://img.shields.io/github/downloads/OTODESK4193/Ambience/total.svg)
 
 <p align="center">
-  <img src="Source/Assets/Screenshot_main.jpg" width="720" alt="Ambience 2.0.0 Main Interface">
+  <img src="Source/Assets/Screenshot_main.jpg" width="720" alt="Ambience 3.0.0 Main Interface">
   <br>
-  <em>Ambience 2.0.0 — Main Interface featuring 16-channel FDN & SDN hybrid architecture, elegant glassmorphic controls, and dynamic two-tone vector styling.</em>
+  <em>Ambience 3.0.0 — Main Interface featuring 16-channel FDN & SDN hybrid architecture, elegant glassmorphic controls, and dynamic two-tone vector styling.</em>
 </p>
 
 ## Demo Videos
@@ -23,6 +23,34 @@
 </p>
 
 ## Changelog
+
+### v3.0.0 Major Update!!
+
+A ground-up DSP overhaul of the 2.0.x engine. Every algorithm was re-measured and re-calibrated band by band.
+
+**Sound Quality:**
+- **Full Decay Recalibration (All 8 Algorithms)**: Band-by-band RT60 accuracy dramatically improved across ROOM1, ROOM2, HALL1, HALL2, PLATE, SPRING, GOLDFOIL, and INCHINDOWN.
+- **Metallic Ringing Reduction**: Targeted countermeasures for the resonant "ringing" components in PLATE, SPRING, and GOLDFOIL.
+- **True Stereo Late Field**: The FDN late field is now split into independent L/R networks on all 8 algorithms, delivering genuine stereo envelopment instead of a decorrelated mono tail.
+- **Smoothed-Random Modulation**: The periodic sine modulation was replaced with a smooth random modulation source applied across all diffuser stages. The tail breathes naturally, and pitch stays rock-solid even at deep MOD AMT settings.
+- **Unitary Feedback-Matrix Modulation**: A slowly evolving unitary rotation inside the FDN feedback matrix thickens the late tail with no pitch drift.
+- **Redesigned Input Diffuser (6 Stages)**: Prime-number delay sets with per-stage tapering for denser, smoother onset diffusion.
+- **High-Precision Saturator**: ADAA anti-aliasing combined with 2x oversampling. TUBE mode rebalanced toward dominant even harmonics. Latency (48 samples) is now correctly reported to the host for DAW delay compensation.
+- **HALL2 Retuned**: Decay curve clamped to the statistical envelope of real concert halls (Beranek) — tighter low end, more extended top end.
+- **INCHINDOWN Improvements**: Corrected 8 kHz / 16 kHz decay, improved low-frequency accuracy, and a true-stereo tank.
+- **PRO Controls Normalized**: Unified early-reflection decay law; ASYMMETRY (previously ineffective on Room/Hall), CLARITY, AIR ABSORB, and ER CROSSOVER now behave consistently.
+
+**Bug Fixes:**
+- Fixed PANIC button leaving the reverb tail muted / not recovering.
+- Fixed INCHINDOWN low frequencies ringing on even at minimum Decay (0.10 s).
+- Fixed click noise when switching Saturation between 0% and 1%.
+- Fixed a roar artifact while dragging the Decay knob.
+- Fixed Saturation mode reverting to Warm after preset load.
+- Fixed low-frequency self-oscillation in INCHINDOWN at 192 kHz.
+
+**Notes:**
+- CPU usage is moderately higher than v2.0.2 (true stereo + new modulation). GOLDFOIL is the heaviest algorithm.
+- Existing presets remain loadable, but their sound will differ somewhat due to the recalibration.
 
 ### v2.0.2 Update
 
@@ -143,13 +171,14 @@ A research-grade Feedback Delay Network forms the acoustic core of Ambience:
 * **16-channel FWHT Feedback Matrix:** Fast Walsh-Hadamard Transform ensures dense, colorless diffusion with optimal mode distribution.
 * **Nearest-Prime Delay Allocation:** Delay lines are tuned to unique prime numbers distributed on a logarithmic scale, guaranteeing mutual coprimality across all 16 channels and eliminating comb-filter artifacts at any room size.
 * **8 Reverb Algorithms:** ROOM1, ROOM2, HALL1, HALL2, PLATE, SPRING, GOLDFOIL, INCHINDOWN — each with distinct topological routing, allpass gains, boundary scattering, and early reflection patterns.
+* **True Stereo Processing:** The late reverberation field runs as independent L/R networks, so panned sources keep a natural, asymmetric decay on both sides.
 
 ### 🧪 Professional DSP Modules
 
 * **Stage 2 GEQ Absorption (Välimäki-Liski):** A 10-band biquad Graphic EQ cascade per FDN channel, solving a Weighted Least Squares system to achieve accurate, frequency-dependent RT60 targets across the audible spectrum.
 * **ISM & Mesh Early Reflections:** Image Source Method and physical mesh patterns tuned per algorithm, providing perceptually accurate pre-echo with full stereo imaging control.
-* **Ornstein-Uhlenbeck Modulation:** Each of the 16 FDN channels is modulated by independent-seed, mean-reverting stochastic processes to guarantee non-periodic, chorus-free spatial decorrelation.
-* **ADAA Saturator (4 Modes):** Anti-Derivative Anti-Aliasing saturation applied to the wet path: **Warm** (Vicanek), **Tape** (Padé rational), **Tube** (asymmetric even harmonics), **Hard** (hard clip + ADAA).
+* **Smoothed-Random Modulation:** Independent smoothed-random sources (antiphase-paired across channels) modulate all three diffuser stages. Non-periodic by design, the modulation adds liveliness without audible pitch wobble — even at deep settings.
+* **ADAA Saturator (4 Modes):** Anti-Derivative Anti-Aliasing saturation applied to the wet path: **Warm** (Vicanek), **Tape** (Padé rational), **Tube** (asymmetric even harmonics), **Hard** (hard clip + ADAA). Now combined with 2x oversampling; the resulting 48-sample latency is reported to the host.
 * **Micro-Saturation (FDN Loop):** Internal saturator in the feedback loop acts as a safety limiter, suppressing limit cycles without audible coloration.
 * **Output EQ:** Linkwitz-Riley 12 dB/oct Lo Cut (20–1000 Hz) and Hi Cut (1 kHz–20 kHz) applied to the wet path with Shelf/Cut curve selection.
 * **Brick-Wall Output Limiter:** -0.5 dBFS brick-wall limiter as the final safety stage.
@@ -247,7 +276,7 @@ Windows: C:\Users\<YourName>\Documents\Ambience\Presets\
 
 1. Navigate to `Documents\Ambience\Presets\`
 2. Copy the desired `.ambpreset` file(s)
-3. Share with any Ambience 2.0.0 user — presets load instantly via the User category.
+3. Share with any Ambience user — presets load instantly via the User category (forward-compatible; 3.0.0 may sound slightly different due to recalibration).
 
 ## Parameter Reference
 
@@ -261,8 +290,8 @@ Windows: C:\Users\<YourName>\Documents\Ambience\Presets\
 | HF DAMP | 0.0 – 1.0 | 0.0 | High-frequency damping ratio (air molecular & surface absorption) |
 | LF ABSORB | 0.0 – 1.0 | 0.0 | Low-frequency boundary absorption ratio |
 | DIFFUSION | 0.0 – 1.0 | 0.7 | Input diffuser and nested allpass scattering coefficient |
-| MOD AMT | 0.0 – 1.0 | 0.25 | Stochastic Ornstein-Uhlenbeck modulation depth |
-| MOD RATE | 0.05 – 2.0 Hz | 0.5 Hz | Modulation cycle rate |
+| MOD AMT | 0.0 – 1.0 | 0.25 | Smoothed-random modulation depth (pitch-stable even at high values) |
+| MOD RATE | 0.05 – 2.0 Hz | 0.5 Hz | Modulation wander rate |
 | WIDTH | 0.0 – 1.0 | 0.8 | Stereo field width (0.0 = bit-exact mono, 1.0 = wide stereo) |
 | ER LEVEL | 0.0 – 1.0 | 0.6 | Early reflections level with graceful bypass |
 | SATURATE | 0.0 – 1.0 | 0.0 | Wet-path ADAA saturation amount |
@@ -296,7 +325,7 @@ Windows: C:\Users\<YourName>\Documents\Ambience\Presets\
 
 ## Installation
 
-1. Download the latest `Ambience2.0.0.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience/releases/latest) page.
+1. Download the latest `Ambience3.0.0.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience/releases/latest) page.
 2. Place the `.vst3` file into your system VST3 directory:
    ```
    C:\Program Files\Common Files\VST3\
@@ -324,13 +353,13 @@ Input (Stereo L/R)
     │
     ├─► [Mid/Side Decorrelation Matrix]
     │
-    ├─► [Input Diffusers × 4 stages]
+    ├─► [Input Diffusers × 6 stages]
     │
     ├─► [SDN / ISM Early Reflections Engine] ────────────────────────┐
     │                                                                │
     └─► [16-Channel FDN Core]                                        │
          ├─► FWHT Unitary Feedback Matrix                            │
-         ├─► Ornstein-Uhlenbeck Stochastic LFOs                      │
+         ├─► Smoothed-Random Modulation Sources                      │
          ├─► Dual-State 10-Band Biquad Absorption Filters (GEQ)      │
          ├─► Internal Padé Micro-Saturation Safety Loop              │
          └─► 3-Stage Nested Allpass Dispersion Chains                │
@@ -365,7 +394,7 @@ This software is provided "as-is", without warranty of any kind. While rigorous 
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3) - see the [LICENSE](LICENSE) file for details. Built using the **JUCE 8** framework.
+This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3) - see the [LICENSE](LICENSE) file for details. Built using the **JUCE 9** framework.
 
 ## Credits
 
@@ -375,7 +404,7 @@ This project is licensed under the GNU Affero General Public License v3.0 (AGPLv
 
 **Target DAW:** Ableton Live 11 / 12
 
-**Framework:** JUCE 8.0.x
+**Framework:** JUCE 9.0.x
 
 **DSP References:**
 - Välimäki & Liski — *"Accurate Cascade Graphic Equalizer"* (2017)
