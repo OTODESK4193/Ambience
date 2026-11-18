@@ -28,6 +28,23 @@
 
 namespace FDNReverb {
 
+    // [phase3/cpu-opt A-1 トライアル] 吸収 GEQ (Stage2) の SoA レイアウト。
+    // 状態は [段][ch] の double 列 (s1/s2 別配列)、係数は [段][係数][ch] の
+    // double 列 (係数 index: 0=b0, 1=b1, 2=b2, 3=a1, 4=a2)。係数は設計時の
+    // float 値を double 化して保持する (従来 tick 内の float->double キャスト
+    // と同値)。チャンネル毎の演算順序・丸めは BiquadState::tick と同一に保ち、
+    // チャンネル方向 AVX2 (double x4) で同一段を同時処理するための転置。
+    static constexpr int ABSO_SOA_CHANNELS = 16; // UniversalEngine::FDN_ORDER と一致
+    static constexpr int ABSO_SOA_PARAMS = 5;    // b0, b1, b2, a1, a2
+    using AbsStateSoA = std::array<std::array<double, ABSO_SOA_CHANNELS>, ABSO_STAGES_S2>;
+    using AbsCoeffSoA = std::array<std::array<std::array<double, ABSO_SOA_CHANNELS>, ABSO_SOA_PARAMS>, ABSO_STAGES_S2>;
+    // 従来の BiquadCoeffs 既定値 (b0=1, 他 0 = 恒等) と同じ初期値を作る。
+    inline AbsCoeffSoA makeIdentityAbsCoeffSoA() {
+        AbsCoeffSoA a{};
+        for (auto& stage : a) stage[0].fill(1.0);
+        return a;
+    }
+
     enum class ReverbTopology {
         Room,
         Hall,
@@ -207,6 +224,10 @@ namespace FDNReverb {
         void updateTopologyAndRouting();
         void calculatePrimePowerDelays();
         void updateAbsorptionFilters(bool targetIsB);
+        // [phase3/cpu-opt A-1] SoA 係数への書き込み (float->double は従来 tick のキャストと同値)
+        void storeAbsCoeffS2(bool targetIsB, int stage, int ch, const BiquadCoeffs& c) noexcept;
+        // [phase3/cpu-opt A-1] 1 バンク分の吸収カスケードを 16ch 一括処理する (io は 16ch 入出力)
+        void tickAbsorptionBankSoA(const AbsCoeffSoA& coeffs, AbsStateSoA& stS1, AbsStateSoA& stS2, float* io) noexcept;
         void applySdnDerivedParams();
         void updateSdnGeometry();
         // [phase3/small-fixes] reset() 完全初期化: prepare() 終端状態の捕捉/復元
@@ -287,10 +308,12 @@ namespace FDNReverb {
         OutputLimiter outputLimiter;
         OutputEQ      outputEQ;
 
-        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_A{};
-        std::array<std::array<BiquadState, ABSO_STAGES_S2>, FDN_ORDER> absorptionFiltersS2_B{};
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_A{};
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> absorptionCoeffsS2_B{};
+        static_assert(FDN_ORDER == ABSO_SOA_CHANNELS, "SoA layout assumes 16 FDN channels");
+        // [phase3/cpu-opt A-1] 吸収 GEQ の状態・係数は SoA レイアウトで保持する。
+        alignas(32) AbsStateSoA absorptionStateS1_A{}, absorptionStateS2_A{};
+        alignas(32) AbsStateSoA absorptionStateS1_B{}, absorptionStateS2_B{};
+        alignas(32) AbsCoeffSoA absorptionCoeffsSoA_A = makeIdentityAbsCoeffSoA();
+        alignas(32) AbsCoeffSoA absorptionCoeffsSoA_B = makeIdentityAbsCoeffSoA();
         
         // ★ 常時デュアル駆動・ビジー保護クロスフェード・ステートマシン
         enum class AbsoFadeState {
@@ -456,8 +479,8 @@ namespace FDNReverb {
         DSPParams      snapPendingParams{};
         ReverbTopology snapCurrentTopology{ ReverbTopology::Room };
         ReverbTopology snapPendingTopology{ ReverbTopology::Room };
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> snapCoeffsA{};
-        std::array<std::array<BiquadCoeffs, ABSO_STAGES_S2>, FDN_ORDER> snapCoeffsB{};
+        AbsCoeffSoA snapCoeffsA = makeIdentityAbsCoeffSoA();
+        AbsCoeffSoA snapCoeffsB = makeIdentityAbsCoeffSoA();
         std::array<float, NUM_BANDS> snapEffectiveRT60{};
         std::array<float, NUM_BANDS> snapTargetRT60{};
         float          snapTheoreticalEDT{ 0.0f };

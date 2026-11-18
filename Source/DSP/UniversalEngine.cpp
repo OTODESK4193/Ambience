@@ -1,6 +1,20 @@
 #include "UniversalEngine.h"
 #include "../AlgorithmPresets.h"
 
+// [phase3/cpu-opt A-1 本採用準備] 吸収 GEQ SIMD カーネルの変種切替。
+// ビット一致の成立条件は「スカラー版 BiquadState::tick の丸めを SIMD 側が
+// 正確に鏡写しすること」であり、スカラー側の丸めはコンパイラの FMA 収縮
+// の有無で変わる。製品 (MSVC) でどちらの丸めになるかは Windows 側の
+// レンダー比較 (phase3/cpu-opt/A1_WINDOWS_CHECK.md) で確定させること。
+//   1 (既定): FMA 形 — 収縮ありのツールチェーン (g++ -mfma 等) の丸め。
+//             yd = fma(b0,x,s1), s1' = fma(b1,x,-(a1*yd)) + s2,
+//             s2' = fma(b2,x,-(a2*yd))
+//   0:        分離形 — 収縮なし (MSVC /fp:precise 既定) の丸め。
+//             各積と和/差を個別に丸める (mul の後に add/sub)。
+#ifndef AMBIENCE_GEQ_FMA_KERNEL
+#define AMBIENCE_GEQ_FMA_KERNEL 1
+#endif
+
 namespace FDNReverb {
 
     static bool isPrime(int n) {
@@ -432,8 +446,8 @@ namespace FDNReverb {
         snapPendingParams = pendingParams;
         snapCurrentTopology = currentTopology;
         snapPendingTopology = pendingTopology;
-        snapCoeffsA = absorptionCoeffsS2_A;
-        snapCoeffsB = absorptionCoeffsS2_B;
+        snapCoeffsA = absorptionCoeffsSoA_A;
+        snapCoeffsB = absorptionCoeffsSoA_B;
         snapEffectiveRT60 = effectiveRT60;
         snapTargetRT60 = targetRT60;
         snapTheoreticalEDT = theoreticalEDT;
@@ -477,8 +491,8 @@ namespace FDNReverb {
         pendingParams = snapPendingParams;
         currentTopology = snapCurrentTopology;
         pendingTopology = snapPendingTopology;
-        absorptionCoeffsS2_A = snapCoeffsA;
-        absorptionCoeffsS2_B = snapCoeffsB;
+        absorptionCoeffsSoA_A = snapCoeffsA;
+        absorptionCoeffsSoA_B = snapCoeffsB;
         effectiveRT60 = snapEffectiveRT60;
         targetRT60 = snapTargetRT60;
         theoreticalEDT = snapTheoreticalEDT;
@@ -539,10 +553,10 @@ namespace FDNReverb {
             for (auto& dl : chDelays) dl.resetState();
 
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-        for (auto& lineFilters : absorptionFiltersS2_A)
-            for (auto& f : lineFilters) f.reset();
-        for (auto& lineFilters : absorptionFiltersS2_B)
-            for (auto& f : lineFilters) f.reset();
+        for (auto& row : absorptionStateS1_A) row.fill(0.0);
+        for (auto& row : absorptionStateS2_A) row.fill(0.0);
+        for (auto& row : absorptionStateS1_B) row.fill(0.0);
+        for (auto& row : absorptionStateS2_B) row.fill(0.0);
         absoCrossfadePos = 0.0f;
         absoFadeState = AbsoFadeState::IdleAtA;
 #else
@@ -787,11 +801,7 @@ namespace FDNReverb {
 
         // 吸音フィルタ初期化（AとBの双方に初期係数を適用）
         updateAbsorptionFilters(false);
-        for (int i = 0; i < FDN_ORDER; ++i) {
-            for (int b = 0; b < ABSO_STAGES_S2; ++b) {
-                absorptionCoeffsS2_B[i][b] = absorptionCoeffsS2_A[i][b];
-            }
-        }
+        absorptionCoeffsSoA_B = absorptionCoeffsSoA_A;
 
         switch (currentTopology) {
         case ReverbTopology::Room:
@@ -969,6 +979,56 @@ namespace FDNReverb {
         -0.48f,     -0.26f,     -0.18f,     -0.10f,     -0.08f,     -0.31f,     0.19f,       1.30f
     } };
 
+    // [phase3/cpu-opt A-1] SoA 係数への書き込み。float->double 変換は従来
+    // BiquadState::tick 内で行われていたキャストと同値であり、設計結果は不変。
+    void UniversalEngine::storeAbsCoeffS2(bool targetIsB, int stage, int ch, const BiquadCoeffs& c) noexcept {
+        auto& bank = targetIsB ? absorptionCoeffsSoA_B : absorptionCoeffsSoA_A;
+        bank[stage][0][ch] = static_cast<double>(c.b0);
+        bank[stage][1][ch] = static_cast<double>(c.b1);
+        bank[stage][2][ch] = static_cast<double>(c.b2);
+        bank[stage][3][ch] = static_cast<double>(c.a1);
+        bank[stage][4][ch] = static_cast<double>(c.a2);
+    }
+
+    // [phase3/cpu-opt A-1] 吸収カスケード (DF-II 転置・11段) を 16ch 一括で処理する。
+    // チャンネル毎の演算は BiquadState::tick の式と丸めを正確に鏡写しする。
+    // 丸めの形は AMBIENCE_GEQ_FMA_KERNEL で切り替える (ファイル冒頭の注記):
+    //   FMA 形 (既定): yd  = fma(b0, x, s1)
+    //                  s1' = fma(b1, x, -(a1*yd)) + s2
+    //                  s2' = fma(b2, x, -(a2*yd))
+    //     (スカラー版は -O2 -mfma でこの FMA 収縮形にコンパイルされることを
+    //      逆アセンブルで確認済み。レーン間の演算は存在しないためビット一致。)
+    //   分離形: 各積・和・差を個別に丸める (収縮なしのスカラー評価と同順序)。
+    void UniversalEngine::tickAbsorptionBankSoA(const AbsCoeffSoA& coeffs, AbsStateSoA& stS1, AbsStateSoA& stS2, float* io) noexcept {
+        for (int s = 0; s < ABSO_STAGES_S2; ++s) {
+            const auto& cs = coeffs[s];
+            double* s1row = stS1[s].data();
+            double* s2row = stS2[s].data();
+            for (int g = 0; g < FDN_ORDER; g += 4) {
+                const __m256d xv = _mm256_cvtps_pd(_mm_loadu_ps(io + g));
+                const __m256d s1 = _mm256_loadu_pd(s1row + g);
+                const __m256d s2 = _mm256_loadu_pd(s2row + g);
+                const __m256d b0 = _mm256_loadu_pd(cs[0].data() + g);
+                const __m256d b1 = _mm256_loadu_pd(cs[1].data() + g);
+                const __m256d b2 = _mm256_loadu_pd(cs[2].data() + g);
+                const __m256d a1 = _mm256_loadu_pd(cs[3].data() + g);
+                const __m256d a2 = _mm256_loadu_pd(cs[4].data() + g);
+#if AMBIENCE_GEQ_FMA_KERNEL
+                const __m256d yd = _mm256_fmadd_pd(b0, xv, s1);
+                const __m256d ns1 = _mm256_add_pd(_mm256_fmsub_pd(b1, xv, _mm256_mul_pd(a1, yd)), s2);
+                const __m256d ns2 = _mm256_fmsub_pd(b2, xv, _mm256_mul_pd(a2, yd));
+#else
+                const __m256d yd = _mm256_add_pd(_mm256_mul_pd(b0, xv), s1);
+                const __m256d ns1 = _mm256_add_pd(_mm256_sub_pd(_mm256_mul_pd(b1, xv), _mm256_mul_pd(a1, yd)), s2);
+                const __m256d ns2 = _mm256_sub_pd(_mm256_mul_pd(b2, xv), _mm256_mul_pd(a2, yd));
+#endif
+                _mm256_storeu_pd(s1row + g, ns1);
+                _mm256_storeu_pd(s2row + g, ns2);
+                _mm_storeu_ps(io + g, _mm256_cvtpd_ps(yd));
+            }
+        }
+    }
+
     void UniversalEngine::updateAbsorptionFilters(bool targetIsB) {
         const int safeAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
         auto& preset = *ALL_PRESETS[safeAlgo];
@@ -1110,19 +1170,15 @@ namespace FDNReverb {
                         uniformLoop, fs, scaledRT60,
                         activeParams.hfDamping, activeParams.lfAbsorption,
                         false, true, -0.02, true);
-                    for (int b = 0; b < NUM_BANDS; ++b) {
-                        if (targetIsB) absorptionCoeffsS2_B[i][b] = s2x.geqStages[b];
-                        else           absorptionCoeffsS2_A[i][b] = s2x.geqStages[b];
-                    }
+                    for (int b = 0; b < NUM_BANDS; ++b)
+                        storeAbsCoeffS2(targetIsB, b, i, s2x.geqStages[b]);
                     continue;
                 }
                 auto s2n = fitter.designStage2(
                     effectiveLoopSamples, fs, scaledRT60,
                     activeParams.hfDamping, activeParams.lfAbsorption);
-                for (int b = 0; b < NUM_BANDS; ++b) {
-                    if (targetIsB) absorptionCoeffsS2_B[i][b] = s2n.geqStages[b];
-                    else           absorptionCoeffsS2_A[i][b] = s2n.geqStages[b];
-                }
+                for (int b = 0; b < NUM_BANDS; ++b)
+                    storeAbsCoeffS2(targetIsB, b, i, s2n.geqStages[b]);
                 continue;
             }
             std::array<float, NUM_BANDS> loopPerBand;
@@ -1154,13 +1210,8 @@ namespace FDNReverb {
                 loopPerBand, fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption,
                 true); // Spring: オクターブ較正 (phase3/spring8k/SPRING8K.md)
-            for (int b = 0; b < NUM_BANDS; ++b) {
-                if (targetIsB) {
-                    absorptionCoeffsS2_B[i][b] = s2.geqStages[b];
-                } else {
-                    absorptionCoeffsS2_A[i][b] = s2.geqStages[b];
-                }
-            }
+            for (int b = 0; b < NUM_BANDS; ++b)
+                storeAbsCoeffS2(targetIsB, b, i, s2.geqStages[b]);
         }
         // ─────────────────────────────────────────────────────────────
         // Phase3 plate234 candidate B3: APF group-delay compensation stage
@@ -1216,8 +1267,7 @@ namespace FDNReverb {
                     comp.b2 = static_cast<float>((1.0 - alpha * A) / a0);
                     comp.a1 = static_cast<float>((-2.0 * cw) / a0);
                     comp.a2 = static_cast<float>((1.0 - alpha / A) / a0);
-                    if (targetIsB) absorptionCoeffsS2_B[i][NUM_BANDS] = comp;
-                    else           absorptionCoeffsS2_A[i][NUM_BANDS] = comp;
+                    storeAbsCoeffS2(targetIsB, NUM_BANDS, i, comp);
                 }
             } else if (currentTopology == ReverbTopology::Goldfoil) {
                 // phase3/goldfoil-stereo 2.6k fix (GOLDFOIL_26K_PROTO):
@@ -1247,7 +1297,7 @@ namespace FDNReverb {
                 const double fLo   = 2100.0;
                 const double fHi   = 3400.0;
                 const double gg    = static_cast<double>(gApfDesign);
-                auto& bank26 = targetIsB ? absorptionCoeffsS2_B : absorptionCoeffsS2_A;
+                const auto& bank26 = targetIsB ? absorptionCoeffsSoA_B : absorptionCoeffsSoA_A;
                 for (int i = 0; i < FDN_ORDER; ++i) {
                     // grid search (1/24 oct) for the slowest implied rate
                     double fStar = 0.0, rMin = 1e30, tauStar = 0.0;
@@ -1259,11 +1309,17 @@ namespace FDNReverb {
                         const double c2 = std::cos(2.0 * w), s2 = std::sin(2.0 * w);
                         double lossDb = 0.0;
                         for (int b = 0; b < NUM_BANDS; ++b) {
-                            const auto& cf = bank26[i][b];
-                            const double nRe = cf.b0 + cf.b1 * c1 + cf.b2 * c2;
-                            const double nIm = -(cf.b1 * s1 + cf.b2 * s2);
-                            const double dRe = 1.0 + cf.a1 * c1 + cf.a2 * c2;
-                            const double dIm = -(cf.a1 * s1 + cf.a2 * s2);
+                            // [phase3/cpu-opt A-1] SoA 係数 (double 化済み) の読み。
+                            // 値は従来の float 係数を double 化したものと同一。
+                            const double cfB0 = bank26[b][0][i];
+                            const double cfB1 = bank26[b][1][i];
+                            const double cfB2 = bank26[b][2][i];
+                            const double cfA1 = bank26[b][3][i];
+                            const double cfA2 = bank26[b][4][i];
+                            const double nRe = cfB0 + cfB1 * c1 + cfB2 * c2;
+                            const double nIm = -(cfB1 * s1 + cfB2 * s2);
+                            const double dRe = 1.0 + cfA1 * c1 + cfA2 * c2;
+                            const double dIm = -(cfA1 * s1 + cfA2 * s2);
                             const double magSq = (nRe * nRe + nIm * nIm)
                                                / std::max(1e-24, dRe * dRe + dIm * dIm);
                             lossDb += -10.0 * std::log10(std::max(1e-24, magSq));
@@ -1309,14 +1365,12 @@ namespace FDNReverb {
                         comp.a1 = static_cast<float>((-2.0 * cw) / a0);
                         comp.a2 = static_cast<float>((1.0 - alpha / A) / a0);
                     }
-                    bank26[i][NUM_BANDS] = comp;
+                    storeAbsCoeffS2(targetIsB, NUM_BANDS, i, comp);
                 }
             } else {
                 const BiquadCoeffs identity{};
-                for (int i = 0; i < FDN_ORDER; ++i) {
-                    if (targetIsB) absorptionCoeffsS2_B[i][NUM_BANDS] = identity;
-                    else           absorptionCoeffsS2_A[i][NUM_BANDS] = identity;
-                }
+                for (int i = 0; i < FDN_ORDER; ++i)
+                    storeAbsCoeffS2(targetIsB, NUM_BANDS, i, identity);
             }
         }
 #endif
@@ -1607,17 +1661,11 @@ namespace FDNReverb {
             }
             // ★ 状態変数ディープコピー（クリックノイズ完全ゼロの状態転送）
             if (targetIsB) {
-                for (int i = 0; i < FDN_ORDER; ++i) {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        absorptionFiltersS2_B[i][s] = absorptionFiltersS2_A[i][s];
-                    }
-                }
+                absorptionStateS1_B = absorptionStateS1_A;
+                absorptionStateS2_B = absorptionStateS2_A;
             } else {
-                for (int i = 0; i < FDN_ORDER; ++i) {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        absorptionFiltersS2_A[i][s] = absorptionFiltersS2_B[i][s];
-                    }
-                }
+                absorptionStateS1_A = absorptionStateS1_B;
+                absorptionStateS2_A = absorptionStateS2_B;
             }
             absoFadeState = targetIsB ? AbsoFadeState::FadingToB : AbsoFadeState::FadingToA;
             samplesSinceLastAbsorptionUpdate = 0;
@@ -2084,12 +2132,21 @@ namespace FDNReverb {
             std::array<float, 16> apfOutVec;
             float maxChPeak = 0.0f;
 
+            // [phase3/cpu-opt A-1] 吸収 GEQ のチャンネル方向 SIMD 化に伴い、
+            // チャンネルループを3フェーズに分割する。各フェーズ内では
+            // チャンネル独立の処理だけを従来と同一順序で実行するため、
+            // 値の列は従来と完全一致する (遅延線への書き込みは元々別ループ)。
+            // フェーズ1: 遅延平滑 + 読み (結果は geqVec へ)
+            std::array<float, FDN_ORDER> geqVec{};
+#if !AMBIENCE_MODSRC_PACKAGE
+            std::array<float, FDN_ORDER> chorusVals{};
+#endif
             for (int i = 0; i < FDN_ORDER; ++i) {
 #if AMBIENCE_MODSRC_PACKAGE
                 // [phase3/mod-source] 変調値はランダム源 (randPairVals) から取るため
                 // 正弦 LFO の tick は行わない (LFO 状態は他の経路から読まれない)。
 #else
-                const float chorusVal = dualLFOs[i].tick();
+                chorusVals[i] = dualLFOs[i].tick();
 #endif
                 
                 // ★ FDNベースディレイの 1-pole スムージング & Fractional リード
@@ -2131,31 +2188,33 @@ namespace FDNReverb {
                     }
                 }
 
+                geqVec[i] = d;
+            }
+
+            // フェーズ2: 吸収 GEQ (SoA・チャンネル方向 AVX2 で 16ch 一括)
 #if AMBIENCE_USE_STAGE2_ABSORPTION
-                // ★ 状態転送付きシングルバンク駆動（定常時は160基のみ計算、フェード時のみ両バンク計算）
-                if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        d = absorptionFiltersS2_A[i][s].tick(d, absorptionCoeffsS2_A[i][s]);
-                    }
-                } else if (absoFadeState == AbsoFadeState::IdleAtB) {
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        d = absorptionFiltersS2_B[i][s].tick(d, absorptionCoeffsS2_B[i][s]);
-                    }
-                } else {
-                    // クロスフェード中（30ms間）のみ両バンクを計算し、等パワー合成
-                    float outA = d;
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        outA = absorptionFiltersS2_A[i][s].tick(outA, absorptionCoeffsS2_A[i][s]);
-                    }
-                    float outB = d;
-                    for (int s = 0; s < ABSO_STAGES_S2; ++s) {
-                        outB = absorptionFiltersS2_B[i][s].tick(outB, absorptionCoeffsS2_B[i][s]);
-                    }
-                    d = outA * absoGainA + outB * absoGainB;
-                }
+            // ★ 状態転送付きシングルバンク駆動（定常時は160基のみ計算、フェード時のみ両バンク計算）
+            if (absoFadeState == AbsoFadeState::IdleAtA) [[likely]] {
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_A, absorptionStateS1_A, absorptionStateS2_A, geqVec.data());
+            } else if (absoFadeState == AbsoFadeState::IdleAtB) {
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_B, absorptionStateS1_B, absorptionStateS2_B, geqVec.data());
+            } else {
+                // クロスフェード中（30ms間）のみ両バンクを計算し、線形合成
+                std::array<float, FDN_ORDER> outA = geqVec;
+                std::array<float, FDN_ORDER> outB = geqVec;
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_A, absorptionStateS1_A, absorptionStateS2_A, outA.data());
+                tickAbsorptionBankSoA(absorptionCoeffsSoA_B, absorptionStateS1_B, absorptionStateS2_B, outB.data());
+                for (int i = 0; i < FDN_ORDER; ++i)
+                    geqVec[i] = outA[i] * absoGainA + outB[i] * absoGainB;
+            }
 #else
-                d = absorptionFilters[i].tick(d, currentAbsorptionCoeffs[i]);
+            for (int i = 0; i < FDN_ORDER; ++i)
+                geqVec[i] = absorptionFilters[i].tick(geqVec[i], currentAbsorptionCoeffs[i]);
 #endif
+
+            // フェーズ3: DC ブロッカー + APF 以降 (チャンネル独立・従来と同一順序)
+            for (int i = 0; i < FDN_ORDER; ++i) {
+                float d = geqVec[i];
 
                 d += 1e-25f;
 
@@ -2228,7 +2287,7 @@ namespace FDNReverb {
                         // 退かし Δ-3.4dB に収める。根拠と全ゲート検証は GOLDFOIL_1K.md。
                         const float gfApfTrim = (currentTopology == ReverbTopology::Goldfoil)
                             ? -0.75f * (fsf / 48000.0f) : 0.0f;
-                        const float apfDelaySmp = baseDelay + chorusVal * safeMod + gfApfTrim;
+                        const float apfDelaySmp = baseDelay + chorusVals[i] * safeMod + gfApfTrim;
                         delayed = nestedAllpassDelays[i][s].read(apfDelaySmp);
                     } else {
                         delayed = nestedAllpassDelays[i][s].readInt(cachedApfBaseDelayInt[i][s]);
