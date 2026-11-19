@@ -759,6 +759,8 @@ namespace FDNReverb {
         saturatorR.setAmount(effectiveSatAmount);
         saturatorL.setMode(p.satTypeIdx);
         saturatorR.setMode(p.satTypeIdx);
+        saturatorL.setOversamplingEnabled(p.satOversampling);
+        saturatorR.setOversamplingEnabled(p.satOversampling);
     }
 
     // Phase3 Goldfoil redesign (adopted candidate D24): explicit delay set.

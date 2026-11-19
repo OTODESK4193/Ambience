@@ -111,6 +111,16 @@ namespace FDNReverb {
             ParamID::ProTab, "Pro Tab", false,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));
 
+        // ── [phase3/os-toggle] サチュレータ OS 切替 ──
+        // ヘッダーのトグルで操作する通常パラメータ。インスタンス状態
+        // (プロジェクト) に保存・復元される。既定は OFF (ADAA1 のみ);
+        // ON で B002 までの音 (ADAA1 + OS x2)。既存パラメータの
+        // インデックスをずらさないよう、レイアウト末尾に追加する。
+        // パラメータを持たない旧プロジェクトでは既定 OFF のまま開く。
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            ParamID::SatOversampling, "Sat Oversampling", false,
+            juce::AudioParameterBoolAttributes().withAutomatable(false)));
+
         return { params.begin(), params.end() };
     }
 

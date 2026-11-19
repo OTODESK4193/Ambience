@@ -37,6 +37,19 @@
 //  the dry input and the oversampled path over kPathFadeSeconds whenever
 //  the bypass state changes; both settled states stay bit-exact (pure
 //  dry at fade 0, pure oversampled path at fade 1).
+//
+//  [phase3/os-toggle] Optional oversampling bypass (user-selectable):
+//  setOversamplingEnabled(false) — the product default — presents a
+//  second, base-rate SaturatorADAA instance instead of the oversampled
+//  path, for sessions where the OS path's CPU is better spent
+//  elsewhere. The two wet paths
+//  crossfade over the same kPathFadeSeconds when the setting changes;
+//  the unselected path is not fed while settled (its state stays frozen
+//  and resumes under the fade — see phase3/os-toggle/OS_TOGGLE.md for
+//  the measured switching transient). With oversampling enabled and
+//  settled, the processing below is exactly the pre-toggle code path
+//  (the direct instance is never called), so renders stay bit-identical
+//  to the build without the toggle.
 // ─────────────────────────────────────────────────────────────────────────────
 
 namespace FDNReverb {
@@ -51,9 +64,18 @@ public:
     // worst-case (saturation active) figure, constant by design.
     static constexpr int kLatencySamples = 48;
 
+    // [phase3/os-toggle] Host-reported latency with oversampling OFF:
+    // the direct path is a plain SaturatorADAA, whose active output is
+    // built on the dry reference delayed by exactly 1 sample (the droop
+    // compensator's group delay; the difference path hangs off it in
+    // parallel and adds no further delay). Verified by impulse
+    // measurement in phase3/os-toggle/OS_TOGGLE.md.
+    static constexpr int kLatencySamplesDirect = 1;
+
     void prepare(double sampleRate) noexcept {
         fs = (sampleRate > 1000.0) ? sampleRate : 48000.0;
         inner.prepare(2.0 * fs);
+        direct.prepare(fs);
         designTaps();
         amountSteps = std::max(1.0, fs * 0.020);
         amountCurrent = 0.0;
@@ -62,11 +84,15 @@ public:
         pathFade = 0.0; // settled amount is 0 here: dry presented
         pathFadeInc = 1.0 / std::max(1.0, fs * kPathFadeSeconds);
         pathFadePrimed = false; // first sample presents the current path directly
+        osFade = osTarget ? 1.0 : 0.0;
+        osFadeInc = pathFadeInc;
+        osFadePrimed = false; // first sample presents the selected path directly
         reset();
     }
 
     void reset() noexcept {
         inner.reset();
+        direct.reset();
         inHist.fill(0.0);
         vHist.fill(0.0);
         inPos = 0;
@@ -76,6 +102,7 @@ public:
 
     void setMode(SaturationMode mode) noexcept {
         inner.setMode(mode);
+        direct.setMode(mode);
         modeFadeCountdown = (int)(fs * 0.020) + 4;
     }
     void setMode(int modeIndex) noexcept {
@@ -84,6 +111,7 @@ public:
 
     void setAmount(float amount) noexcept {
         inner.setAmount(amount);
+        direct.setAmount(amount);
         amountTarget = static_cast<double>(std::clamp(amount, 0.0f, 1.0f));
         amountInc = (amountTarget - amountCurrent) / amountSteps;
         // Snap the last epsilon of a return to exactly 0. Without this,
@@ -102,8 +130,40 @@ public:
         }
     }
 
-    void setDroopCompEnabled(bool enabled) noexcept { inner.setDroopCompEnabled(enabled); }
+    void setDroopCompEnabled(bool enabled) noexcept {
+        inner.setDroopCompEnabled(enabled);
+        direct.setDroopCompEnabled(enabled);
+    }
     [[nodiscard]] bool isDroopCompEnabled() const noexcept { return inner.isDroopCompEnabled(); }
+
+    // [phase3/os-toggle] Selects which wet path is presented: the
+    // oversampled path (true — the B002 sound) or the base-rate ADAA1
+    // path (false, the product default). The switch itself is performed by
+    // the osFade crossfade inside processSample; this setter only moves
+    // the target and re-syncs the woken path's amount ramp, which froze
+    // while that path was unselected (its setAmount calls were recorded
+    // but never stepped). Mode state needs no sync: setMode has always
+    // been forwarded to both paths.
+    void setOversamplingEnabled(bool enabled) noexcept {
+        if (enabled == osTarget) return;
+        osTarget = enabled;
+        if (enabled) {
+            auto st = inner.captureResetState();
+            st.amountCurrent = amountCurrent;
+            st.amountTarget = amountTarget;
+            st.amountInc = 0.0;
+            inner.restoreResetState(st);
+            inner.setAmount(static_cast<float>(amountTarget));
+        } else {
+            auto st = direct.captureResetState();
+            st.amountCurrent = amountCurrent;
+            st.amountTarget = amountTarget;
+            st.amountInc = 0.0;
+            direct.restoreResetState(st);
+            direct.setAmount(static_cast<float>(amountTarget));
+        }
+    }
+    [[nodiscard]] bool isOversamplingEnabled() const noexcept { return osTarget; }
 
     // [phase3/small-fixes] reset() は amount ランプ状態 (自クラスと inner の
     // 双方) と pathFade 状態を戻さない。UniversalEngine が prepare 終端の
@@ -111,22 +171,33 @@ public:
     // (SaturatorADAA::ResetState 参照)。
     struct ResetState {
         SaturatorADAA::ResetState inner;
+        SaturatorADAA::ResetState direct;
         double amountCurrent{ 0.0 }, amountTarget{ 0.0 }, amountInc{ 0.0 };
         double pathFade{ 0.0 }, pathFadeInc{ 0.0 };
         bool pathFadePrimed{ false };
+        bool osTarget{ false };
+        double osFade{ 0.0 }, osFadeInc{ 0.0 };
+        bool osFadePrimed{ false };
     };
     ResetState captureResetState() const noexcept {
-        return { inner.captureResetState(), amountCurrent, amountTarget, amountInc,
-                 pathFade, pathFadeInc, pathFadePrimed };
+        return { inner.captureResetState(), direct.captureResetState(),
+                 amountCurrent, amountTarget, amountInc,
+                 pathFade, pathFadeInc, pathFadePrimed,
+                 osTarget, osFade, osFadeInc, osFadePrimed };
     }
     void restoreResetState(const ResetState& s) noexcept {
         inner.restoreResetState(s.inner);
+        direct.restoreResetState(s.direct);
         amountCurrent = s.amountCurrent;
         amountTarget = s.amountTarget;
         amountInc = s.amountInc;
         pathFade = s.pathFade;
         pathFadeInc = s.pathFadeInc;
         pathFadePrimed = s.pathFadePrimed;
+        osTarget = s.osTarget;
+        osFade = s.osFade;
+        osFadeInc = s.osFadeInc;
+        osFadePrimed = s.osFadePrimed;
     }
 
     inline float processSample(float inF) noexcept {
@@ -148,7 +219,26 @@ public:
         // the ADAA1 build, max 5.4e-4). Fixed.
         const bool bypass = (amountCurrent < 1e-6 && amountInc == 0.0);
 
+        // [phase3/os-toggle] Advance the wet-path selection fade. The
+        // first sample after prepare() presents the selected path
+        // directly (same priming rule as pathFade below), so a project
+        // stored with OS off renders purely on the direct path from
+        // sample 0. While settled, the unselected path is not fed at
+        // all: that is where the OFF state's CPU saving comes from, and
+        // why the ON state costs exactly what the pre-toggle build did.
+        const double osTargetPos = osTarget ? 1.0 : 0.0;
+        if (!osFadePrimed) {
+            osFade = osTargetPos;
+            osFadePrimed = true;
+        }
+        else if (osFade < osTargetPos) osFade = std::min(osTargetPos, osFade + osFadeInc);
+        else if (osFade > osTargetPos) osFade = std::max(osTargetPos, osFade - osFadeInc);
+        const bool needOS = (osFade > 0.0);
+        const bool needDirect = (osFade < 1.0);
+
         const double x = static_cast<double>(inF);
+        float out = 0.0f;
+        if (needOS) {
         // [phase3/cpu-opt A-3] inHist is a double-written ring (period 128,
         // storage 256): every sample is stored at inPos and inPos + 128 so
         // the interpolation window below reads linearly (histAt). Values,
@@ -175,7 +265,6 @@ public:
         vHist[vPos1] = v1;
         vHist[vPos1 + 256] = v1;
 
-        float out = 0.0f;
         if (nin >= 47) {
             const std::int64_t m = nin - 47; // output base index
             // Ring position of 2fs index 2m; the window 2m..2m+94 is the
@@ -188,8 +277,24 @@ public:
             out = static_cast<float>(acc);
         }
         ++nin;
+        } // if (needOS)
 
-        // Present the dry input or the oversampled path, crossfading over
+        float outDirect = 0.0f;
+        if (needDirect) outDirect = direct.processSample(inF);
+
+        // Wet signal handed to the dry/wet presentation fade below. The
+        // endpoints pass the selected path's output through unmodified,
+        // so both settled states stay bit-exact (OS on: identical to the
+        // pre-toggle build; OS off: identical to a plain SaturatorADAA
+        // driven with the same calls); the blend exists only while the
+        // selection fade is running.
+        double wet;
+        if (osFade >= 1.0) wet = static_cast<double>(out);
+        else if (osFade <= 0.0) wet = static_cast<double>(outDirect);
+        else wet = (1.0 - osFade) * static_cast<double>(outDirect)
+                 + osFade * static_cast<double>(out);
+
+        // Present the dry input or the selected wet path, crossfading over
         // kPathFadeSeconds whenever the bypass state changes (see header
         // note). The endpoints are returned through the exact original
         // expressions, so both settled states are bit-identical to the
@@ -206,9 +311,9 @@ public:
         else if (pathFade < fadeTarget) pathFade = std::min(fadeTarget, pathFade + pathFadeInc);
         else if (pathFade > fadeTarget) pathFade = std::max(fadeTarget, pathFade - pathFadeInc);
         if (pathFade <= 0.0) return inF;
-        if (pathFade >= 1.0) return out;
+        if (pathFade >= 1.0) return static_cast<float>(wet);
         return static_cast<float>((1.0 - pathFade) * static_cast<double>(inF)
-                                  + pathFade * static_cast<double>(out));
+                                  + pathFade * wet);
     }
 
 private:
@@ -221,6 +326,13 @@ private:
     static constexpr double kPathFadeSeconds = 0.005;
 
     SaturatorADAA inner;
+    // [phase3/os-toggle] Base-rate ADAA1 path, presented when
+    // oversampling is off. Fed only while selected or fading.
+    SaturatorADAA direct;
+    bool osTarget{ false };    // selected path: true = oversampled
+    double osFade{ 0.0 };      // 1 = oversampled path, 0 = direct path
+    double osFadeInc{ 1.0 / 240.0 }; // prepare() recomputes for fs
+    bool osFadePrimed{ false };
     double fs{ 48000.0 };
     std::array<double, kTaps> tapsI{}; // interpolation (DC gain 2)
     std::array<double, kTaps> tapsD{}; // decimation (DC gain 1)
