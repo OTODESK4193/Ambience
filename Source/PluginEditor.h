@@ -98,6 +98,9 @@ private:
     juce::Label    satTypeLabel;
     juce::ComboBox satTypeCombo;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> satTypeAttachment;
+    // [phase3/os-toggle] サチュレータ OS 切替 (ヘッダー)
+    juce::TextButton satOsButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> satOsAttachment;
     ArcKnob kTiltLow, kTiltMid, kTiltHigh;
     ArcKnob kLoCutPro, kHiCutPro;
 

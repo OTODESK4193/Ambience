@@ -20,6 +20,11 @@ namespace FDNReverb {
         float dryDB{ 0.0f };
         float saturation{ 0.0f };
         int   satTypeIdx{ 0 };
+        // [phase3/os-toggle] Saturator oversampling switch.
+        // false (default) = ADAA1 only; true = ADAA1 + OS x2 (the B002
+        // sound). A regular per-instance parameter: persisted in the
+        // APVTS state (project), driven from the header toggle.
+        bool  satOversampling{ false };
         float duckingAmount{ 0.0f };
         float duckingAttackMs{ 10.0f };
         float duckingRelMs{ 200.0f };
@@ -69,6 +74,7 @@ namespace FDNReverb {
                 && dryDB == o.dryDB
                 && saturation == o.saturation
                 && satTypeIdx == o.satTypeIdx
+                && satOversampling == o.satOversampling
                 && duckingAmount == o.duckingAmount
                 && duckingAttackMs == o.duckingAttackMs
                 && duckingRelMs == o.duckingRelMs

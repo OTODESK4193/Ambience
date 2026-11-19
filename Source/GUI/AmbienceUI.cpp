@@ -9,7 +9,7 @@ AmbienceLookAndFeel::AmbienceLookAndFeel()
 
 void AmbienceLookAndFeel::setTheme(int idx) noexcept
 {
-    currentThemeIndex = juce::jlimit(0, 9, idx);
+    currentThemeIndex = juce::jlimit(0, 10, idx);
     currentTheme = AmbienceColors::THEMES[currentThemeIndex];
     setColour(juce::Slider::backgroundColourId, currentTheme.arcTrack);
     setColour(juce::Slider::thumbColourId, currentTheme.primary);

@@ -54,6 +54,7 @@ void FDNReverbAudioProcessor::CachedParams::init(juce::AudioProcessorValueTreeSt
     airAbsorb     = apvts.getRawParameterValue(ParamID::AirAbsorb);
     rt60Tab       = apvts.getRawParameterValue(ParamID::RT60Tab);
     proTab        = apvts.getRawParameterValue(ParamID::ProTab);
+    satOversampling = apvts.getRawParameterValue(ParamID::SatOversampling);
 }
 
 FDNReverbAudioProcessor::FDNReverbAudioProcessor()
@@ -100,10 +101,17 @@ void FDNReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlo
 
     engine.prepare(sampleRate, maxBlock);
 
-    // サチュレータ段 (ADAA1 + 2x OS) のレイテンシをホストへ申告する。
-    // 実測 47.5 サンプルの切り上げ。amount=0 のバイパス時は無遅延だが、
-    // 申告は最悪値で一定とする (パラメータで変動させない)。
-    setLatencySamples(SaturatorADAAOS2::kLatencySamples);
+    // サチュレータ段のレイテンシをホストへ申告する。
+    // OS ON: ADAA1 + 2x OS の実測 47.5 サンプルの切り上げ = 48。
+    // OS OFF: ベースレート ADAA1 のみで、実効遅延は 1 サンプル
+    // (phase3/os-toggle でインパルス実測)。amount=0 のバイパス時は
+    // どちらの状態でも無遅延だが、申告は状態ごとの最悪値で一定とする。
+    // 状態が変わった場合は updateEngineParams() でも連動して再申告する。
+    lastSatOversampling = cachedParams.satOversampling
+        ? (cachedParams.satOversampling->load(std::memory_order_relaxed) > 0.5f)
+        : false;
+    setLatencySamples(lastSatOversampling ? SaturatorADAAOS2::kLatencySamples
+                                          : SaturatorADAAOS2::kLatencySamplesDirect);
 
     // 最大ブロックサイズで事前確保（オーディオスレッドでの再確保を根絶）
     wetBuffer.setSize(2, maxBlock);
@@ -157,6 +165,7 @@ void FDNReverbAudioProcessor::updateEngineParams()
     p.erLevel = getVal(cachedParams.erLevel, 0.6f);
     p.saturation = getVal(cachedParams.saturation, 0.0f);
     p.satTypeIdx = static_cast<int>(getVal(cachedParams.satType, 0.0f));
+    p.satOversampling = getVal(cachedParams.satOversampling, 0.0f) > 0.5f;
     p.wetDB = getVal(cachedParams.wetLevel, -4.0f);
     p.dryDB = getVal(cachedParams.dryLevel, 0.0f);
 
@@ -211,6 +220,14 @@ void FDNReverbAudioProcessor::updateEngineParams()
         engine.setParams(p);
         lastSentParams = p;
         paramsNeedUpdate = false;
+    }
+
+    // [phase3/os-toggle] OS 状態が変わったらレイテンシ申告も連動させる。
+    // ホスト側の PDC 再同期タイミングはホスト依存 (次回再生時など)。
+    if (p.satOversampling != lastSatOversampling) {
+        lastSatOversampling = p.satOversampling;
+        setLatencySamples(p.satOversampling ? SaturatorADAAOS2::kLatencySamples
+                                            : SaturatorADAAOS2::kLatencySamplesDirect);
     }
 }
 

@@ -150,6 +150,7 @@ public:
         std::atomic<float>* airAbsorb{ nullptr };
         std::atomic<float>* rt60Tab{ nullptr };
         std::atomic<float>* proTab{ nullptr };
+        std::atomic<float>* satOversampling{ nullptr };
 
         void init(juce::AudioProcessorValueTreeState& apvts);
     };
@@ -174,6 +175,8 @@ private:
 
     FDNReverb::DSPParams lastSentParams;
     bool paramsNeedUpdate{ true };
+    // [phase3/os-toggle] 最後にホストへ申告した OS 状態 (レイテンシ連動用)
+    bool lastSatOversampling{ false };
 
     int lastAlgorithmIndex{ -1 };
 

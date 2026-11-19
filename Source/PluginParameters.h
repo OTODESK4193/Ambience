@@ -19,6 +19,7 @@ namespace FDNReverb {
         inline const juce::String ERLevel = "erlevel";
         inline const juce::String Saturation = "saturation";
         inline const juce::String SatType = "sattype";
+        inline const juce::String SatOversampling = "satoversampling";
         inline const juce::String WetLevel = "wetlevel";
         inline const juce::String DryLevel = "drylevel";
         inline const juce::String DuckAmount = "duckamount";

@@ -250,6 +250,22 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
     satTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
         a, "sattype", satTypeCombo);
 
+    // ── [phase3/os-toggle] Saturation Oversampling Toggle ──
+    // ヘッダーのトグルボタン (BYPASS の右、VU メーターの左)。
+    // 配置のため VU メーター幅は 148 -> 120 に縮小 (描画は幅相対)。
+    // 点灯 = OS ON。既定は OFF。通常パラメータ "satoversampling" に
+    // 接続し、インスタンス状態 (プロジェクト) に保存・復元される。
+    satOsButton.setButtonText("OS 2X");
+    satOsButton.setTooltip("Saturator oversampling: ON = ADAA1 + 2x oversampling (B002 sound), OFF = ADAA1 only");
+    satOsButton.setClickingTogglesState(true);
+    satOsButton.setColour(juce::TextButton::buttonColourId, AmbienceColors::Surface);
+    satOsButton.setColour(juce::TextButton::buttonOnColourId, AmbienceColors::Accent);
+    satOsButton.setColour(juce::TextButton::textColourOffId, AmbienceColors::TextSecondary);
+    satOsButton.setColour(juce::TextButton::textColourOnId, AmbienceColors::Background);
+    content.addAndMakeVisible(satOsButton);
+    satOsAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        a, "satoversampling", satOsButton);
+
     kTiltLow.build(a, "tiltlow", "TILT LO", &content, laf);
     kTiltMid.build(a, "tiltmid", "TILT MID", &content, laf);
     kTiltHigh.build(a, "tilthigh", "TILT HI", &content, laf);
@@ -304,7 +320,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
     themeCombo.addItemList(juce::StringArray{
         "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber",
-        "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome"
+        "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome", "Live Light"
     }, 1);
     themeCombo.setLookAndFeel(&laf);
     content.addAndMakeVisible(themeCombo);
@@ -977,10 +993,13 @@ void FDNReverbEditor::layoutContent() {
     panicButton.setBounds(475, Y_HEADER + 5, 44, 22);
     bypassButton.setBounds(522, Y_HEADER + 5, 54, 22);
 
-    // Bypass の右側 (x=584) から右端 (x=892) までの幅 308px を均等活用！
-    // 2つのメーター幅: (308 - 12) / 2 = 148px
-    vuIn.setBounds(584, Y_HEADER + 2, 148, 28);
-    vuOut.setBounds(744, Y_HEADER + 2, 148, 28);
+    // [phase3/os-toggle] OS 切替ボタンを Bypass の右に配置する。
+    // Bypass の右側 (x=584) から右端 (x=892) までの幅 308px を
+    // ボタン 48 + 間隔 8 + メーター 120 + 間隔 12 + メーター 120 に配分
+    // (メーター幅は従来 148 -> 120、描画は幅相対なので表示は保たれる)。
+    satOsButton.setBounds(584, Y_HEADER + 5, 48, 22);
+    vuIn.setBounds(640, Y_HEADER + 2, 120, 28);
+    vuOut.setBounds(772, Y_HEADER + 2, 120, 28);
 
     algoSelector.setBounds(PAD, Y_ALGO, W - PAD * 2, 30);
 
@@ -1259,9 +1278,9 @@ void FDNReverbEditor::applySavedTheme() {
     int idx = 0;
     auto f = getThemeSettingsFile();
     if (f.existsAsFile()) {
-        idx = juce::jlimit(0, 9, f.loadFileAsString().trim().getIntValue());
+        idx = juce::jlimit(0, 10, f.loadFileAsString().trim().getIntValue());
     } else if (auto* rawTheme = audioProcessor.apvts.getRawParameterValue("theme")) {
-        idx = juce::jlimit(0, 9, juce::roundToInt(rawTheme->load()));
+        idx = juce::jlimit(0, 10, juce::roundToInt(rawTheme->load()));
     }
     themeCombo.setSelectedItemIndex(idx, juce::dontSendNotification);
     laf.setTheme(idx);

@@ -93,7 +93,7 @@ namespace FDNReverb {
 
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             ParamID::Theme, "Theme",
-            juce::StringArray{ "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber", "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome" }, 0));
+            juce::StringArray{ "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber", "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome", "Live Light" }, 0));
 
         // ── PRO Tab 物理音響パラメータ ──
         addFloat(ParamID::Scattering, "Scattering", 0.0f, 1.0f, 0.5f, 1.0f, "%");
@@ -109,6 +109,16 @@ namespace FDNReverb {
             juce::AudioParameterBoolAttributes().withAutomatable(false)));
         params.push_back(std::make_unique<juce::AudioParameterBool>(
             ParamID::ProTab, "Pro Tab", false,
+            juce::AudioParameterBoolAttributes().withAutomatable(false)));
+
+        // ── [phase3/os-toggle] サチュレータ OS 切替 ──
+        // ヘッダーのトグルで操作する通常パラメータ。インスタンス状態
+        // (プロジェクト) に保存・復元される。既定は OFF (ADAA1 のみ);
+        // ON で B002 までの音 (ADAA1 + OS x2)。既存パラメータの
+        // インデックスをずらさないよう、レイアウト末尾に追加する。
+        // パラメータを持たない旧プロジェクトでは既定 OFF のまま開く。
+        params.push_back(std::make_unique<juce::AudioParameterBool>(
+            ParamID::SatOversampling, "Sat Oversampling", false,
             juce::AudioParameterBoolAttributes().withAutomatable(false)));
 
         return { params.begin(), params.end() };

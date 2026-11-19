@@ -759,6 +759,8 @@ namespace FDNReverb {
         saturatorR.setAmount(effectiveSatAmount);
         saturatorL.setMode(p.satTypeIdx);
         saturatorR.setMode(p.satTypeIdx);
+        saturatorL.setOversamplingEnabled(p.satOversampling);
+        saturatorR.setOversamplingEnabled(p.satOversampling);
     }
 
     // Phase3 Goldfoil redesign (adopted candidate D24): explicit delay set.
@@ -2183,26 +2185,46 @@ namespace FDNReverb {
                     for (int i = 0; i < FDN_ORDER; ++i)
                         fdnMeshInject[i] = ((i & 1) == 0) ? gfInjL[i] : gfInjR[i];
                 }
-                for (int i = 0; i < FDN_ORDER; ++i) {
-                    gfMeshFeedLpState[i] += gfMeshFeedLpCoeff * (fdnMeshInject[i] - gfMeshFeedLpState[i]);
-                    float v = gfMeshFeedLpState[i];
-                    for (int s = 0; s < 3; ++s) {
-                        const auto& c = gfMeshFeedBqCoeffs[s];
-                        const float y = c[0] * v + c[1] * gfMeshFeedBqX1[s][i] + c[2] * gfMeshFeedBqX2[s][i]
-                                      - c[3] * gfMeshFeedBqY1[s][i] - c[4] * gfMeshFeedBqY2[s][i];
-                        gfMeshFeedBqX2[s][i] = gfMeshFeedBqX1[s][i]; gfMeshFeedBqX1[s][i] = v;
-                        gfMeshFeedBqY2[s][i] = gfMeshFeedBqY1[s][i]; gfMeshFeedBqY1[s][i] = y;
-                        v = y;
-                    }
-                    for (int s = 0; s < 2; ++s) {
-                        const auto& c = gfMeshFeedPkCoeffs[s];
-                        const float y = c[0] * v + c[1] * gfMeshFeedPkX1[s][i] + c[2] * gfMeshFeedPkX2[s][i]
-                                      - c[3] * gfMeshFeedPkY1[s][i] - c[4] * gfMeshFeedPkY2[s][i];
-                        gfMeshFeedPkX2[s][i] = gfMeshFeedPkX1[s][i]; gfMeshFeedPkX1[s][i] = v;
-                        gfMeshFeedPkY2[s][i] = gfMeshFeedPkY1[s][i]; gfMeshFeedPkY1[s][i] = y;
-                        v = y;
-                    }
-                    fdnMeshInject[i] = v;
+                // [phase3/cpu-opt A-2] Channel-direction SIMD form of the
+                // feed-shaping chain (1-pole LP + 3 biquads + 2 peaking
+                // sections, all DF1). Per-channel arithmetic is unchanged:
+                // the DF1 sum keeps the scalar left-to-right association
+                // with the FMA contraction mirrored explicitly (fmadd for
+                // the + products, fnmadd for the - products), verified
+                // bit-for-bit against the scalar chain (2M samples x 16ch
+                // micro-test + full suite). State layout is untouched
+                // ([section][channel] was already channel-contiguous).
+                auto feedSection = [](const std::array<float, 5>& c,
+                                      float* X1, float* X2, float* Y1, float* Y2,
+                                      __m128 v) noexcept -> __m128 {
+                    const __m128 x1 = _mm_loadu_ps(X1);
+                    const __m128 x2 = _mm_loadu_ps(X2);
+                    const __m128 y1 = _mm_loadu_ps(Y1);
+                    const __m128 y2 = _mm_loadu_ps(Y2);
+                    __m128 y = _mm_fmadd_ps(_mm_set1_ps(c[0]), v, _mm_mul_ps(_mm_set1_ps(c[1]), x1));
+                    y = _mm_fmadd_ps(_mm_set1_ps(c[2]), x2, y);
+                    y = _mm_fnmadd_ps(_mm_set1_ps(c[3]), y1, y);
+                    y = _mm_fnmadd_ps(_mm_set1_ps(c[4]), y2, y);
+                    _mm_storeu_ps(X2, x1);
+                    _mm_storeu_ps(X1, v);
+                    _mm_storeu_ps(Y2, y1);
+                    _mm_storeu_ps(Y1, y);
+                    return y;
+                };
+                for (int g = 0; g < FDN_ORDER; g += 4) {
+                    __m128 v = _mm_loadu_ps(gfMeshFeedLpState.data() + g);
+                    v = _mm_fmadd_ps(_mm_set1_ps(gfMeshFeedLpCoeff),
+                                     _mm_sub_ps(_mm_loadu_ps(fdnMeshInject + g), v), v);
+                    _mm_storeu_ps(gfMeshFeedLpState.data() + g, v);
+                    for (int s = 0; s < 3; ++s)
+                        v = feedSection(gfMeshFeedBqCoeffs[s],
+                                        gfMeshFeedBqX1[s].data() + g, gfMeshFeedBqX2[s].data() + g,
+                                        gfMeshFeedBqY1[s].data() + g, gfMeshFeedBqY2[s].data() + g, v);
+                    for (int s = 0; s < 2; ++s)
+                        v = feedSection(gfMeshFeedPkCoeffs[s],
+                                        gfMeshFeedPkX1[s].data() + g, gfMeshFeedPkX2[s].data() + g,
+                                        gfMeshFeedPkY1[s].data() + g, gfMeshFeedPkY2[s].data() + g, v);
+                    _mm_storeu_ps(fdnMeshInject + g, v);
                 }
             }
 
