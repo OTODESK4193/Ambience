@@ -320,7 +320,7 @@ FDNReverbEditor::FDNReverbEditor(FDNReverbAudioProcessor& p)
 
     themeCombo.addItemList(juce::StringArray{
         "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber",
-        "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome"
+        "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome", "Live Light"
     }, 1);
     themeCombo.setLookAndFeel(&laf);
     content.addAndMakeVisible(themeCombo);
@@ -1278,9 +1278,9 @@ void FDNReverbEditor::applySavedTheme() {
     int idx = 0;
     auto f = getThemeSettingsFile();
     if (f.existsAsFile()) {
-        idx = juce::jlimit(0, 9, f.loadFileAsString().trim().getIntValue());
+        idx = juce::jlimit(0, 10, f.loadFileAsString().trim().getIntValue());
     } else if (auto* rawTheme = audioProcessor.apvts.getRawParameterValue("theme")) {
-        idx = juce::jlimit(0, 9, juce::roundToInt(rawTheme->load()));
+        idx = juce::jlimit(0, 10, juce::roundToInt(rawTheme->load()));
     }
     themeCombo.setSelectedItemIndex(idx, juce::dontSendNotification);
     laf.setTheme(idx);

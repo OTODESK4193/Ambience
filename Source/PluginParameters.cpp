@@ -93,7 +93,7 @@ namespace FDNReverb {
 
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             ParamID::Theme, "Theme",
-            juce::StringArray{ "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber", "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome" }, 0));
+            juce::StringArray{ "Cyber Neon", "Solar Flare", "Matrix Glow", "Vaporwave", "Dark Amber", "Nordic Frost", "Deep Purple", "Midnight", "Blood Moon", "Monochrome", "Live Light" }, 0));
 
         // ── PRO Tab 物理音響パラメータ ──
         addFloat(ParamID::Scattering, "Scattering", 0.0f, 1.0f, 0.5f, 1.0f, "%");

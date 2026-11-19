@@ -4,7 +4,7 @@
 
 class FDNReverbAudioProcessor;
 
-// ─── Ambience Design System (10 Dynamic Color Themes) ────────────────
+// ─── Ambience Design System (11 Dynamic Color Themes) ────────────────
 struct AmbienceTheme {
     const char* name{ "Cyber Neon" };
     juce::Colour primary{ 0xFFFF6B00 };      // 主アクセント色
@@ -20,7 +20,7 @@ struct AmbienceTheme {
 };
 
 namespace AmbienceColors {
-    inline const AmbienceTheme THEMES[10] = {
+    inline const AmbienceTheme THEMES[11] = {
         { "Cyber Neon",   juce::Colour(0xFFFF6B00), juce::Colour(0xFF38BDF8), juce::Colour(0xFF1A1A1A), juce::Colour(0xFF242424), juce::Colour(0xFF2C2C2C), juce::Colour(0xFF3C3C3C), juce::Colour(0xFFE8E8E8), juce::Colour(0xFF888888), juce::Colour(0xFF3A3A3A), juce::Colour(0xFF383838) }, // デフォルト (オレンジ / シアン)
         { "Solar Flare",  juce::Colour(0xFFFFC107), juce::Colour(0xFFFF1744), juce::Colour(0xFF1E1A16), juce::Colour(0xFF2B241E), juce::Colour(0xFF352D26), juce::Colour(0xFF453B32), juce::Colour(0xFFFAEDCD), juce::Colour(0xFF9A8C7C), juce::Colour(0xFF3D332A), juce::Colour(0xFF42382F) }, // 高輝度ソーラーゴールド / 鮮烈クリムゾンフレア
         { "Matrix Glow",  juce::Colour(0xFF00FF66), juce::Colour(0xFF00E5FF), juce::Colour(0xFF0D1811), juce::Colour(0xFF14241A), juce::Colour(0xFF1B2E21), juce::Colour(0xFF284432), juce::Colour(0xFFE0FFE8), juce::Colour(0xFF6B9975), juce::Colour(0xFF223A2B), juce::Colour(0xFF253E2E) }, // ネオングリーン / エレクトリックシアン
@@ -30,7 +30,8 @@ namespace AmbienceColors {
         { "Deep Purple",  juce::Colour(0xFFA855F7), juce::Colour(0xFFEC4899), juce::Colour(0xFF161224), juce::Colour(0xFF201A34), juce::Colour(0xFF292242), juce::Colour(0xFF3C3161), juce::Colour(0xFFF8EEFF), juce::Colour(0xFF8B77A6), juce::Colour(0xFF312850), juce::Colour(0xFF352B57) }, // バイオレット / マゼンタ
         { "Midnight",     juce::Colour(0xFF3B82F6), juce::Colour(0xFF14B8A6), juce::Colour(0xFF0F172A), juce::Colour(0xFF16213D), juce::Colour(0xFF1C2A4D), juce::Colour(0xFF2A3D70), juce::Colour(0xFFF0F6FF), juce::Colour(0xFF7388A6), juce::Colour(0xFF213057), juce::Colour(0xFF253662) }, // コバルト / ターコイズ
         { "Blood Moon",   juce::Colour(0xFFFF3344), juce::Colour(0xFF93C5FD), juce::Colour(0xFF201214), juce::Colour(0xFF2D191C), juce::Colour(0xFF381F23), juce::Colour(0xFF4E2B31), juce::Colour(0xFFFFECEE), juce::Colour(0xFFA0787D), juce::Colour(0xFF3F2327), juce::Colour(0xFF45272B) }, // 鮮血ブラッドレッド / 月光アイスブルー
-        { "Monochrome",   juce::Colour(0xFFF8FAFC), juce::Colour(0xFF94A3B8), juce::Colour(0xFF18181B), juce::Colour(0xFF222226), juce::Colour(0xFF2A2A2E), juce::Colour(0xFF3A3A40), juce::Colour(0xFFF4F4F5), juce::Colour(0xFF8E8E93), juce::Colour(0xFF333338), juce::Colour(0xFF37373C) }  // ピュアホワイト / シルバー
+        { "Monochrome",   juce::Colour(0xFFF8FAFC), juce::Colour(0xFF94A3B8), juce::Colour(0xFF18181B), juce::Colour(0xFF222226), juce::Colour(0xFF2A2A2E), juce::Colour(0xFF3A3A40), juce::Colour(0xFFF4F4F5), juce::Colour(0xFF8E8E93), juce::Colour(0xFF333338), juce::Colour(0xFF37373C) }, // ピュアホワイト / シルバー
+        { "Live Light",   juce::Colour(0xFFFF764D), juce::Colour(0xFF6A8CAF), juce::Colour(0xFFD4D4D4), juce::Colour(0xFFE3E3E3), juce::Colour(0xFFEBEBEB), juce::Colour(0xFFAEAEAE), juce::Colour(0xFF1F1F1F), juce::Colour(0xFF6B6B6B), juce::Colour(0xFFBFBFBF), juce::Colour(0xFFB8B8B8) }  // 明るいグレー基調 / オレンジアクセントのライトテーマ
     };
 
     using ThemeInfo = AmbienceTheme;
@@ -49,7 +50,7 @@ namespace AmbienceColors {
     inline juce::Colour Separator{ 0xFF383838 };
 
     inline void setTheme(int idx) noexcept {
-        activeThemeIndex = juce::jlimit(0, 9, idx);
+        activeThemeIndex = juce::jlimit(0, 10, idx);
         const auto& t = THEMES[activeThemeIndex];
         Accent = t.primary;
         AccentBlue = t.secondary;
