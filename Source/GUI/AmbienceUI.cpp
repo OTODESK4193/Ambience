@@ -10,14 +10,50 @@ AmbienceLookAndFeel::AmbienceLookAndFeel()
 void AmbienceLookAndFeel::setTheme(int idx) noexcept
 {
     currentThemeIndex = juce::jlimit(0, 10, idx);
+    AmbienceColors::setTheme(currentThemeIndex);
     currentTheme = AmbienceColors::THEMES[currentThemeIndex];
+    const auto accentText = AmbienceColors::getAccentContrastText(currentTheme);
+
     setColour(juce::Slider::backgroundColourId, currentTheme.arcTrack);
     setColour(juce::Slider::thumbColourId, currentTheme.primary);
     setColour(juce::Slider::trackColourId, currentTheme.primary);
+    setColour(juce::Slider::textBoxTextColourId, currentTheme.textSecondary);
+    setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+    setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+
     setColour(juce::Label::textColourId, currentTheme.textSecondary);
+    setColour(juce::Label::textWhenEditingColourId, currentTheme.textPrimary);
+    setColour(juce::Label::backgroundWhenEditingColourId, currentTheme.surface);
+    setColour(juce::Label::outlineWhenEditingColourId, currentTheme.primary);
+
     setColour(juce::ComboBox::backgroundColourId, currentTheme.surface);
     setColour(juce::ComboBox::textColourId, currentTheme.textPrimary);
     setColour(juce::ComboBox::outlineColourId, currentTheme.border);
+    setColour(juce::ComboBox::buttonColourId, currentTheme.surface);
+    setColour(juce::ComboBox::arrowColourId, currentTheme.textSecondary);
+
+    setColour(juce::PopupMenu::backgroundColourId, currentTheme.panel);
+    setColour(juce::PopupMenu::textColourId, currentTheme.textPrimary);
+    setColour(juce::PopupMenu::headerTextColourId, currentTheme.textSecondary);
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, currentTheme.primary);
+    setColour(juce::PopupMenu::highlightedTextColourId, accentText);
+
+    setColour(juce::TextButton::buttonColourId, currentTheme.surface);
+    setColour(juce::TextButton::buttonOnColourId, currentTheme.primary);
+    setColour(juce::TextButton::textColourOffId, currentTheme.textSecondary);
+    setColour(juce::TextButton::textColourOnId, accentText);
+
+    setColour(juce::TextEditor::backgroundColourId, currentTheme.surface);
+    setColour(juce::TextEditor::textColourId, currentTheme.textPrimary);
+    setColour(juce::TextEditor::outlineColourId, currentTheme.border);
+    setColour(juce::TextEditor::focusedOutlineColourId, currentTheme.primary);
+    setColour(juce::TextEditor::highlightColourId, currentTheme.primary.withAlpha(0.30f));
+    setColour(juce::TextEditor::highlightedTextColourId, currentTheme.textPrimary);
+    setColour(juce::CaretComponent::caretColourId, currentTheme.primary);
+
+    setColour(juce::AlertWindow::backgroundColourId, currentTheme.panel);
+    setColour(juce::AlertWindow::textColourId, currentTheme.textPrimary);
+    setColour(juce::AlertWindow::outlineColourId, currentTheme.border);
 }
 
 void AmbienceLookAndFeel::drawRotarySlider(juce::Graphics& g,
@@ -529,7 +565,7 @@ void VUMeter::paint(juce::Graphics& g)
 
         // ピークホールドインジケーター線
         if (peakN > 0.02f) {
-            g.setColour(juce::Colours::white.withAlpha(0.85f));
+            g.setColour(theme.textPrimary.withAlpha(0.85f));
             float px = bx + bw * peakN;
             g.drawVerticalLine((int)px, y, y + 6.f);
         }
@@ -567,8 +603,6 @@ void ArcKnob::build(juce::AudioProcessorValueTreeState& apvts,
     AmbienceLookAndFeel& laf)
 {
     slider.setLookAndFeel(&laf);
-    slider.setColour(juce::Slider::textBoxTextColourId,
-        AmbienceColors::TextSecondary);
     slider.setColour(juce::Slider::textBoxOutlineColourId,
         juce::Colours::transparentBlack);
 
@@ -641,13 +675,22 @@ void ArcKnob::build(juce::AudioProcessorValueTreeState& apvts,
     label.setText(labelText, juce::dontSendNotification);
     label.setJustificationType(juce::Justification::centred);
     label.setFont(juce::Font(juce::FontOptions(9.f)));
-    label.setColour(juce::Label::textColourId, AmbienceColors::TextSecondary);
     parent->addAndMakeVisible(label);
+
+    updateTheme(laf.getTheme());
 
     // ✅ 変更後
     attachment.reset(
         new juce::AudioProcessorValueTreeState::SliderAttachment(
             apvts, paramID, slider));
+}
+
+void ArcKnob::updateTheme(const AmbienceTheme& theme)
+{
+    slider.setColour(juce::Slider::textBoxTextColourId, theme.textSecondary);
+    label.setColour(juce::Label::textColourId, theme.textSecondary);
+    slider.repaint();
+    label.repaint();
 }
 
 // ─── AlgorithmSelector ───────────────────────────────────────────────
@@ -722,13 +765,14 @@ void AlgorithmSelector::parameterChanged(const juce::String&, float newVal) {
 void AlgorithmSelector::updateButtonColors() {
     auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
     const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[0];
+    const auto accentText = AmbienceColors::getAccentContrastText(theme);
 
     for (int i = 0; i < FDNReverb::NUM_ALGORITHMS; ++i) {
         bool on = (i == currentAlgo);
         buttons[i].setColour(juce::TextButton::buttonColourId,
             on ? theme.primary : theme.surface);
         buttons[i].setColour(juce::TextButton::textColourOffId,
-            on ? theme.background : theme.textSecondary);
+            on ? accentText : theme.textSecondary);
         buttons[i].repaint();
     }
 }

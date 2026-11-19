@@ -695,6 +695,8 @@ FDNReverbEditor::~FDNReverbEditor() {
 
     setLookAndFeel(nullptr);
     satTypeCombo.setLookAndFeel(nullptr);
+    loEQTypeCombo.setLookAndFeel(nullptr);
+    hiEQTypeCombo.setLookAndFeel(nullptr);
     themeCombo.setLookAndFeel(nullptr);
     presetCombo.setLookAndFeel(nullptr);
 }
@@ -749,6 +751,10 @@ void FDNReverbEditor::timerCallback() {
 
 void FDNReverbEditor::updatePanelVisibility() {
     bool isNormal = (!isRT60Tab && !isProTab);
+    mainTabButton.setToggleState(isNormal, juce::dontSendNotification);
+    rt60TabButton.setToggleState(isRT60Tab, juce::dontSendNotification);
+    proTabButton.setToggleState(isProTab, juce::dontSendNotification);
+
     kPreDelay.slider.setVisible(isNormal);   kPreDelay.label.setVisible(isNormal);
     kRoomSize.slider.setVisible(isNormal);   kRoomSize.label.setVisible(isNormal);
     kDecay.slider.setVisible(isNormal);      kDecay.label.setVisible(isNormal);
@@ -909,7 +915,7 @@ void FDNReverbEditor::setPresetModified(bool modified) {
     presetRevertButton.setColour(juce::TextButton::buttonColourId,
         modified ? theme.primary : theme.surface);
     presetRevertButton.setColour(juce::TextButton::textColourOffId,
-        modified ? theme.background : theme.textSecondary);
+        modified ? AmbienceColors::getAccentContrastText(theme) : theme.textSecondary);
     presetRevertButton.repaint();
 }
 
@@ -1238,19 +1244,68 @@ void FDNReverbEditor::paintContent(juce::Graphics& g) {
 void FDNReverbEditor::updateTheme(int idx) {
     laf.setTheme(idx);
     const auto& theme = laf.getTheme();
+    const auto accentText = AmbienceColors::getAccentContrastText(theme);
 
-    rt60TabButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
-    proTabButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
-    erSoloButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
-    lockButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
-    sendModeButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
+    // LookAndFeel の配色変更を全子コンポーネント (ComboBox 内部ラベル・PopupMenu 含む) へ通知
+    sendLookAndFeelChange();
+
+    titleLabel.setColour(juce::Label::textColourId, theme.textPrimary);
+
+    for (auto* tabBtn : { &mainTabButton, &rt60TabButton, &proTabButton }) {
+        tabBtn->setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        tabBtn->setColour(juce::TextButton::buttonOnColourId, juce::Colours::transparentBlack);
+        tabBtn->setColour(juce::TextButton::textColourOffId, theme.textSecondary);
+        tabBtn->setColour(juce::TextButton::textColourOnId, theme.textPrimary);
+    }
+
+    for (auto* toggleBtn : { &erSoloButton, &lockButton, &sendModeButton, &satOsButton }) {
+        toggleBtn->setColour(juce::TextButton::buttonColourId, theme.surface);
+        toggleBtn->setColour(juce::TextButton::buttonOnColourId, theme.primary);
+        toggleBtn->setColour(juce::TextButton::textColourOffId, theme.textSecondary);
+        toggleBtn->setColour(juce::TextButton::textColourOnId, accentText);
+    }
+
+    panicButton.setColour(juce::TextButton::buttonColourId, theme.surface);
+    panicButton.setColour(juce::TextButton::textColourOffId, juce::Colour(0xFFEF4444));
+
+    for (auto* lbl : { &satTypeLabel, &loEQTypeLabel, &hiEQTypeLabel, &themeLabel }) {
+        lbl->setColour(juce::Label::textColourId, theme.textSecondary);
+    }
+
+    for (auto* combo : { &satTypeCombo, &loEQTypeCombo, &hiEQTypeCombo, &themeCombo, &presetCombo }) {
+        combo->setColour(juce::ComboBox::backgroundColourId, theme.surface);
+        combo->setColour(juce::ComboBox::textColourId, theme.textPrimary);
+        combo->setColour(juce::ComboBox::outlineColourId, theme.border);
+        combo->setColour(juce::ComboBox::arrowColourId, theme.textSecondary);
+        combo->repaint();
+    }
+
+    for (auto* btn : { &presetPrevButton, &presetNextButton, &presetDeleteButton }) {
+        btn->setColour(juce::TextButton::buttonColourId, theme.surface);
+        btn->setColour(juce::TextButton::textColourOffId, theme.textSecondary);
+    }
+
     presetSaveButton.setColour(juce::TextButton::buttonColourId, theme.primary);
+    presetSaveButton.setColour(juce::TextButton::textColourOffId, accentText);
     labelDecayLine.setColour(juce::Label::textColourId, theme.primary);
 
     presetRevertButton.setColour(juce::TextButton::buttonColourId,
         isPresetModified ? theme.primary : theme.surface);
     presetRevertButton.setColour(juce::TextButton::textColourOffId,
-        isPresetModified ? theme.background : theme.textSecondary);
+        isPresetModified ? accentText : theme.textSecondary);
+
+    for (auto* knob : { &kPreDelay, &kRoomSize, &kDecay, &kHFDamp, &kLFAbsorb,
+                        &kDiffusion, &kModAmt, &kModRate, &kStereoW, &kERLevel, &kSaturation,
+                        &kWet, &kDry, &kDuckAmt, &kDuckThr, &kDuckAtt, &kDuckRel,
+                        &kLoCutNorm, &kHiCutNorm,
+                        &kTiltLow, &kTiltMid, &kTiltHigh, &kLoCutPro, &kHiCutPro,
+                        &kScattering, &kERCrossover, &kLateDensity, &kAsymmetry, &kClarity, &kAirAbsorb,
+                        &kLoGainPro, &kHiGainPro }) {
+        knob->updateTheme(theme);
+    }
+    for (auto& bandKnob : kRTBands) {
+        bandKnob.updateTheme(theme);
+    }
 
     algoSelector.updateButtonColors();
     updateBypassButtonColor();
@@ -1267,7 +1322,7 @@ void FDNReverbEditor::updateTheme(int idx) {
     outEQViz.repaint();
     proSpaceViz.repaint();
     if (presetBrowser)
-        presetBrowser->repaint();
+        presetBrowser->updateTheme();
 }
 
 juce::File FDNReverbEditor::getThemeSettingsFile() const {
@@ -1289,10 +1344,11 @@ void FDNReverbEditor::applySavedTheme() {
 
 void FDNReverbEditor::updateBypassButtonColor() {
     const auto& theme = laf.getTheme();
+    const auto accentText = AmbienceColors::getAccentContrastText(theme);
     const bool on = bypassButton.getToggleState();
     bypassButton.setColour(juce::TextButton::buttonColourId, on ? theme.primary : theme.surface);
     bypassButton.setColour(juce::TextButton::buttonOnColourId, theme.primary);
-    bypassButton.setColour(juce::TextButton::textColourOffId, on ? theme.background : theme.textSecondary);
-    bypassButton.setColour(juce::TextButton::textColourOnId, theme.background);
+    bypassButton.setColour(juce::TextButton::textColourOffId, on ? accentText : theme.textSecondary);
+    bypassButton.setColour(juce::TextButton::textColourOnId, accentText);
     bypassButton.repaint();
 }

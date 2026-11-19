@@ -61,6 +61,7 @@ public:
     ~PresetBrowser() override;
 
     void refresh();
+    void updateTheme();
     void setCurrentPreset(const juce::String& name);
     bool loadPresetByName(const juce::String& name);
     bool loadPreviousPreset();

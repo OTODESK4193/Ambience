@@ -90,10 +90,11 @@ target_compile_definitions(Ambience PRIVATE
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
-    AMBIENCE_VERSION="3.0.0B002"
+    AMBIENCE_VERSION="3.0.0B003"
 )
 
 if(MSVC)
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Ambience_Standalone)
     target_compile_options(Ambience PRIVATE
         /arch:AVX2
         /utf-8

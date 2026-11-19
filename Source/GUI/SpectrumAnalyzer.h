@@ -3,6 +3,7 @@
 #include <array>
 #include <atomic>
 #include "../PluginProcessor.h"
+#include "AmbienceUI.h"
 
 class SpectrumAnalyzer : public juce::Component, private juce::Timer {
 public:
@@ -37,7 +38,12 @@ public:
     }
     
     void paint(juce::Graphics& g) override {
-        drawSpectrum(g, scopeDataDry, juce::Colour(0x88FFFFFF), 1.5f); // Gray for Dry
+        auto* laf = dynamic_cast<AmbienceLookAndFeel*>(&getLookAndFeel());
+        const auto& theme = laf ? laf->getTheme() : AmbienceColors::THEMES[AmbienceColors::activeThemeIndex];
+        const auto dryColour = AmbienceColors::isLightTheme(theme)
+            ? theme.textPrimary.withAlpha(0.45f)
+            : juce::Colour(0x88FFFFFF);
+        drawSpectrum(g, scopeDataDry, dryColour, 1.5f); // Dry
         drawSpectrum(g, scopeDataWet, juce::Colour(0xBB4090FF), 2.0f); // Blue for Wet
     }
     

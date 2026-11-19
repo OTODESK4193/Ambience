@@ -37,8 +37,33 @@ PresetBrowser::PresetBrowser(PresetManager& pm, AmbienceLookAndFeel& l)
     };
     addAndMakeVisible(closeButton);
 
+    updateTheme();
     initFactoryPresets();
     refresh();
+}
+
+void PresetBrowser::updateTheme()
+{
+    const auto& theme = laf.getTheme();
+    searchBox.setColour(juce::TextEditor::backgroundColourId, theme.surface);
+    searchBox.setColour(juce::TextEditor::textColourId, theme.textPrimary);
+    searchBox.setColour(juce::TextEditor::outlineColourId, theme.border);
+    searchBox.setColour(juce::TextEditor::focusedOutlineColourId, theme.primary);
+    searchBox.setColour(juce::TextEditor::highlightColourId, theme.primary.withAlpha(0.30f));
+    searchBox.setColour(juce::TextEditor::highlightedTextColourId, theme.textPrimary);
+    searchBox.setTextToShowWhenEmpty("Search presets...", theme.textSecondary);
+    searchBox.applyColourToAllText(theme.textPrimary, true);
+    searchBox.repaint();
+
+    closeButton.setColour(juce::TextButton::buttonColourId, theme.surface);
+    closeButton.setColour(juce::TextButton::textColourOffId, theme.textSecondary);
+    closeButton.setColour(juce::TextButton::textColourOnId, theme.textPrimary);
+    closeButton.repaint();
+
+    catList.repaint();
+    subList.repaint();
+    fileList.repaint();
+    repaint();
 }
 
 PresetBrowser::~PresetBrowser()
@@ -598,7 +623,8 @@ void PresetBrowser::paint(juce::Graphics& g)
 
                     // CHARACTER
                     g.setFont(juce::Font(juce::FontOptions("Helvetica Neue", 9.0f, juce::Font::plain)));
-                    g.setColour(juce::Colour(0xFFFFB703)); // ゴールド
+                    g.setColour(AmbienceColors::isLightTheme(theme)
+                        ? juce::Colour(0xFFB45309) : juce::Colour(0xFFFFB703)); // ゴールド
                     g.drawText(tokens[1].trim(), inner.getX(), curY, inner.getWidth(), 14, juce::Justification::centredLeft);
                     curY += 15;
 
@@ -748,7 +774,8 @@ void PresetBrowser::FileModel::paintListBoxItem(int row, juce::Graphics& g, int 
     bool fav = owner->isFavorite(item.displayName);
     g.setFont(juce::Font(juce::FontOptions(13.0f)));
     if (fav) {
-        g.setColour(juce::Colour(0xFFFFB703)); // ゴールド
+        g.setColour(AmbienceColors::isLightTheme(theme)
+            ? juce::Colour(0xFFD97706) : juce::Colour(0xFFFFB703)); // ゴールド
         g.drawText(juce::CharPointer_UTF8("\xe2\x98\x85"), 6, 0, 18, h, juce::Justification::centred);
     } else {
         g.setColour(theme.textSecondary.withAlpha(0.35f));

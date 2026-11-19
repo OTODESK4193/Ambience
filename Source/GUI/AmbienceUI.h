@@ -64,6 +64,17 @@ namespace AmbienceColors {
         ArcTrack = t.arcTrack;
         Separator = t.separator;
     }
+
+    inline bool isLightTheme(const AmbienceTheme& t) noexcept {
+        return t.background.getPerceivedBrightness() > 0.55f;
+    }
+
+    inline juce::Colour getAccentContrastText(const AmbienceTheme& t) noexcept {
+        const float pB = t.primary.getPerceivedBrightness();
+        const float bgDiff = std::abs(pB - t.background.getPerceivedBrightness());
+        const float fgDiff = std::abs(pB - t.textPrimary.getPerceivedBrightness());
+        return (fgDiff > bgDiff) ? t.textPrimary : t.background;
+    }
 }
 
 // ─── Ambience LookAndFeel ────────────────────────────────────────────
@@ -266,11 +277,15 @@ struct ArcKnob {
     juce::Label  label;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
 
+    ~ArcKnob() { slider.setLookAndFeel(nullptr); }
+
     void build(juce::AudioProcessorValueTreeState& apvts,
         const juce::String& paramID,
         const juce::String& labelText,
         juce::Component* parent,
         AmbienceLookAndFeel& laf);
+
+    void updateTheme(const AmbienceTheme& theme);
 };
 
 // ─── Algorithm Selector ──────────────────────────────────────────────
