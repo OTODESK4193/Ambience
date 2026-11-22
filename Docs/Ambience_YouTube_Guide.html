@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ambience 3.0 かんたん機能ガイド</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161c26; --line:#263042; --txt:#e8edf5; --sub:#9aa7ba;
+    --acc:#38e1ff; --acc2:#ff4fd8; --ok:#5ef2a0; --warn:#ffb347;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif;
+    font-size:17px;line-height:1.75;-webkit-text-size-adjust:100%}
+  .wrap{max-width:680px;margin:0 auto;padding:0 16px 80px}
+  header{padding:36px 0 20px;text-align:center}
+  header h1{font-size:30px;margin:0;letter-spacing:.04em;
+    background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  header p{color:var(--sub);margin:6px 0 0;font-size:15px}
+  nav{position:sticky;top:0;z-index:10;background:rgba(13,17,23,.94);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);margin:0 -16px;padding:8px 12px;
+    display:flex;gap:8px;overflow-x:auto;white-space:nowrap}
+  nav a{color:var(--txt);text-decoration:none;font-size:14px;padding:6px 12px;border:1px solid var(--line);
+    border-radius:999px;background:var(--card);flex:0 0 auto}
+  h2{font-size:23px;margin:44px 0 14px;padding-left:12px;border-left:5px solid var(--acc)}
+  h3{font-size:19px;margin:0 0 6px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;margin:12px 0}
+  .tag{display:inline-block;font-size:12px;color:var(--bg);background:var(--acc);border-radius:6px;padding:1px 8px;margin-left:6px;vertical-align:middle;font-weight:bold}
+  .range{font-size:13px;color:var(--sub);margin:0 0 8px}
+  .one{font-weight:bold;color:var(--acc);margin:4px 0 8px}
+  .turn{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:8px 0;font-size:16px}
+  .turn b{white-space:nowrap}
+  .l{color:#8fb8ff}.r{color:#ff9bd9}
+  .tip{font-size:15px;color:var(--ok);margin:6px 0 0}
+  .note{font-size:15px;color:var(--warn);margin:6px 0 0}
+  .big{font-size:18px}
+  .flow{counter-reset:s;list-style:none;padding:0;margin:0}
+  .flow li{counter-increment:s;position:relative;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:12px 14px 12px 52px;margin:0 0 22px}
+  .flow li::before{content:counter(s);position:absolute;left:12px;top:12px;width:28px;height:28px;border-radius:50%;
+    background:var(--acc);color:var(--bg);font-weight:bold;text-align:center;line-height:28px}
+  .flow li:not(:last-child)::after{content:"▼";position:absolute;left:50%;bottom:-21px;transform:translateX(-50%);color:var(--sub);font-size:13px}
+  .flow small{display:block;color:var(--sub);font-size:14px}
+  ul.simple{margin:6px 0;padding-left:1.2em}
+  ul.simple li{margin:3px 0}
+  .algo{display:grid;grid-template-columns:1fr;gap:8px}
+  .algo div{background:#111722;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:15px}
+  .algo b{color:var(--acc)}
+  footer{color:var(--sub);text-align:center;font-size:13px;margin-top:50px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Ambience 3.0</h1>
+  <p>かんたん機能ガイド ／ 全ノブ解説</p>
+</header>
+
+<nav>
+  <a href="#words">用語</a>
+  <a href="#flow">音の流れ</a>
+  <a href="#main">MAIN</a>
+  <a href="#rt60">RT60</a>
+  <a href="#pro">PRO</a>
+  <a href="#buttons">ボタン類</a>
+  <a href="#preset">プリセット</a>
+</nav>
+
+<!-- ============ 用語 ============ -->
+<h2 id="words">まず知っておきたい言葉</h2>
+
+<div class="card">
+  <h3>リバーブ（残響）とは？</h3>
+  <p>音が壁や天井に何度もはね返り、だんだん小さくなって消えていく「響き」のこと。お風呂やホールで声が響くあの感じです。</p>
+  <p>残響は2つに分けて考えます。</p>
+  <ul class="simple">
+    <li><b>初期反射（ER）</b>：最初の数回のはね返り。「部屋の大きさ・形」が分かる音。</li>
+    <li><b>後期残響（Late）</b>：はね返りが無数に重なった「ふわ〜っ」と残る響き。</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>FDNリバーブとは？</h3>
+  <p class="one">「やまびこを大量生産して、混ぜて、また戻す」仕組み。</p>
+  <p>音を少しだけ遅らせる通り道（ディレイ）を何本も用意し、出てきた音を混ぜ合わせて、また入り口に戻します。これを何千回もくり返すと、本物の部屋のような密度の高い響きになります。戻すたびに少しずつ音を小さくするので、自然に消えていきます。</p>
+  <ul class="simple">
+    <li>Ambience は <b>16本の通り道</b>を使用</li>
+    <li>響きが<b>なめらかで濃い</b></li>
+    <li>「低音は長く、高音は短く」など<b>音域ごとの響きの長さ</b>を細かく決められる</li>
+  </ul>
+  <p class="tip">💡 Ambience の「後期残響（ふわ〜っと残る部分）」を担当しています。</p>
+</div>
+
+<div class="card">
+  <h3>SDNリバーブとは？</h3>
+  <p class="one">「部屋の6面の壁」を計算で作り、音のはね返りを再現する仕組み。</p>
+  <p>SDN（スキャタリング・ディレイ・ネットワーク）は、床・天井・前後左右の壁を「中継点」として置き、音源 → 壁 → 壁 → 耳… という<b>はね返りの道のり</b>を、実際の距離に合わせて計算します。</p>
+  <ul class="simple">
+    <li>部屋の大きさ・形が<b>リアルに伝わる</b></li>
+    <li>壁が「つるつる」か「でこぼこ」かも表現できる</li>
+  </ul>
+  <p class="tip">💡 Ambience では <b>SDN＝初期反射</b>、<b>FDN＝後期残響</b> と役割分担。2つをつなげて「部屋の形が分かる最初の響き」から「消えていく余韻」までを自然につなげています（ROOM／HALL系）。PLATE・SPRING・GOLDFOIL・INCHINDOWN は、それぞれ鉄板・バネ・金箔・巨大タンク専用の計算モデルを使います。</p>
+</div>
+
+<div class="card">
+  <h3>トゥルーステレオとは？</h3>
+  <p class="one">左の音と右の音を「別々の部屋計算」で響かせること。</p>
+  <p>多くのリバーブは左右をいったん混ぜて1つにしてから響かせます。そのため、左に置いたギターでも響きは真ん中から広がってしまいます。</p>
+  <p>Ambience 3.0 は<b>左用・右用に独立した残響回路</b>を持っているので、</p>
+  <ul class="simple">
+    <li>左の音 → 響きも左寄りに広がる</li>
+    <li>右の音 → 響きも右寄りに広がる</li>
+  </ul>
+  <p>実際の部屋と同じように、<b>音の位置関係を保ったまま</b>響きます。</p>
+</div>
+
+<div class="card">
+  <h3>ユニタリ・フィードバック・マトリックス変調とは？</h3>
+  <p class="one">響きを混ぜる「ミキサー」を、ゆっくり回し続けること。</p>
+  <p>FDNの中では、16本の通り道の音を「ミキサー（行列）」で混ぜています。このミキサーの混ぜ方を、<b>音量を一切変えずに（＝ユニタリ）</b>、ゆっくりゆっくり変化させます。</p>
+  <ul class="simple">
+    <li>響きの「パターン化」を防ぎ、<b>余韻が厚く・自然に</b>なる</li>
+    <li>音程を揺らす方式ではないので<b>音程がズレない</b></li>
+    <li>金属っぽい「キーン」という鳴きを減らす</li>
+  </ul>
+  <p class="note">※ SPRING（バネの響き）では、バネらしさを残すため使っていません。</p>
+</div>
+
+<div class="card">
+  <h3>平滑化ランダム変調とは？</h3>
+  <p class="one">響きを「規則正しく」ではなく「気まぐれに、なめらかに」揺らすこと。</p>
+  <p>昔のリバーブは、響きを一定のリズム（サイン波）で揺らしていました。規則的な揺れは「ウォンウォン」というコーラスっぽい音程の揺れとして耳につきがちです。</p>
+  <p>Ambience 3.0 は<b>ランダムな値をなめらかにつないだ揺れ</b>を使います。</p>
+  <ul class="simple">
+    <li>パターンがないので<b>揺れが耳につかない</b></li>
+    <li>余韻が<b>呼吸しているように生き生き</b>する</li>
+    <li>MOD AMT を深くしても<b>音程が安定</b></li>
+  </ul>
+</div>
+
+<!-- ============ 音の流れ ============ -->
+<h2 id="flow">Ambience の音の流れ</h2>
+<p>入ってきた音が、どんな順番で処理されて出ていくかです。</p>
+
+<ol class="flow">
+  <li><b>入力</b>（ステレオ L/R）<small>BYPASS中はここから原音がそのまま出力へ</small></li>
+  <li><b>プリディレイ</b><small>響きが始まるまでの「待ち時間」。左右別々に遅らせる</small></li>
+  <li><b>初期反射（ER）を作る</b><small>ROOM/HALL＝SDN（6面の壁）、PLATE/GOLDFOIL＝鉄板・金箔モデル、SPRING＝バネモデル、INCHINDOWN＝巨大タンクモデル ＋ 反射パターン。一部は次の残響回路へも送られる</small></li>
+  <li><b>インプット・ディフューザー（6段）</b><small>音の角を丸めて「にじませる」。DIFFUSIONで強さが変わる</small></li>
+  <li><b>16ch FDN（左右独立＝トゥルーステレオ）</b><small>後期残響を生成。マトリックス変調・ランダム変調で自然な揺らぎ、10バンドの吸音フィルターで音域ごとの響きの長さを調整</small></li>
+  <li><b>サチュレーター</b><small>後期残響に温かみ・歪みを加える（SATURATE）</small></li>
+  <li><b>ERと後期残響をミックス</b><small>ER LEVEL・CLARITY でバランスを決定</small></li>
+  <li><b>出力EQ</b><small>響きの低域・高域をカット／調整（LO/HI）</small></li>
+  <li><b>ダッキング</b><small>原音が鳴っている間だけ響きを下げる</small></li>
+  <li><b>ステレオ幅（WIDTH）</b><small>響きの広がりを調整</small></li>
+  <li><b>リミッター</b><small>音割れ防止の安全装置</small></li>
+  <li><b>WET（響き）＋ DRY（原音）を合わせて出力</b></li>
+</ol>
+
+<!-- ============ MAIN ============ -->
+<h2 id="main">MAINタブ</h2>
+<p>よく使う基本のノブがまとまっています。</p>
+
+<div class="card">
+  <h3>ROOM TYPE（アルゴリズム選択）</h3>
+  <p class="one">「どんな場所で響かせるか」を選ぶボタン。</p>
+  <div class="algo">
+    <div><b>ROOM1</b>：小さめのスタジオ・ボーカルブース</div>
+    <div><b>ROOM2</b>：中くらいのライブルーム・木の部屋</div>
+    <div><b>HALL1</b>：中規模のコンサートホール</div>
+    <div><b>HALL2</b>：大ホール・大聖堂</div>
+    <div><b>PLATE</b>：鉄板リバーブ（EMT140風）。ボーカル・スネアの定番</div>
+    <div><b>SPRING</b>：バネリバーブ。ギターアンプ風・ダブ</div>
+    <div><b>GOLDFOIL</b>：金箔プレート（EMT240風）。キラキラした高域</div>
+    <div><b>INCHINDOWN</b>：世界一長く響く地下オイルタンク（最大112秒）。アンビエント・ドローン向け</div>
+  </div>
+  <p class="note">※ LOCKがOFFのまま切り替えると、全ノブがその部屋の初期値に戻ります（確認画面が出ます）。</p>
+</div>
+
+<div class="card">
+  <h3>PRE-DELAY<span class="tag">0〜500ms</span></h3>
+  <p class="one">音が鳴ってから、響きが始まるまでの「待ち時間」。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>すぐに響く。原音と響きが一体化</span>
+    <b class="r">右 ▶</b><span>響きが遅れて始まる。原音がくっきり前に出る</span>
+  </div>
+  <p class="tip">💡 ボーカルは 20〜40ms あたりで「歌が埋もれず、響きも豊か」になりやすい。</p>
+</div>
+
+<div class="card">
+  <h3>ROOM SIZE<span class="tag">0.3〜2.0倍</span></h3>
+  <p class="one">部屋の「広さ」。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>狭い部屋。響きの粒が細かく、近い感じ</span>
+    <b class="r">右 ▶</b><span>広い部屋。反射の間隔が広がり、大きな空間に</span>
+  </div>
+  <p class="tip">💡 響きの「長さ」はDECAY、「広さの感じ」はROOM SIZE と覚えると便利。</p>
+</div>
+
+<div class="card">
+  <h3>DECAY<span class="tag">0.1〜120秒</span></h3>
+  <p class="one">響きが消えるまでの「長さ」（RT60＝音が1/1000まで小さくなる時間）。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>短くてスッキリ。テンポの速い曲向け</span>
+    <b class="r">右 ▶</b><span>長くたっぷり。バラード・アンビエント向け</span>
+  </div>
+  <p class="tip">💡 画面の「DECAY TIME」に実際の響きの長さが表示されます。</p>
+</div>
+
+<div class="card">
+  <h3>HF DAMP<span class="tag">0〜100%</span></h3>
+  <p class="one">高い音の響きを「早く消す」量（高域ダンピング）。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>高音も長く残る。明るい・キラキラ</span>
+    <b class="r">右 ▶</b><span>高音が先に消える。暗く・柔らかい（カーテンや絨毯の部屋）</span>
+  </div>
+  <p class="tip">💡 響きが「シャリシャリしてうるさい」ときは右へ。</p>
+</div>
+
+<div class="card">
+  <h3>LF ABSORB<span class="tag">0〜100%</span></h3>
+  <p class="one">低い音の響きを「早く消す」量（低域吸音）。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>低音もたっぷり響く。太く重い</span>
+    <b class="r">右 ▶</b><span>低音の響きが減る。スッキリ・濁らない</span>
+  </div>
+  <p class="tip">💡 ミックスが「モコモコ」するときは右へ。</p>
+</div>
+
+<div class="card">
+  <h3>DIFFUSION<span class="tag">0〜100%</span></h3>
+  <p class="one">響きの「なめらかさ・密度」。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>反射が一つひとつ聞こえる。ザラッと粗い</span>
+    <b class="r">右 ▶</b><span>反射が溶け合う。スムーズで濃密</span>
+  </div>
+  <p class="tip">💡 ドラムは少し下げると立ち上がりがハッキリ、パッドは上げるとなめらか。</p>
+</div>
+
+<div class="card">
+  <h3>MOD AMT<span class="tag">0〜100%</span></h3>
+  <p class="one">響きの「揺らぎ」の深さ（平滑化ランダム変調の量）。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>揺れなし。正確だが、やや機械的・金属的になることも</span>
+    <b class="r">右 ▶</b><span>揺らぎが増え、広がりと豊かさが出る</span>
+  </div>
+  <p class="tip">💡 深くしても音程はほぼ揺れない設計。ピアノなど音程に敏感な楽器でも安心。</p>
+</div>
+
+<div class="card">
+  <h3>MOD RATE<span class="tag">0.05〜2.0Hz</span></h3>
+  <p class="one">揺らぎの「速さ」。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>ゆったり漂う揺らぎ</span>
+    <b class="r">右 ▶</b><span>細かくせわしない揺らぎ</span>
+  </div>
+  <p class="tip">💡 MOD AMT が 0 だと効果はありません。</p>
+</div>
+
+<div class="card">
+  <h3>WIDTH<span class="tag">0〜100%</span></h3>
+  <p class="one">響きの「左右の広がり」。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>0%で完全モノラル（響きが真ん中に集まる）</span>
+    <b class="r">右 ▶</b><span>左右いっぱいに広がる</span>
+  </div>
+  <p class="tip">💡 ベースやキックなど中央に置きたい音の響きは狭めると安定。</p>
+</div>
+
+<div class="card">
+  <h3>ER LEVEL<span class="tag">0〜100%</span></h3>
+  <p class="one">初期反射（最初のはね返り）の音量。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>初期反射なし。余韻だけのふんわりした響き</span>
+    <b class="r">右 ▶</b><span>部屋の壁を感じる、リアルで近い響き</span>
+  </div>
+  <p class="tip">💡 「その場にいる感」を出したいなら上げる。ER SOLO で単体確認できます。</p>
+</div>
+
+<div class="card">
+  <h3>SATURATE<span class="tag">0〜100%</span></h3>
+  <p class="one">響きに「温かみ・歪み」を加える量。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>クリーンでデジタルな響き</span>
+    <b class="r">右 ▶</b><span>アナログ機材のような温かさ・太さ。上げすぎると歪む</span>
+  </div>
+  <p class="tip">💡 原音には一切かからず、後期残響だけにかかります。歪みの種類は RT60タブの SAT TYPE で選択。</p>
+</div>
+
+<div class="card">
+  <h3>DRY<span class="tag">-60〜0dB</span></h3>
+  <p class="one">原音（エフェクトがかかっていない音）の音量。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>原音が小さく（-60dBでほぼ無音）</span>
+    <b class="r">右 ▶</b><span>原音そのままの大きさ</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>WET<span class="tag">-60〜0dB</span></h3>
+  <p class="one">響き（リバーブ音）の音量。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>響きが控えめ</span>
+    <b class="r">右 ▶</b><span>響きがたっぷり</span>
+  </div>
+  <p class="tip">💡 「かかり具合」はまず DRY / WET のバランスで決めるのが基本。</p>
+</div>
+
+<div class="card">
+  <h3>LO CUT<span class="tag">20〜1000Hz</span></h3>
+  <p class="one">響きの「低い音」をカットする位置。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>低音の響きを残す</span>
+    <b class="r">右 ▶</b><span>低音の響きを削る。スッキリ・軽い</span>
+  </div>
+  <p class="note">※ PROタブの LO CURVE と連動。LO CURVE が「Off」だと効きません（Cut／Shelfで有効）。</p>
+</div>
+
+<div class="card">
+  <h3>HI CUT<span class="tag">1k〜20kHz</span></h3>
+  <p class="one">響きの「高い音」をカットする位置。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>高音の響きを削る。暗く・レトロ</span>
+    <b class="r">右 ▶</b><span>高音の響きを残す。明るい</span>
+  </div>
+  <p class="note">※ PROタブの HI CURVE と連動。HI CURVE が「Off」だと効きません。</p>
+</div>
+
+<div class="card">
+  <h3>DUCKING（4つのノブ）</h3>
+  <p class="one">原音が鳴っている間だけ響きを下げ、音が止まると響きを戻す機能。</p>
+  <p>歌っている間は言葉がハッキリ、歌い終わりに響きがふわっと広がります。</p>
+  <div class="turn">
+    <b>AMOUNT</b><span>どれだけ響きを下げるか（0〜20dB）。0でダッキングOFF</span>
+    <b>THRESH</b><span>どのくらいの音量から反応するか（-60〜0dB）。左ほど小さい音でも反応</span>
+    <b>ATTACK</b><span>響きを下げ始める速さ（0.5〜100ms）。左ほど素早く下がる</span>
+    <b>RELEASE</b><span>響きが元に戻る速さ（10〜2000ms）。右ほどゆっくり戻る</span>
+  </div>
+  <p class="tip">💡 右側のメーターで、どれだけ下がっているか確認できます。</p>
+</div>
+
+<!-- ============ RT60 ============ -->
+<h2 id="rt60">RT60タブ</h2>
+<p>音域ごとに「響きの長さ」を細かく調整するページです。</p>
+
+<div class="card">
+  <h3>RT60バンド（31・63・125・250・500・1k・2k・4k・8k・16k）<span class="tag">0.5〜2.0倍</span></h3>
+  <p class="one">10個の音域それぞれの「響きの長さ」を伸び縮みさせるノブ。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>その音域の響きが短くなる（最短0.5倍）</span>
+    <b class="r">右 ▶</b><span>その音域の響きが長くなる（最長2倍）</span>
+  </div>
+  <p>数字は周波数（Hz）。左が低い音、右が高い音です。</p>
+  <ul class="simple">
+    <li>31〜125：重低音〜低音（キック・ベース）</li>
+    <li>250〜1k：中音（声・楽器の芯）</li>
+    <li>2k〜16k：高音（シンバル・息・空気感）</li>
+  </ul>
+  <p class="tip">💡 グラフの線が実際の響きの長さ。動かしながら見ると分かりやすい。</p>
+</div>
+
+<div class="card">
+  <h3>TILT LO / TILT MID / TILT HI<span class="tag">0.5〜2.0倍</span></h3>
+  <p class="one">低域・中域・高域の響きの長さを「ざっくり」まとめて調整。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>その帯域の響きが短く</span>
+    <b class="r">右 ▶</b><span>その帯域の響きが長く</span>
+  </div>
+  <p class="tip">💡 10バンドを1つずつ触るより手早い。例：TILT HIを下げる → 暗く落ち着いた響き。</p>
+</div>
+
+<div class="card">
+  <h3>SAT TYPE</h3>
+  <p class="one">SATURATE の「歪みの種類」。</p>
+  <div class="turn">
+    <b>Warm</b><span>やさしく自然な温かみ（標準）</span>
+    <b>Tape</b><span>テープレコーダー風。まろやかで丸い</span>
+    <b>Tube</b><span>真空管風。太く甘い響き</span>
+    <b>Hard</b><span>はっきり歪む。攻撃的・Lo-Fi向け</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>THEME</h3>
+  <p class="one">画面の色デザインを変更（音は変わりません）。</p>
+  <p>Cyber Neon、Solar Flare、Blood Moon など11種類。</p>
+</div>
+
+<!-- ============ PRO ============ -->
+<h2 id="pro">PROタブ</h2>
+<p>部屋の「物理的な性質」と、出力EQを調整するマニア向けページです。</p>
+
+<div class="card">
+  <h3>SCATTERING<span class="tag">0〜100%</span></h3>
+  <p class="one">壁の表面の「でこぼこ具合」。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>つるつるの壁。反射がくっきり・鏡のよう</span>
+    <b class="r">右 ▶</b><span>でこぼこの壁。反射が散らばり、なめらか</span>
+  </div>
+  <p class="tip">💡 主に ROOM／HALL の初期反射に効きます。</p>
+</div>
+
+<div class="card">
+  <h3>ER CROSSOVER<span class="tag">10〜100ms</span></h3>
+  <p class="one">「初期反射」から「後期残響」に移り変わるタイミング。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>すぐに余韻へ溶け込む。ふんわり</span>
+    <b class="r">右 ▶</b><span>初期反射が長めに続く。部屋の輪郭が強調される</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>LATE DENSITY<span class="tag">0〜100%</span></h3>
+  <p class="one">後期残響の「粒の詰まり具合」。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>まばらで軽い響き</span>
+    <b class="r">右 ▶</b><span>すぐに濃く詰まった響きになる</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>ASYMMETRY<span class="tag">0〜100%</span></h3>
+  <p class="one">部屋の「ゆがみ具合」（壁が平行でない度合い）。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>きれいな箱型の部屋</span>
+    <b class="r">右 ▶</b><span>いびつな形の部屋。特定の音が「ボワン」と鳴る現象を防ぐ</span>
+  </div>
+  <p class="tip">💡 主に ROOM／HALL で効きます。</p>
+</div>
+
+<div class="card">
+  <h3>CLARITY<span class="tag">-6〜+6dB</span></h3>
+  <p class="one">「くっきり」と「ふんわり」のバランス。</p>
+  <div class="turn">
+    <b class="l">◀ 左（−）</b><span>余韻が前に出る。包まれるような響き</span>
+    <b class="r">右（＋）▶</b><span>初期反射が前に出る。言葉や音の輪郭がハッキリ</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>AIR ABSORB<span class="tag">0.2〜2.5倍</span></h3>
+  <p class="one">空気が高い音を吸収する強さ。</p>
+  <div class="turn">
+    <b class="l">◀ 左</b><span>高音が遠くまで届く。明るく近い</span>
+    <b class="r">右 ▶</b><span>高音が早く消える。遠く大きな空間らしさ</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>出力EQ（LO / HI）</h3>
+  <p class="one">完成した響きの低音・高音を最後に整えるEQ。原音にはかかりません。</p>
+  <div class="turn">
+    <b>LO CURVE</b><span>Off＝なし／Cut＝低音を削る／Shelf＝低音を増減</span>
+    <b>LO FREQ</b><span>効かせる位置（20〜1000Hz）。MAINの LO CUT と同じノブ</span>
+    <b>LO GAIN</b><span>Shelf時の増減量（±12dB）。右で低音アップ、左でダウン</span>
+    <b>HI CURVE</b><span>Off＝なし／Cut＝高音を削る／Shelf＝高音を増減</span>
+    <b>HI FREQ</b><span>効かせる位置（1k〜20kHz）。MAINの HI CUT と同じノブ</span>
+    <b>HI GAIN</b><span>Shelf時の増減量（±12dB）。右で高音アップ、左でダウン</span>
+  </div>
+  <p class="tip">💡 カーブはグラフでリアルタイムに確認できます。</p>
+</div>
+
+<!-- ============ ボタン ============ -->
+<h2 id="buttons">ボタン類</h2>
+
+<div class="card">
+  <h3>ER SOLO</h3>
+  <p class="one">初期反射（ER）だけを聴くボタン。</p>
+  <p>原音と後期残響をミュートして、部屋の「最初のはね返り」だけを確認できます。ER LEVEL や SCATTERING を調整するときに便利。</p>
+</div>
+
+<div class="card">
+  <h3>LOCK</h3>
+  <p class="one">ROOM TYPE を切り替えても、今のノブ設定をキープするボタン。</p>
+  <ul class="simple">
+    <li><b>ON</b>：設定はそのまま、部屋の種類だけ変わる。「同じ設定でHALLとPLATEを聴き比べ」に最適</li>
+    <li><b>OFF</b>：切り替え時に全ノブがその部屋の初期値にリセット（確認あり）</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>SEND</h3>
+  <p class="one">センド（AUX）トラック用のモードに一発切り替え。</p>
+  <p>ONで <b>DRY -60dB（原音なし）／WET 0dB（響き100%）</b> になります。OFFにすると元の DRY／WET に戻ります。</p>
+  <p class="tip">💡 Return／AUXトラックに挿すときはON、トラックに直接挿すときはOFF。</p>
+</div>
+
+<div class="card">
+  <h3>PANIC</h3>
+  <p class="one">鳴っている響きを即座に消す「緊急停止」ボタン。</p>
+  <p>長い残響（INCHINDOWNなど）が鳴りっぱなしのときや、不意に大きな音が出たときに押してください。響きを一瞬でフェードアウトして消し、設定はそのまま残ります。</p>
+</div>
+
+<div class="card">
+  <h3>BYPASS</h3>
+  <p class="one">エフェクトを一時的にOFFにして、原音だけにするボタン。</p>
+  <p>「かけた音」と「かける前」を聴き比べるときに使います。切り替えはなめらかで、プチッというノイズは出ません。</p>
+</div>
+
+<div class="card">
+  <h3>OS 2X</h3>
+  <p class="one">サチュレーターの音質を上げるボタン（オーバーサンプリング）。</p>
+  <p>ONにすると、SATURATE を強くかけたときの耳障りなザラつきがさらに減ります。そのぶん、わずかな遅れ（レイテンシー）とCPU負荷が増えます。DAWが自動で遅れを補正します。</p>
+</div>
+
+<!-- ============ プリセット ============ -->
+<h2 id="preset">プリセット</h2>
+
+<div class="card">
+  <h3>プリセットバー</h3>
+  <p class="one">104種類の調整済みサウンドをすぐに呼び出せます。</p>
+  <div class="turn">
+    <b>◀ ▶</b><span>前／次のプリセットへ（ブラウザで絞り込んだ中だけを順番に）</span>
+    <b>名前表示</b><span>クリックでプリセットブラウザが開く。名前の横の「*」は「編集済み」の印</span>
+    <b>SAVE</b><span>今の設定を自分のプリセットとして保存</span>
+    <b>REVERT</b><span>いじった設定を、プリセットを読み込んだ直後の状態に戻す</span>
+    <b>DELETE</b><span>自分で保存したプリセットを削除</span>
+  </div>
+</div>
+
+<div class="card">
+  <h3>プリセットブラウザ</h3>
+  <ul class="simple">
+    <li><b>[ ROOM ]</b>：部屋の種類ごとに表示（各13種類 × 8）</li>
+    <li><b>[ TAGS ]</b>：楽器・用途別に表示（Vocal、Drums、Piano、Ambient など）</li>
+    <li><b>検索</b>：名前・タグ・説明文から探せる</li>
+    <li><b>★</b>：お気に入り登録</li>
+    <li><b>INFO</b>：プリセットの特徴・おすすめ用途を表示</li>
+  </ul>
+  <p class="tip">💡 迷ったら [TAGS] から楽器名で選び、DRY／WET と DECAY だけ調整すればOK。</p>
+</div>
+
+<footer>Ambience 3.0.0 ／ OTODESK (@kijyoumusic)</footer>
+</div>
+</body>
+</html>

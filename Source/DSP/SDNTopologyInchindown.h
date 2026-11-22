@@ -55,6 +55,7 @@ public:
             longBuffer[i].assign(LONG_BUFFER_SIZE, 0.0f);
 
         delaySmoothCoeff = 1.0f - std::exp(-1.0f / (fsf * 0.025f)); // 25ms delay smoothing
+        paramSmoothCoeff = 1.0f - std::exp(-1.0f / (fsf * 0.020f)); // 20ms air absorption smoothing
         setParameters(112.0f, 0.25f, 1.0f, 1.0f);
         snapToTargets();
         reset();
@@ -63,6 +64,10 @@ public:
     void snapToTargets() noexcept {
         smoothedDelaysShort = targetDelaysShort;
         smoothedDelaysLong  = targetDelaysLong;
+        curAirB0 = targetAirB0;
+        curAirA1 = targetAirA1;
+        v_airB0 = _mm256_loadu_ps(curAirB0.data());
+        v_airA1 = _mm256_loadu_ps(curAirA1.data());
     }
 
     void reset() noexcept {
@@ -158,10 +163,11 @@ public:
 
             a1_arr[i] = a1;
             b0_arr[i] = (1.0f - a1) * broadbandGain;
+            targetAirA1[i] = a1;
+            targetAirB0[i] = (1.0f - a1) * broadbandGain;
         }
-
-        v_airB0 = _mm256_load_ps(b0_arr);
-        v_airA1 = _mm256_load_ps(a1_arr);
+        targetAirA1[6] = targetAirA1[7] = 0.0f;
+        targetAirB0[6] = targetAirB0[7] = 0.0f;
     }
 
     /**
@@ -171,6 +177,21 @@ public:
      * @param fdn16Out 16ch FDNへの早期直交注入バッファ (float[16])
      */
     inline void processOneSample(float inL, float inR, float& outL, float& outR, float* fdn16Out) noexcept {
+        if (std::abs(targetAirB0[0] - curAirB0[0]) > 1e-7f ||
+            std::abs(targetAirA1[0] - curAirA1[0]) > 1e-7f ||
+            std::abs(targetAirB0[4] - curAirB0[4]) > 1e-7f) [[unlikely]] {
+            for (int i = 0; i < 6; ++i) {
+                curAirB0[i] += paramSmoothCoeff * (targetAirB0[i] - curAirB0[i]);
+                curAirA1[i] += paramSmoothCoeff * (targetAirA1[i] - curAirA1[i]);
+            }
+            v_airB0 = _mm256_loadu_ps(curAirB0.data());
+            v_airA1 = _mm256_loadu_ps(curAirA1.data());
+        } else if (curAirB0[0] != targetAirB0[0] || curAirA1[0] != targetAirA1[0] || curAirB0[4] != targetAirB0[4]) [[unlikely]] {
+            curAirB0 = targetAirB0;
+            curAirA1 = targetAirA1;
+            v_airB0 = _mm256_loadu_ps(curAirB0.data());
+            v_airA1 = _mm256_loadu_ps(curAirA1.data());
+        }
         const int wIdxS = writeIndexShort;
         const int wIdxL = writeIndexLong;
 
@@ -295,7 +316,10 @@ private:
     std::array<float, 4> smoothedDelaysShort{};
     std::array<float, 2> targetDelaysLong{};
     std::array<float, 2> smoothedDelaysLong{};
+    std::array<float, 8> targetAirB0{}, curAirB0{};
+    std::array<float, 8> targetAirA1{}, curAirA1{};
     float delaySmoothCoeff{ 0.001f };
+    float paramSmoothCoeff{ 0.001f };
 
     static inline float readHermite(const std::vector<float>& buf, int wIdx, int mask, float delaySmp) noexcept {
         const float safeDelay = std::clamp(delaySmp, 2.0f, static_cast<float>(mask - 4));

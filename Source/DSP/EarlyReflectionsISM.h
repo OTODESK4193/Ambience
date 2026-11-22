@@ -24,14 +24,6 @@ struct alignas(32) ISMTapChunk {
 constexpr int MAX_ISM_TAPS = 64;
 constexpr int NUM_ISM_CHUNKS = MAX_ISM_TAPS / 8; // 8 チャンク (64タップ)
 
-struct ISMParameters {
-    std::array<ISMTapChunk, NUM_ISM_CHUNKS> chunks;
-    int activeTaps{ 0 };
-    int numActiveChunks{ 0 };
-    bool useVelvetNoise{ false };
-    float velvetGain{ 0.0f };
-};
-
 // ベルベットノイズ FIR パルス構造
 struct alignas(32) VelvetPulse {
     int32_t delaySample;
@@ -40,6 +32,16 @@ struct alignas(32) VelvetPulse {
 };
 
 constexpr int MAX_VELVET_PULSES = 64;
+
+struct ISMParameters {
+    std::array<ISMTapChunk, NUM_ISM_CHUNKS> chunks;
+    int activeTaps{ 0 };
+    int numActiveChunks{ 0 };
+    bool useVelvetNoise{ false };
+    float velvetGain{ 0.0f };
+    std::array<VelvetPulse, MAX_VELVET_PULSES> velvetPulses{};
+    int numVelvetPulses{ 0 };
+};
 
 class EarlyReflectionsISM {
 public:
@@ -114,10 +116,6 @@ private:
     std::atomic<std::shared_ptr<ISMParameters>> pendingParams{ nullptr };
     float paramCrossfadePos{ 1.0f };
     float paramCrossfadeInc{ 0.001f };
-
-    // ベルベットノイズ生成用
-    std::array<VelvetPulse, MAX_VELVET_PULSES> velvetPulses{};
-    int numVelvetPulses{ 0 };
 
     // スムージング用
     float smoothedErLevel{ 0.0f };

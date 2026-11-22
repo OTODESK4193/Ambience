@@ -1311,7 +1311,7 @@ namespace FDNReverb {
             auto s2 = fitter.designStage2PerBand(
                 loopPerBand, fs, scaledRT60,
                 activeParams.hfDamping, activeParams.lfAbsorption,
-                true); // Spring: オクターブ較正 (phase3/spring8k/SPRING8K.md)
+                !absorptionDesignFromFade); // Spring: 初期/静止設計時はオクターブ較正を実行、ノブドラッグ中は高速パスでブロック予算超過を回避
             for (int b = 0; b < NUM_BANDS; ++b)
                 storeAbsCoeffS2(targetIsB, b, i, s2.geqStages[b]);
         }
@@ -1400,19 +1400,29 @@ namespace FDNReverb {
                 const double fHi   = 3400.0;
                 const double gg    = static_cast<double>(gApfDesign);
                 const auto& bank26 = targetIsB ? absorptionCoeffsSoA_B : absorptionCoeffsSoA_A;
+                const int nSteps = static_cast<int>(std::ceil(std::log2(fHi / fLo) * 24.0));
+                std::array<double, 32> gfFreqs{}, gfW{}, gfC1{}, gfS1{}, gfC2{}, gfS2{};
+                for (int k = 0; k <= nSteps; ++k) {
+                    const double f = fLo * std::pow(2.0, k / 24.0);
+                    const double w = 2.0 * 3.141592653589793 * f / fs;
+                    gfFreqs[k] = f;
+                    gfW[k] = w;
+                    gfC1[k] = std::cos(w);
+                    gfS1[k] = std::sin(w);
+                    gfC2[k] = std::cos(2.0 * w);
+                    gfS2[k] = std::sin(2.0 * w);
+                }
                 for (int i = 0; i < FDN_ORDER; ++i) {
                     // grid search (1/24 oct) for the slowest implied rate
                     double fStar = 0.0, rMin = 1e30, tauStar = 0.0;
-                    const int nSteps = static_cast<int>(std::ceil(std::log2(fHi / fLo) * 24.0));
                     for (int k = 0; k <= nSteps; ++k) {
-                        const double f = fLo * std::pow(2.0, k / 24.0);
-                        const double w = 2.0 * 3.141592653589793 * f / fs;
-                        const double c1 = std::cos(w), s1 = std::sin(w);
-                        const double c2 = std::cos(2.0 * w), s2 = std::sin(2.0 * w);
-                        double lossDb = 0.0;
+                        const double f = gfFreqs[k];
+                        const double w = gfW[k];
+                        const double c1 = gfC1[k], s1 = gfS1[k];
+                        const double c2 = gfC2[k], s2 = gfS2[k];
+                        double numProd = 1.0;
+                        double denProd = 1.0;
                         for (int b = 0; b < NUM_BANDS; ++b) {
-                            // [phase3/cpu-opt A-1] SoA 係数 (double 化済み) の読み。
-                            // 値は従来の float 係数を double 化したものと同一。
                             const double cfB0 = bank26[b][0][i];
                             const double cfB1 = bank26[b][1][i];
                             const double cfB2 = bank26[b][2][i];
@@ -1422,10 +1432,11 @@ namespace FDNReverb {
                             const double nIm = -(cfB1 * s1 + cfB2 * s2);
                             const double dRe = 1.0 + cfA1 * c1 + cfA2 * c2;
                             const double dIm = -(cfA1 * s1 + cfA2 * s2);
-                            const double magSq = (nRe * nRe + nIm * nIm)
-                                               / std::max(1e-24, dRe * dRe + dIm * dIm);
-                            lossDb += -10.0 * std::log10(std::max(1e-24, magSq));
+                            numProd *= (nRe * nRe + nIm * nIm);
+                            denProd *= (dRe * dRe + dIm * dIm);
                         }
+                        const double magSq = numProd / std::max(1e-240, denProd);
+                        const double lossDb = -10.0 * std::log10(std::max(1e-240, magSq));
                         double tau = static_cast<double>(fdnBaseDelaySamples[i]) + 1.0;
                         for (int s = 0; s < SERIAL_APF_STAGES; ++s) {
                             const double m = static_cast<double>(cachedApfBaseDelaySmp[i][s]);
@@ -1763,8 +1774,14 @@ namespace FDNReverb {
             topologyUpdatePending = false;
             roomSizeUpdatePending = false;
         } else if (roomSizeUpdatePending) {
-            updateRoomSizeDelaysOnly();
-            roomSizeUpdatePending = false;
+            // ★ RoomSize 更新も吸収フィルタ再設計と同様にレート制御（クロスフェードアイドル ＆ 15ms間隔）に同期させる。
+            //    毎ブロック（1.3ms毎）に FDN 基準遅延が新たな素数へジャンプしたり ISM パラメータを std::make_shared で
+            //    ヒープ確保し続けることによる変調ノイズ・CPU スパイクを完全に防止する。
+            if ((absoFadeState == AbsoFadeState::IdleAtA || absoFadeState == AbsoFadeState::IdleAtB)
+                && (samplesSinceLastAbsorptionUpdate + numSamples >= absorptionRateLimitIntervalSamples)) {
+                updateRoomSizeDelaysOnly();
+                roomSizeUpdatePending = false;
+            }
         }
 
         // phase3/stereo SPLIT8: per-algorithm late-energy makeup trim

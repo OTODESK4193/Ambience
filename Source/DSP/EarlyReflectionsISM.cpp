@@ -240,10 +240,10 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
         // Velvet Noise: 左右交互パルス (ER時間窓 45ms 内に収束)
         outParams.useVelvetNoise = true;
         outParams.velvetGain = 0.10f;
-        numVelvetPulses = 0;
+        outParams.numVelvetPulses = 0;
         constexpr int vCount = 16;
         float vIntervalSmp = (0.0020f) * fs;
-        for (int v = 0; v < vCount && numVelvetPulses + 2 <= MAX_VELVET_PULSES; ++v) {
+        for (int v = 0; v < vCount && outParams.numVelvetPulses + 2 <= MAX_VELVET_PULSES; ++v) {
             float vOffsetL = (v + 1) * vIntervalSmp + (std::fmod(v * 2.71828f, 1.0f) - 0.5f) * vIntervalSmp * 0.5f;
             float vOffsetR = (v + 1) * vIntervalSmp + (std::fmod(v * 3.14159f, 1.0f) - 0.5f) * vIntervalSmp * 0.5f + (vIntervalSmp * 0.5f);
 
@@ -255,16 +255,16 @@ void EarlyReflectionsISM::computeGeometry(int algorithmIndex, float roomSizeScal
             float vDecay = std::exp(-static_cast<float>(v) / 6.0f);
 
             if (delayL < maxErDelaySamples) {
-                velvetPulses[numVelvetPulses].delaySample = static_cast<int32_t>(delayL);
-                velvetPulses[numVelvetPulses].gainL = vSign * vDecay * 0.08f;
-                velvetPulses[numVelvetPulses].gainR = 0.0f;
-                ++numVelvetPulses;
+                outParams.velvetPulses[outParams.numVelvetPulses].delaySample = static_cast<int32_t>(delayL);
+                outParams.velvetPulses[outParams.numVelvetPulses].gainL = vSign * vDecay * 0.08f;
+                outParams.velvetPulses[outParams.numVelvetPulses].gainR = 0.0f;
+                ++outParams.numVelvetPulses;
             }
             if (delayR < maxErDelaySamples) {
-                velvetPulses[numVelvetPulses].delaySample = static_cast<int32_t>(delayR);
-                velvetPulses[numVelvetPulses].gainL = 0.0f;
-                velvetPulses[numVelvetPulses].gainR = -vSign * vDecay * 0.08f;
-                ++numVelvetPulses;
+                outParams.velvetPulses[outParams.numVelvetPulses].delaySample = static_cast<int32_t>(delayR);
+                outParams.velvetPulses[outParams.numVelvetPulses].gainL = 0.0f;
+                outParams.velvetPulses[outParams.numVelvetPulses].gainR = -vSign * vDecay * 0.08f;
+                ++outParams.numVelvetPulses;
             }
         }
     }
@@ -512,13 +512,13 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
         outSampleL = hsum_m256(sumL) * smoothedErLevel * 0.19f;
         outSampleR = hsum_m256(sumR) * smoothedErLevel * 0.19f;
 
-        if (prm.useVelvetNoise && numVelvetPulses > 0) {
+        if (prm.useVelvetNoise && prm.numVelvetPulses > 0) {
             float vSumL = 0.0f, vSumR = 0.0f;
-            for (int p = 0; p < numVelvetPulses; ++p) {
-                int rIdx = (static_cast<int32_t>(writeIndex) - velvetPulses[p].delaySample) & ringBufferMask;
+            for (int p = 0; p < prm.numVelvetPulses; ++p) {
+                int rIdx = (static_cast<int32_t>(writeIndex) - prm.velvetPulses[p].delaySample) & ringBufferMask;
                 float vSample = ringBufferL[rIdx];
-                vSumL += vSample * velvetPulses[p].gainL;
-                vSumR += vSample * velvetPulses[p].gainR;
+                vSumL += vSample * prm.velvetPulses[p].gainL;
+                vSumR += vSample * prm.velvetPulses[p].gainR;
             }
             outSampleL += vSumL * prm.velvetGain * smoothedErLevel;
             outSampleR += vSumR * prm.velvetGain * smoothedErLevel;

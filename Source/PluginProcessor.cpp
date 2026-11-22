@@ -531,30 +531,18 @@ void FDNReverbAudioProcessor::loadPresetDefaults(int algorithmIndex)
 }
 
 std::array<float, FDNReverb::NUM_BANDS> FDNReverbAudioProcessor::calculateInstantRT60() const noexcept {
-    const auto* algoParam = apvts.getRawParameterValue(ParamID::Algorithm);
-    if (algoParam == nullptr) {
-        std::array<float, FDNReverb::NUM_BANDS> defArr;
-        defArr.fill(1.5f);
-        return defArr;
-    }
-    const int algo = juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, static_cast<int>(algoParam->load()));
+    const int algo = cachedParams.algorithm
+        ? juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, static_cast<int>(cachedParams.algorithm->load(std::memory_order_relaxed)))
+        : 0;
     const auto& preset = *FDNReverb::ALL_PRESETS[algo];
 
-    const auto* pDecay = apvts.getRawParameterValue(ParamID::DecayTime);
-    const auto* pHf    = apvts.getRawParameterValue(ParamID::HFDamping);
-    const auto* pLf    = apvts.getRawParameterValue(ParamID::LFAbsorption);
-    const auto* pAir   = apvts.getRawParameterValue(ParamID::AirAbsorb);
-    const auto* pTL    = apvts.getRawParameterValue(ParamID::TiltLow);
-    const auto* pTM    = apvts.getRawParameterValue(ParamID::TiltMid);
-    const auto* pTH    = apvts.getRawParameterValue(ParamID::TiltHigh);
-
-    const float userDecay = pDecay ? pDecay->load() : 1.5f;
-    const float userHf    = pHf    ? pHf->load()    : 0.0f;
-    const float userLf    = pLf    ? pLf->load()    : 0.0f;
-    const float airScale  = pAir   ? pAir->load()   : 1.0f;
-    const float tiltLow   = pTL    ? pTL->load()    : 1.0f;
-    const float tiltMid   = pTM    ? pTM->load()    : 1.0f;
-    const float tiltHigh  = pTH    ? pTH->load()    : 1.0f;
+    const float userDecay = cachedParams.decayTime    ? cachedParams.decayTime->load(std::memory_order_relaxed)    : 1.5f;
+    const float userHf    = cachedParams.hfDamping    ? cachedParams.hfDamping->load(std::memory_order_relaxed)    : 0.0f;
+    const float userLf    = cachedParams.lfAbsorption ? cachedParams.lfAbsorption->load(std::memory_order_relaxed) : 0.0f;
+    const float airScale  = cachedParams.airAbsorb    ? cachedParams.airAbsorb->load(std::memory_order_relaxed)    : 1.0f;
+    const float tiltLow   = cachedParams.tiltLow      ? cachedParams.tiltLow->load(std::memory_order_relaxed)      : 1.0f;
+    const float tiltMid   = cachedParams.tiltMid      ? cachedParams.tiltMid->load(std::memory_order_relaxed)      : 1.0f;
+    const float tiltHigh  = cachedParams.tiltHigh     ? cachedParams.tiltHigh->load(std::memory_order_relaxed)     : 1.0f;
 
     const float decayScale = userDecay / std::max(0.01f, FDNReverb::PRESET_DEFAULTS[algo].decayTime);
 
@@ -587,26 +575,25 @@ std::array<float, FDNReverb::NUM_BANDS> FDNReverbAudioProcessor::calculateInstan
         }
     }
 
-    static const juce::String rtBandIDs[FDNReverb::NUM_BANDS] = {
-        ParamID::RTBand0, ParamID::RTBand1, ParamID::RTBand2, ParamID::RTBand3, ParamID::RTBand4,
-        ParamID::RTBand5, ParamID::RTBand6, ParamID::RTBand7, ParamID::RTBand8, ParamID::RTBand9
-    };
-
     for (int b = 0; b < FDNReverb::NUM_BANDS; ++b) {
-        const auto* rawBand = apvts.getRawParameterValue(rtBandIDs[b]);
-        const float bandMult = rawBand ? rawBand->load() : 1.0f;
+        const auto* rawBand = cachedParams.rtBands[b];
+        const float bandMult = rawBand ? rawBand->load(std::memory_order_relaxed) : 1.0f;
         scaledRT60[b] *= bandMult;
     }
 
-    // 大気減衰 (ISO 9613-1 指数べき乗モデル)
+    // 大気減衰 (ISO 9613-1 連続吸収係数モデル: UniversalEngine::updateAbsorptionFilters と完全一致)
     const float safeAirScale = std::clamp(airScale, 0.0f, 5.0f);
     if (std::abs(safeAirScale - 1.0f) > 1e-4f) {
-        const float ratio7 = std::pow(0.90f, safeAirScale);
-        const float ratio8 = std::pow(0.75f, safeAirScale);
-        const float ratio9 = std::pow(0.60f, safeAirScale);
-        scaledRT60[7] = std::min(scaledRT60[7], scaledRT60[6] * ratio7);
-        scaledRT60[8] = std::min(scaledRT60[8], scaledRT60[7] * ratio8);
-        scaledRT60[9] = std::min(scaledRT60[9], scaledRT60[8] * ratio9);
+        static constexpr float kAirAlpha[FDNReverb::NUM_BANDS] = {
+            0.0001f, 0.0002f, 0.0004f, 0.0010f, 0.0019f,
+            0.0037f, 0.0097f, 0.0328f, 0.1050f, 0.2900f }; // 31.25Hz..16kHz
+        const float dScale = safeAirScale - 1.0f;
+        for (int b = 0; b < FDNReverb::NUM_BANDS; ++b) {
+            const float invOld = 1.0f / std::max(0.01f, scaledRT60[b]);
+            float inv = invOld + dScale * kAirAlpha[b] * (343.0f / 60.0f);
+            inv = std::max(inv, 0.4f * invOld);
+            scaledRT60[b] = 1.0f / std::max(inv, 1.0f / 60.0f);
+        }
     }
 
     std::array<float, FDNReverb::NUM_BANDS> outRT60{};
@@ -638,8 +625,9 @@ float FDNReverbAudioProcessor::getEDT() const noexcept {
     rt60Mid = std::max(0.01f, rt60Mid / 6.0f);
 
     float edtCoeff = 0.70f;
-    const auto* algoParam = apvts.getRawParameterValue(ParamID::Algorithm);
-    const int algo = algoParam ? juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, static_cast<int>(algoParam->load())) : 0;
+    const int algo = cachedParams.algorithm
+        ? juce::jlimit(0, FDNReverb::NUM_ALGORITHMS - 1, static_cast<int>(cachedParams.algorithm->load(std::memory_order_relaxed)))
+        : 0;
     switch (algo) {
     case 0: case 1: edtCoeff = 0.70f; break; // Room
     case 2: case 3: edtCoeff = 0.95f; break; // Hall

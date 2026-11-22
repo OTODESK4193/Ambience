@@ -143,6 +143,13 @@ namespace FDNReverb {
         std::array<std::array<double, NUM_BANDS>, NUM_BANDS> cachedB{};
         std::array<std::array<double, NUM_BANDS>, NUM_BANDS> cachedBtWB{};
         std::array<double, NUM_BANDS> cachedW{};
+        static constexpr int kMaxPassivityGridPoints = 1024;
+        int cachedGridPoints{ 0 };
+        std::array<double, kMaxPassivityGridPoints> cachedGridFreq{};
+        std::array<double, kMaxPassivityGridPoints> cachedGridCosW{};
+        std::array<double, kMaxPassivityGridPoints> cachedGridSinW{};
+        std::array<double, kMaxPassivityGridPoints> cachedGridCos2W{};
+        std::array<double, kMaxPassivityGridPoints> cachedGridSin2W{};
         double cachedSampleRate{ 0.0 };
         bool cacheValid{ false };
         bool cachedPrecise{ false };

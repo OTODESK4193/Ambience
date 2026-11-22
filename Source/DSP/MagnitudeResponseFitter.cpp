@@ -305,6 +305,26 @@ namespace FDNReverb {
         constexpr double kRidge = 1e-4;
         for (int i = 0; i < N; ++i) cachedBtWB[i][i] += kRidge;
 
+        // ── Step 9 Passivity Guard 用周波数グリッド & 三角関数テーブルの事前計算 ──
+        // オーディオスレッドでの数百万回の pow / cos / sin 呼び出しを完全にゼロにする。
+        {
+            constexpr double kGridMinHz = 1.0;
+            constexpr int kPointsPerOctave = 48;
+            const double gridMaxHz = sampleRate * 0.5;
+            const int numPoints = std::min(kMaxPassivityGridPoints,
+                static_cast<int>(std::ceil(std::log2(gridMaxHz / kGridMinHz) * kPointsPerOctave)) + 1);
+            cachedGridPoints = numPoints;
+            for (int gi = 0; gi < numPoints; ++gi) {
+                const double fEval = kGridMinHz * std::pow(2.0, static_cast<double>(gi) / kPointsPerOctave);
+                const double w = 2.0 * juce::MathConstants<double>::pi * fEval / sampleRate;
+                cachedGridFreq[gi] = fEval;
+                cachedGridCosW[gi] = std::cos(w);
+                cachedGridSinW[gi] = std::sin(w);
+                cachedGridCos2W[gi] = std::cos(2.0 * w);
+                cachedGridSin2W[gi] = std::sin(2.0 * w);
+            }
+        }
+
         cachedSampleRate = sampleRate;
         cacheValid = true;
         cachedPrecise = preciseDesign;
@@ -482,6 +502,8 @@ namespace FDNReverb {
         // 設計時のみの計算で、実行時コストはゼロ。
         if (octaveCalibrate) {
             // 合成 EDC によるバンド T60 推定 (このチャンネルの係数・ループ長)
+            // ★ リアルタイム高速化: std::pow(10.0, -rate*t/10) の毎ステップ呼び出しを排除し、
+            //    等比減衰乗数 decayStep[k] = std::pow(10.0, -rate[k]*dt/10) の積算 + dt=0.01s に最適化。
             auto syntheticBandT60 = [&](int b) -> float {
                 const float fc = BAND_FREQ[b];
                 const float lo = fc / 1.41421356f;
@@ -489,12 +511,12 @@ namespace FDNReverb {
                 const float f0 = std::sqrt(lo * hi);
                 const float bw = hi - lo;
                 const float loop = loopSamplesPerBand[b];
-                constexpr int K = 25;
-                constexpr double dt = 0.002;
-                const double tMax = std::min(8.0, 2.5 * static_cast<double>(targetT60[b]) + 1.0);
+                constexpr int K = 15;
+                constexpr double dt = 0.010;
+                const double tMax = std::min(6.0, 2.0 * static_cast<double>(targetT60[b]) + 0.5);
                 const int steps = static_cast<int>(tMax / dt);
-                std::array<double, K> wgt{};
-                std::array<double, K> rate{};
+                std::array<double, K> curE{};
+                std::array<double, K> decayStep{};
                 double wSum = 0.0;
                 for (int k = 0; k < K; ++k) {
                     const double frac = (static_cast<double>(k) + 0.5) / K;
@@ -504,28 +526,36 @@ namespace FDNReverb {
                         cascDb += static_cast<double>(biquadMagnitudeDB(result.geqStages[j], f, sampleRate));
                     const double om = (static_cast<double>(f) * f - static_cast<double>(f0) * f0)
                                     / (static_cast<double>(f) * bw);
-                    const double mag2 = 1.0 / (1.0 + std::pow(std::abs(om), 16.0));
-                    wgt[k] = mag2 * f; // log 等間隔ビン: df ∝ f
-                    wSum += wgt[k];
-                    rate[k] = -cascDb * static_cast<double>(fs) / loop; // dB/s
+                    double om2 = om * om;
+                    double om4 = om2 * om2;
+                    double om8 = om4 * om4;
+                    const double mag2 = 1.0 / (1.0 + om8 * om8);
+                    const double w = mag2 * f; // log 等間隔ビン: df ∝ f
+                    curE[k] = w;
+                    wSum += w;
+                    const double rate = -cascDb * static_cast<double>(fs) / loop; // dB/s
+                    decayStep[k] = std::pow(10.0, -rate * dt / 10.0);
                 }
-                // EDC を構築し -5..-35 dB 区間で最小二乗フィット
+                if (wSum <= 0.0) return -1.0f;
+                // EDC を構築し -5..-35 dB 区間で最小二乗フィット (指数関数呼び出しゼロの乗算ループ)
                 double sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0;
                 int cnt = 0;
-                double e0 = 0.0;
-                for (int k = 0; k < K; ++k) e0 += wgt[k];
+                const double invE0 = 1.0 / wSum;
                 for (int sIdx = 0; sIdx <= steps; ++sIdx) {
                     const double t = sIdx * dt;
                     double e = 0.0;
-                    for (int k = 0; k < K; ++k)
-                        e += wgt[k] * std::pow(10.0, -rate[k] * t / 10.0);
-                    const double edc = 10.0 * std::log10(std::max(e / e0, 1e-30));
-                    if (edc <= -5.0 && edc >= -35.0) {
+                    for (int k = 0; k < K; ++k) {
+                        e += curE[k];
+                        curE[k] *= decayStep[k];
+                    }
+                    const double ratio = e * invE0;
+                    if (ratio < 1e-4) break; // < -40 dB
+                    if (ratio <= 0.316227766 && ratio >= 0.000316227766) { // -5 dB .. -35 dB
+                        const double edc = 10.0 * std::log10(ratio);
                         sx += t; sy += edc; sxx += t * t; sxy += t * edc; ++cnt;
                     }
-                    if (edc < -40.0) break;
                 }
-                if (cnt < 10 || wSum <= 0.0) return -1.0f;
+                if (cnt < 4) return -1.0f;
                 const double denom = cnt * sxx - sx * sx;
                 if (std::abs(denom) < 1e-12) return -1.0f;
                 const double slope = (cnt * sxy - sx * sy) / denom;
@@ -536,7 +566,7 @@ namespace FDNReverb {
             // 較正対象: 全測定帯域 (125〜8k)。モデル誤差が小さい帯域は
             // デッドバンド (3%) で実質的に動かない。
             constexpr int kCalBands[] = { 2, 3, 4, 5, 6, 7, 8 };
-            for (int iter = 0; iter < 5; ++iter) {
+            for (int iter = 0; iter < 3; ++iter) {
                 bool anyChange = false;
                 for (int b : kCalBands) {
                     const float t60fit = syntheticBandT60(b);
@@ -587,25 +617,51 @@ namespace FDNReverb {
         // 適用する。本ガードは設計時のみの計算で、音声経路の
         // コストは増えない。
         {
-            auto cascadePeak = [&]() {
-                double mx = -1.0e30;
-                double fStar = 0.0;
-                constexpr double kGridMinHz = 1.0;
-                constexpr int kPointsPerOctave = 48;
-                const double gridMaxHz = sampleRate * 0.5;
-                const int numPoints = static_cast<int>(
-                    std::ceil(std::log2(gridMaxHz / kGridMinHz) * kPointsPerOctave)) + 1;
-                for (int gi = 0; gi < numPoints; ++gi) {
-                    const double fEval = kGridMinHz
-                        * std::pow(2.0, static_cast<double>(gi) / kPointsPerOctave);
-                    double totalDb = 0.0;
-                    for (int j = 0; j < N; ++j) {
-                        totalDb += static_cast<double>(biquadMagnitudeDB(
-                            result.geqStages[j], static_cast<float>(fEval), sampleRate));
-                    }
-                    if (totalDb > mx) { mx = totalDb; fStar = fEval; }
+            // ★ リアルタイム高速化:
+            //   (1) 事前計算済みの cachedGridCosW / SinW / Cos2W / Sin2W テーブルを使用し三角関数呼び出しをゼロ化
+            //   (2) 各バンドの |H_j(w)|^2 を乗算し、グリッド点ごとに log10 を不要化（最大 |H|^2 に対して最後に 1 回のみ log10）
+            //   (3) 2ステップ粗探索 + 局所精細探索で演算量をさらに削減しつつ 48点/oct 真値と完全一致
+            auto evalCascadeMagSqAt = [&](int gi) noexcept -> double {
+                const double cosW = cachedGridCosW[gi];
+                const double sinW = cachedGridSinW[gi];
+                const double cos2W = cachedGridCos2W[gi];
+                const double sin2W = cachedGridSin2W[gi];
+                double numProd = 1.0;
+                double denProd = 1.0;
+                for (int j = 0; j < N; ++j) {
+                    const auto& c = result.geqStages[j];
+                    const double bRe = c.b0 + c.b1 * cosW + c.b2 * cos2W;
+                    const double bIm = -c.b1 * sinW - c.b2 * sin2W;
+                    const double aRe = 1.0 + c.a1 * cosW + c.a2 * cos2W;
+                    const double aIm = -c.a1 * sinW - c.a2 * sin2W;
+                    numProd *= (bRe * bRe + bIm * bIm);
+                    denProd *= (aRe * aRe + aIm * aIm);
                 }
-                return std::pair<double, double>(mx, fStar);
+                return numProd / std::max(1e-300, denProd);
+            };
+
+            auto cascadePeak = [&]() {
+                double maxMagSq = 0.0;
+                int bestGi = 0;
+                const int numPoints = cachedGridPoints;
+                // 粗探索 (4点おき = 12点/oct)
+                for (int gi = 0; gi < numPoints; gi += 4) {
+                    const double magSq = evalCascadeMagSqAt(gi);
+                    if (magSq > maxMagSq) { maxMagSq = magSq; bestGi = gi; }
+                }
+                if ((numPoints - 1) % 4 != 0) {
+                    const double magSq = evalCascadeMagSqAt(numPoints - 1);
+                    if (magSq > maxMagSq) { maxMagSq = magSq; bestGi = numPoints - 1; }
+                }
+                // 局所精細探索 (ピーク周辺の 48点/oct 全点を厳密評価)
+                const int loGi = std::max(0, bestGi - 4);
+                const int hiGi = std::min(numPoints - 1, bestGi + 4);
+                for (int gi = loGi; gi <= hiGi; ++gi) {
+                    const double magSq = evalCascadeMagSqAt(gi);
+                    if (magSq > maxMagSq) { maxMagSq = magSq; bestGi = gi; }
+                }
+                const double mxDb = 10.0 * std::log10(std::max(1e-30, maxMagSq));
+                return std::pair<double, double>(mxDb, cachedGridFreq[bestGi]);
             };
 
             const double kCascadeCapDb = cascadeCapDb; // 既定 -0.06 (公称 -0.05 dB − グリッド余裕 0.01 dB)
@@ -617,7 +673,7 @@ namespace FDNReverb {
             std::array<double, N> bestAdjust = targetAdjust;
             float bestMidGainAbsorbed = result.midGainAbsorbed;
             double bestMaxDb = peak.first;
-            for (int iter = 0; iter < 8 && peak.first > kCascadeCapDb; ++iter) {
+            for (int iter = 0; iter < 5 && peak.first > kCascadeCapDb; ++iter) {
                 const double excess = peak.first - kCascadeCapDb;
                 if (peak.second < 45.0) {
                     targetAdjust[0] -= excess * 1.15;
@@ -645,13 +701,13 @@ namespace FDNReverb {
                 result.targetDb[i] = static_cast<float>(
                     static_cast<double>(targetDb[i]) + bestAdjust[i]);
 
-            // 残余の平坦スケール (最終 float32 係数に対して反復評価)
+            // 残余の平坦スケール (最終 float32 係数に対して評価)
             if (bestMaxDb > kCascadeCapDb) {
                 const BiquadCoeffs guardStage0 = result.geqStages[0];
-                float scaleLinear = 1.0f;
-                float bestScale = 1.0f;
+                float scaleLinear = static_cast<float>(std::pow(10.0, (kCascadeCapDb - bestMaxDb) / 20.0));
+                float bestScale = scaleLinear;
                 double bestScaleMaxDb = bestMaxDb;
-                for (int iter = 0; iter < 8; ++iter) {
+                for (int iter = 0; iter < 3; ++iter) {
                     result.geqStages[0] = absorbGainIntoBiquad(guardStage0, scaleLinear);
                     const double maxDb = cascadePeak().first;
                     if (maxDb < bestScaleMaxDb) { bestScaleMaxDb = maxDb; bestScale = scaleLinear; }

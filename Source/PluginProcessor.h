@@ -21,7 +21,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "Ambience1.2.1"; }
+    const juce::String getName() const override { return "Ambience3.1.0"; }
     double getTailLengthSeconds() const override { return 120.0; }
     bool acceptsMidi()  const override { return false; }
     bool producesMidi() const override { return false; }
