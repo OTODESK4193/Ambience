@@ -1,15 +1,15 @@
 # Ambience
 
-![Release](https://img.shields.io/badge/release-v3.0.0-blue)
+![Release](https://img.shields.io/badge/release-v3.1.0-blue)
 ![License](https://img.shields.io/badge/license-AGPLv3-green)
 ![JUCE](https://img.shields.io/badge/JUCE-9.0.x-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Downloads](https://img.shields.io/github/downloads/OTODESK4193/Ambience/total.svg)
 
 <p align="center">
-  <img src="Source/Assets/Screenshot_main.jpg" width="720" alt="Ambience 3.0.0 Main Interface">
+  <img src="Source/Assets/Screenshot_main.jpg" width="720" alt="Ambience 3.1.0 Main Interface">
   <br>
-  <em>Ambience 3.0.0 — Main Interface featuring 16-channel FDN & SDN hybrid architecture, elegant glassmorphic controls, and dynamic two-tone vector styling.</em>
+  <em>Ambience 3.1.0 — Main Interface featuring 16-channel FDN & SDN hybrid architecture, elegant glassmorphic controls, and dynamic two-tone vector styling.</em>
 </p>
 
 ## Demo Videos
@@ -23,6 +23,11 @@
 </p>
 
 ## Changelog
+
+### v3.1.0 Update
+
+**Bug Fixes:**
+- 各ノブ操作のノイズbugを修正 (Fixed noise and click artifacts when adjusting parameter knobs: RoomSize, Decay, HfDamp, LfAbsorb, AirAbsorb, 10-Band RT60, TiltEQ, etc.)
 
 ### v3.0.0 Major Update!!
 
@@ -325,7 +330,7 @@ Windows: C:\Users\<YourName>\Documents\Ambience\Presets\
 
 ## Installation
 
-1. Download the latest `Ambience3.0.0.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience/releases/latest) page.
+1. Download the latest `Ambience3.1.0.vst3` from the [Releases](https://github.com/OTODESK4193/Ambience/releases/latest) page.
 2. Place the `.vst3` file into your system VST3 directory:
    ```
    C:\Program Files\Common Files\VST3\
