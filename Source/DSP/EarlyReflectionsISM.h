@@ -108,9 +108,12 @@ private:
     int ringBufferMask{ 0 };
     uint32_t writeIndex{ 0 };
 
-    // パラメータダブルバッファリング
+    // パラメータダブルバッファリング & 30ms スムーズクロスフェード (ジッパー・クリック完全ゼロ)
     std::shared_ptr<ISMParameters> currentParams;
+    std::shared_ptr<ISMParameters> fadingFromParams;
     std::atomic<std::shared_ptr<ISMParameters>> pendingParams{ nullptr };
+    float paramCrossfadePos{ 1.0f };
+    float paramCrossfadeInc{ 0.001f };
 
     // ベルベットノイズ生成用
     std::array<VelvetPulse, MAX_VELVET_PULSES> velvetPulses{};

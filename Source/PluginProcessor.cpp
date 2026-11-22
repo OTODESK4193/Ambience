@@ -255,14 +255,36 @@ void FDNReverbAudioProcessor::processBlock(
     inputRMS_L.store(inRMSL, std::memory_order_relaxed);
     inputRMS_R.store(inRMSR, std::memory_order_relaxed);
 
+    // ─── Panic による Graceful Mute ＆ オーディオスレッド安全リセット ───
+    // ★ 無音スリープ中であっても、Panic リクエストがあれば即座にエンジンをリセットして復帰する
+    if (panicRequested.load(std::memory_order_acquire)) {
+        if (isEngineSuspended) {
+            engine.panicReset();
+            oversampler->reset();
+            inputRMS_L.store(0.0f);
+            inputRMS_R.store(0.0f);
+            outputRMS_L.store(0.0f);
+            outputRMS_R.store(0.0f);
+            specFifoIndex.store(0);
+            specFifoReady.store(false);
+            panicFadeSamplesRemaining = 0;
+            panicRequested.store(false, std::memory_order_release);
+        } else if (panicFadeSamplesRemaining <= 0) {
+            const double sr = getSampleRate();
+            panicFadeTotalSamples = std::max(32, static_cast<int>((sr > 0.0 ? sr : 48000.0) * 0.007)); // 7ms
+            panicFadeSamplesRemaining = panicFadeTotalSamples;
+        }
+    }
+
     // ★★★ 無音時スマートサスペンド（Silence Sleep）★★★
     // 入力が -100dBFS 以下 かつ 直前のウェット出力が -120dBFS 以下
     const bool isInputSilent = (inRMS < 1.0e-5f);
     const float prevOutRMS = std::max(outputRMS_L.load(std::memory_order_relaxed),
                                       outputRMS_R.load(std::memory_order_relaxed));
     const bool isOutputSilent = (prevOutRMS < 1.0e-6f);
+    const bool hasPendingEngineWork = engine.hasPendingTransitionOrUpdate() || (panicFadeSamplesRemaining > 0);
 
-    if (isInputSilent && isOutputSilent) {
+    if (isInputSilent && isOutputSilent && !hasPendingEngineWork) {
         silenceDurationSamples += numSamples;
     } else {
         silenceDurationSamples = 0;
@@ -356,15 +378,7 @@ void FDNReverbAudioProcessor::processBlock(
             buffer.clear(ch, 0, numSamples);
     }
 
-    // ─── Panic による Graceful Mute ＆ オーディオスレッド安全リセット ───
-    if (panicRequested.load(std::memory_order_acquire)) {
-        if (panicFadeSamplesRemaining <= 0) {
-            const double sr = getSampleRate();
-            panicFadeTotalSamples = std::max(32, static_cast<int>((sr > 0.0 ? sr : 48000.0) * 0.007)); // 7ms
-            panicFadeSamplesRemaining = panicFadeTotalSamples;
-        }
-    }
-
+    // ─── Panic フェードアウト実行 ───
     if (panicFadeSamplesRemaining > 0) {
         for (int i = 0; i < numSamples; ++i) {
             float t = static_cast<float>(panicFadeSamplesRemaining) / static_cast<float>(panicFadeTotalSamples);
@@ -383,6 +397,7 @@ void FDNReverbAudioProcessor::processBlock(
                 // のみ、動作点は保持) を使う。reset() 本体と seq≡fresh の
                 // ためのスナップショット復元は従来通り変更しない。
                 engine.panicReset();
+                oversampler->reset();
                 inputRMS_L.store(0.0f);
                 inputRMS_R.store(0.0f);
                 outputRMS_L.store(0.0f);

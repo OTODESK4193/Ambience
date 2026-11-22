@@ -156,7 +156,9 @@ public:
 
     void prepare(double sampleRate, int) {
         fs = sampleRate;
+        paramSmoothCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.020f)); // 20ms smoothing
         for (int i = 0; i < NUM_NODES; ++i) modulators[i].prepare(sampleRate, static_cast<uint32_t>(i));
+        snapToTargets();
     }
 
     void reset() {
@@ -172,6 +174,13 @@ public:
         baseDelaySamples[7] = 0.0f;
         smoothedDelaySamples[6] = 0.0f;
         smoothedDelaySamples[7] = 0.0f;
+        snapToTargets();
+    }
+
+    void snapToTargets() noexcept {
+        smoothedScattering = scattering;
+        smoothedDamping = damping;
+        smoothedLpfCoeff = lpfCoeff;
     }
 
     // [phase3/small-fixes] reset() は smoothedDelaySamples を baseDelaySamples へ
@@ -312,7 +321,11 @@ public:
         diff = _mm256_and_ps(diff, _mm256_castsi256_ps(activeMask));
 
         // ユニタリ等パワー合成: y = sqrt(1-s^2)*spec + s*diff
-        const float s = std::clamp(scattering, 0.0f, 1.0f);
+        smoothedScattering += paramSmoothCoeff * (scattering - smoothedScattering);
+        smoothedDamping    += paramSmoothCoeff * (damping    - smoothedDamping);
+        smoothedLpfCoeff   += paramSmoothCoeff * (lpfCoeff   - smoothedLpfCoeff);
+
+        const float s = std::clamp(smoothedScattering, 0.0f, 1.0f);
         const float specW = std::sqrt(std::max(0.0f, 1.0f - s * s));
         const float diffW = s;
         __m256 vSpecW = _mm256_set1_ps(specW);
@@ -328,12 +341,12 @@ public:
         __m256 inScale = _mm256_set1_ps(0.40824829f); // 1 / sqrt(6)
         __m256 rawOut = _mm256_fmadd_ps(inject, inScale, scattered);
 
-        __m256 vLpfCoeff = _mm256_set1_ps(lpfCoeff);
+        __m256 vLpfCoeff = _mm256_set1_ps(smoothedLpfCoeff);
         __m256 vLpfState = _mm256_load_ps(lpfState.data());
         vLpfState = _mm256_fmadd_ps(vLpfCoeff, _mm256_sub_ps(rawOut, vLpfState), vLpfState);
         _mm256_store_ps(lpfState.data(), vLpfState);
 
-        __m256 toWrite = _mm256_mul_ps(vLpfState, _mm256_set1_ps(damping));
+        __m256 toWrite = _mm256_mul_ps(vLpfState, _mm256_set1_ps(smoothedDamping));
         alignas(32) float writeVals[8];
         _mm256_store_ps(writeVals, toWrite);
 
@@ -362,6 +375,10 @@ public:
     float modRate{ 0.3f };
     float damping{ 0.95f };
     float lpfCoeff{ 1.0f }; // 1.0 = bypass
+    float smoothedScattering{ 0.5f };
+    float smoothedDamping{ 0.95f };
+    float smoothedLpfCoeff{ 1.0f };
+    float paramSmoothCoeff{ 0.001f };
     FarrowFractionalDelayLine delayLines[6];
 
 private:

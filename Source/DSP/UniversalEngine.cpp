@@ -316,12 +316,18 @@ namespace FDNReverb {
         diffuserGainSmoothed.reset(sampleRate, 0.025);
         apfGainStageSmoothed.reset(sampleRate, 0.025);
         stereoWidthSmoothed.reset(sampleRate, 0.025);
+        clarityErGainSmoothed.reset(sampleRate, 0.025);
+        clarityLateGainSmoothed.reset(sampleRate, 0.025);
+        lateInjectGainSmoothed.reset(sampleRate, 0.025);
 
         preDelaySmoothed.setCurrentAndTargetValue(0.0f);
         roomSizeSmoothed.setCurrentAndTargetValue(1.0f);
         diffuserGainSmoothed.setCurrentAndTargetValue(0.0f);
         apfGainStageSmoothed.setCurrentAndTargetValue(0.0f);
         stereoWidthSmoothed.setCurrentAndTargetValue(1.0f);
+        clarityErGainSmoothed.setCurrentAndTargetValue(1.0f);
+        clarityLateGainSmoothed.setCurrentAndTargetValue(1.0f);
+        lateInjectGainSmoothed.setCurrentAndTargetValue(0.7071f);
 
         transitionSamplesTotal = std::max(64, static_cast<int>(0.008 * sampleRate)); // 8ms fade
         transitionState = TransitionState::Normal;
@@ -360,6 +366,7 @@ namespace FDNReverb {
         makeupHoldActive = false; // [small-fixes 試作] prepare 終端と一致
         tailWasActive = false;
         topologyUpdatePending = false;
+        roomSizeUpdatePending = false;
         sdnParamsUpdatePending = false;
         fdnReadCacheTarget.fill(-1.0f); // prepare と同じ読み出しキャッシュ無効化
         fdnReadCacheId.fill(0);
@@ -534,6 +541,12 @@ namespace FDNReverb {
         snapSmWidthTgt = stereoWidthSmoothed.getTargetValue();
         snapSmMakeupCur = lateMakeupGainSmoothed.getCurrentValue();
         snapSmMakeupTgt = lateMakeupGainSmoothed.getTargetValue();
+        snapSmClarityErCur = clarityErGainSmoothed.getCurrentValue();
+        snapSmClarityErTgt = clarityErGainSmoothed.getTargetValue();
+        snapSmClarityLateCur = clarityLateGainSmoothed.getCurrentValue();
+        snapSmClarityLateTgt = clarityLateGainSmoothed.getTargetValue();
+        snapSmLateInjectCur = lateInjectGainSmoothed.getCurrentValue();
+        snapSmLateInjectTgt = lateInjectGainSmoothed.getTargetValue();
         snapSdnBaseDelaySamples = sdnEngine.captureBaseDelaySamples();
         snapSdnRngStates = sdnEngine.captureModulatorRngStates();
         snapIsmState = ismEngine.captureState();
@@ -580,6 +593,9 @@ namespace FDNReverb {
         restoreSm(apfGainStageSmoothed, snapSmApfCur, snapSmApfTgt);
         restoreSm(stereoWidthSmoothed, snapSmWidthCur, snapSmWidthTgt);
         restoreSm(lateMakeupGainSmoothed, snapSmMakeupCur, snapSmMakeupTgt);
+        restoreSm(clarityErGainSmoothed, snapSmClarityErCur, snapSmClarityErTgt);
+        restoreSm(clarityLateGainSmoothed, snapSmClarityLateCur, snapSmClarityLateTgt);
+        restoreSm(lateInjectGainSmoothed, snapSmLateInjectCur, snapSmLateInjectTgt);
         sdnEngine.restoreBaseDelaySamples(snapSdnBaseDelaySamples);
         sdnEngine.restoreModulatorRngStates(snapSdnRngStates);
         ismEngine.restoreState(snapIsmState);
@@ -662,7 +678,7 @@ namespace FDNReverb {
         const bool algoChanged = (activeParams.algorithmIndex != p.algorithmIndex);
 
         // ディレイ長の再計算を要するパラメータ（RoomSize のみ）
-        const bool topologyNeedsUpdate = (activeParams.roomSizeScale != p.roomSizeScale);
+        const bool roomSizeNeedsUpdate = (activeParams.roomSizeScale != p.roomSizeScale);
 
         // 吸音フィルタ再設計を要するパラメータ
         // [P6] トリガーは designStage2 の実入力のみに限定する。旧実装では
@@ -670,8 +686,15 @@ namespace FDNReverb {
         // 変更でも同一係数の再設計 (約 656 回の pow 他) と 30ms の無意味な
         // クロスフェードが発生し、フェード中は同一信号の cos+sin 合成で
         // 最大 +3dB の膨らみまで生じていた。これら 5 つは設計入力ではない。
+        // ★ RoomSize 変更時も吸音フィルタの A/B クロスフェード再設計のみをトリガーし、
+        //    稼働中のアクティブバンク係数を直接上書きしてステップノイズが出るのを防ぐ。
+        // ★ Spring トポロジーでは diffusion / lateDensity も実効ループ長 tau(f) を変えるため含める。
+        const bool springApfChanged = (currentTopology == ReverbTopology::Spring)
+            && ((activeParams.diffusion != p.diffusion) || (activeParams.lateDensity != p.lateDensity));
         const bool absorptionNeedsUpdate =
-               (activeParams.decayScale != p.decayScale)
+               roomSizeNeedsUpdate
+            || springApfChanged
+            || (activeParams.decayScale != p.decayScale)
             || (activeParams.hfDamping != p.hfDamping)
             || (activeParams.lfAbsorption != p.lfAbsorption)
             || (activeParams.tiltLow != p.tiltLow)
@@ -680,9 +703,10 @@ namespace FDNReverb {
             || (activeParams.rtBands != p.rtBands)
             || (activeParams.airAbsorbScale != p.airAbsorbScale);
 
-        // [P6] GEQ 再設計を伴わず SDN 派生値だけを更新すべきパラメータ
+        // [P6] GEQ 再設計を伴わず SDN 派生値や ISM だけを更新すべきパラメータ
         const bool sdnDerivedNeedsUpdate =
-               (activeParams.scattering != p.scattering)
+               (activeParams.preDelayMs != p.preDelayMs)
+            || (activeParams.scattering != p.scattering)
             || (activeParams.erCrossoverMs != p.erCrossoverMs)
             // [PRO wiring fix] Asymmetry had NO update trigger at all: turning
             // the knob alone never reached updateGeometry (dead on all 8
@@ -708,9 +732,10 @@ namespace FDNReverb {
             transitionState = TransitionState::FadingOut;
             transitionSampleCount = 0;
             topologyUpdatePending = false;
+            roomSizeUpdatePending = false;
         } else {
-            if (topologyNeedsUpdate) {
-                topologyUpdatePending = true;
+            if (roomSizeNeedsUpdate) {
+                roomSizeUpdatePending = true;
             }
             if (absorptionNeedsUpdate) {
                 // サンプルベース・レート制御用フラグ
@@ -739,6 +764,14 @@ namespace FDNReverb {
         const float rawApfGainStage = effectiveApfGain * 0.76f * lateDensityScale;
         const float targetApfGainStage = std::clamp(rawApfGainStage, 0.0f, 0.7071f);
         apfGainStageSmoothed.setTargetValue(targetApfGainStage);
+
+        const float cDb = std::clamp(p.clarityDB, -6.0f, 6.0f);
+        const float clarityShift = cDb * 0.5f;
+        clarityErGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(+clarityShift));
+        clarityLateGainSmoothed.setTargetValue(juce::Decibels::decibelsToGain(-clarityShift));
+
+        const float lateDensClamped = std::clamp(p.lateDensity, 0.1f, 1.0f);
+        lateInjectGainSmoothed.setTargetValue(0.7071f * std::sqrt(lateDensClamped / 0.7f));
 
         // 即時反映パラメータ (OutputEQ, DynamicDucker, Saturator)
         outputEQ.setLoParams(p.loEQType, p.loCutHz, p.loGainDB);
@@ -907,15 +940,21 @@ namespace FDNReverb {
         const float effectiveAirAbsorb = std::clamp(activeParams.airAbsorbScale, 0.2f, 2.5f);
         const float hfCutoff = std::clamp((10000.0f * (1.1f - activeParams.hfDamping)) / (0.6f + 0.4f * effectiveAirAbsorb), 800.0f, 20000.0f);
         sdnEngine.lpfCoeff = 1.0f - std::exp(-6.2831853f * hfCutoff / fsf);
+        sdnEngine.snapToTargets();
 
         if (currentTopology == ReverbTopology::Plate) {
             plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, true);
+            plateMesh.snapToTargets();
         } else if (currentTopology == ReverbTopology::Goldfoil) {
             plateMesh.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            plateMesh.snapToTargets();
             gfMeshL.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshL.snapToTargets();
             gfMeshR.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
+            gfMeshR.snapToTargets();
         } else if (currentTopology == ReverbTopology::Spring) {
             springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
+            springChain.snapToTargets();
         } else if (currentTopology == ReverbTopology::Inchindown) {
             // The tank must be driven by the Decay Time the FDN implements,
             // not by the ER-crossover pseudo-RT60 (sdnRt60 <= 0.5 s): at
@@ -923,7 +962,9 @@ namespace FDNReverb {
             // so the namesake long-axis nodes are silent and the core dies
             // within ~2 s. (phase3/inchindown/INCHINDOWN.md)
             inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
+            inchindownEngine.snapToTargets();
             inchindownEngineR.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
+            inchindownEngineR.snapToTargets();
         }
         
         // ★ 【ER ビジュアライザー用動的タップ抽出ブリッジ】
@@ -982,6 +1023,16 @@ namespace FDNReverb {
             const float erDef = PRESET_DEFAULTS[defIdx].erLevel;
             erCoreTrim = erDef * erDef;
             erIsmTrim = erDef;
+        }
+
+        // トポロジー初期化・切り替え時は Clarity / LateInject スムーザーも即座にターゲットへ同期
+        {
+            const float cDb = std::clamp(activeParams.clarityDB, -6.0f, 6.0f);
+            const float clarityShift = cDb * 0.5f;
+            clarityErGainSmoothed.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(+clarityShift));
+            clarityLateGainSmoothed.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(-clarityShift));
+            const float lateDensClamped = std::clamp(activeParams.lateDensity, 0.1f, 1.0f);
+            lateInjectGainSmoothed.setCurrentAndTargetValue(0.7071f * std::sqrt(lateDensClamped / 0.7f));
         }
 
     }
@@ -1520,6 +1571,42 @@ namespace FDNReverb {
         }
     }
 
+    void UniversalEngine::updateRoomSizeDelaysOnly() {
+        // ★ RoomSize 変更時の専用軽量パス:
+        // 稼働中の吸音フィルタ係数バンク (absorptionCoeffsSoA_A / B) を直接上書きせず、
+        // FDN 基準遅延長・ER ビジュアライザー表示タップ・SDN/ISM のみを更新する。
+        // 吸音フィルタの再設計は A/B クロスフェード機構 (absorptionUpdatePending) 側で行うことで、
+        // RoomSize ノブ操作時の係数ステップ変化による激しいノイズを完全に排除する。
+        calculatePrimePowerDelays();
+
+        const float fsf = static_cast<float>(fs);
+        const float erSizeScale = 0.5f + activeParams.roomSizeScale;
+
+        // ER ビジュアライザー用動的タップ更新
+        const auto& erPattern = PRESET_ER_PATTERNS[juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex)];
+        currentERTapCount = erPattern.numTaps;
+        const float maxSafeERDelaySamples = static_cast<float>(fs * 0.95);
+        for (int i = 0; i < erPattern.numTaps; ++i) {
+            const float delaySmp = erPattern.taps[i].delayMs * 0.001f * fsf * erSizeScale;
+            currentERDelaySamples[i] = juce::jlimit(1.0f, maxSafeERDelaySamples, delaySmp);
+            currentERGains[i] = erPattern.taps[i].gain;
+        }
+
+        // SDN ジオメトリ & 派生パラメータ更新 (Plate / Goldfoil / Spring / Inchindown 含む)
+        applySdnDerivedParams();
+        if (currentTopology == ReverbTopology::Inchindown) {
+            inchindownEngine.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
+            inchindownEngineR.setParameters(currentDesignRT60_1k, activeParams.hfDamping, erSizeScale, 1.0f);
+        }
+
+        // ISM タップ更新
+        const int ismAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+        const float ismRt60Base1k = ALL_PRESETS[ismAlgo]->acoustics.rt60[5];
+        ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale,
+                                   activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption,
+                                   ismRt60Base1k * activeParams.decayScale, ismRt60Base1k);
+    }
+
     void UniversalEngine::applySdnDerivedParams() {
         const float fsf = static_cast<float>(fs);
         const float erSizeScale = 0.5f + activeParams.roomSizeScale;
@@ -1556,6 +1643,15 @@ namespace FDNReverb {
             gfMeshR.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, false);
         } else if (currentTopology == ReverbTopology::Spring) {
             springChain.setParameters(sdnRt60, activeParams.hfDamping, erSizeScale, 1.2f);
+        }
+
+        // PreDelay 等のみの単独変更でも ISM に確実に反映させる (値未変更時は updateParameters 内部で即 return)
+        {
+            const int ismAlgo = juce::jlimit(0, NUM_ALGORITHMS - 1, activeParams.algorithmIndex);
+            const float ismRt60Base1k = ALL_PRESETS[ismAlgo]->acoustics.rt60[5];
+            ismEngine.updateParameters(activeParams.algorithmIndex, activeParams.roomSizeScale,
+                                       activeParams.preDelayMs, activeParams.hfDamping, activeParams.lfAbsorption,
+                                       ismRt60Base1k * activeParams.decayScale, ismRt60Base1k);
         }
     }
 
@@ -1665,6 +1761,10 @@ namespace FDNReverb {
         if (topologyUpdatePending) {
             updateTopologyAndRouting();
             topologyUpdatePending = false;
+            roomSizeUpdatePending = false;
+        } else if (roomSizeUpdatePending) {
+            updateRoomSizeDelaysOnly();
+            roomSizeUpdatePending = false;
         }
 
         // phase3/stereo SPLIT8: per-algorithm late-energy makeup trim
@@ -1745,12 +1845,6 @@ namespace FDNReverb {
         const float erServo = 1.0f;
         const float lateServo = 1.0f;
 
-        // ★ Clarity ゲインのブロック単位事前計算 (毎サンプルの std::pow / decibelsToGain を完全排除)
-        const float cDb = std::clamp(activeParams.clarityDB, -6.0f, 6.0f);
-        const float clarityShift = cDb * 0.5f; // 最大 ±3dB (単一法則)
-        const float gClarityER   = juce::Decibels::decibelsToGain(+clarityShift);
-        const float gClarityLate = juce::Decibels::decibelsToGain(-clarityShift);
-
         // ★ Schroeder APF (s=2) safeMod の定常時事前計算 (毎サンプルの std::tanh を完全排除)
         const bool modAmountStationary = (std::abs(activeParams.modAmount - smoothedModAmount) < 1e-6f);
         if (modAmountStationary) {
@@ -1803,10 +1897,6 @@ namespace FDNReverb {
             }
             usePrecomputedSafeMod = true;
         }
-
-        // ★ SDN / 2D Mesh 注入ゲインのブロック単位事前計算 (毎サンプルの std::sqrt を完全排除)
-        const float lateDensityScale = std::clamp(activeParams.lateDensity, 0.1f, 1.0f);
-        const float lateInjectGain = 0.7071f * std::sqrt(lateDensityScale / 0.7f);
 
         // ★ ISM (鏡像法) 初期反射エンジンによる並列 AVX2 処理
         if (!bypassER) {
@@ -1944,6 +2034,9 @@ namespace FDNReverb {
             const float curDiffuserGain = diffuserGainSmoothed.getNextValue();
             const float curApfGainStage = apfGainStageSmoothed.getNextValue();
             const float curWidth = stereoWidthSmoothed.getNextValue();
+            const float gClarityER = clarityErGainSmoothed.getNextValue();
+            const float gClarityLate = clarityLateGainSmoothed.getNextValue();
+            const float lateInjectGain = lateInjectGainSmoothed.getNextValue();
             const float sideBoost = curWidth * 1.5f;
 
             // ★ デュアル黄金比 LFO レート設定 (除算完全排除・事前計算スケール乗算)

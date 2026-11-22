@@ -78,6 +78,7 @@ public:
 
     void prepare(double sampleRate, int /*maxBlockSize*/) noexcept {
         fs = sampleRate;
+        paramSmoothCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(fs) * 0.020f)); // 20ms smoothing
         for (int i = 0; i < 4; ++i) {
             dispersionL[i].reset();
             dispersionR[i].reset();
@@ -86,6 +87,7 @@ public:
             dispersionR[i].setCoefficients(0.63f + 0.05f * static_cast<float>(i), 0.17f * static_cast<float>(i + 1));
         }
         setParameters(1.5f, 0.2f, 1.0f, true);
+        snapToTargets();
         reset();
     }
 
@@ -126,16 +128,22 @@ public:
         const float lambdaSq = lambda * lambda;
 
         const float denom = 1.0f / (1.0f + alpha);
-        c_center   = (2.0f - 4.0f * lambdaSq) * denom;
-        c_prev     = -(1.0f - alpha) * denom;
-        c_neighbor = lambdaSq * denom;
+        target_c_center   = (2.0f - 4.0f * lambdaSq) * denom;
+        target_c_prev     = -(1.0f - alpha) * denom;
+        target_c_neighbor = lambdaSq * denom;
 
+        // 境界反射係数 (高域ダンピング連動)
+        target_boundaryLoss = std::clamp(0.995f - hfDamping * 0.05f, 0.90f, 0.998f);
+    }
+
+    void snapToTargets() noexcept {
+        c_center = target_c_center;
+        c_prev = target_c_prev;
+        c_neighbor = target_c_neighbor;
+        boundaryLoss = target_boundaryLoss;
         v_c_center   = _mm256_set1_ps(c_center);
         v_c_prev     = _mm256_set1_ps(c_prev);
         v_c_neighbor = _mm256_set1_ps(c_neighbor);
-
-        // 境界反射係数 (高域ダンピング連動)
-        boundaryLoss = std::clamp(0.995f - hfDamping * 0.05f, 0.90f, 0.998f);
     }
 
     /**
@@ -145,6 +153,21 @@ public:
      * @param fdn16Out 16ch FDNへのダイレクト注入バッファ (float[16])
      */
     inline void processOneSample(float inL, float inR, float& outL, float& outR, float* fdn16Out) noexcept {
+        // 1-pole サンプル平滑化 (ノブ操作時の FDTD 係数ステップ不連続防止)
+        if (std::abs(target_c_center - c_center) > 1e-6f ||
+            std::abs(target_c_prev - c_prev) > 1e-6f ||
+            std::abs(target_boundaryLoss - boundaryLoss) > 1e-6f) [[unlikely]] {
+            c_center     += paramSmoothCoeff * (target_c_center - c_center);
+            c_prev       += paramSmoothCoeff * (target_c_prev - c_prev);
+            c_neighbor   += paramSmoothCoeff * (target_c_neighbor - c_neighbor);
+            boundaryLoss += paramSmoothCoeff * (target_boundaryLoss - boundaryLoss);
+            v_c_center   = _mm256_set1_ps(c_center);
+            v_c_prev     = _mm256_set1_ps(c_prev);
+            v_c_neighbor = _mm256_set1_ps(c_neighbor);
+        } else if (c_center != target_c_center || c_prev != target_c_prev || boundaryLoss != target_boundaryLoss) [[unlikely]] {
+            snapToTargets();
+        }
+
         float* u_next = planes[planeIdx].data();
         const int prevIdx = (planeIdx == 0) ? 2 : planeIdx - 1;
         const int pastIdx = (planeIdx == 2) ? 0 : planeIdx + 1;
@@ -296,6 +319,11 @@ private:
     float c_prev{ -0.998f };
     float c_neighbor{ 0.245f };
     float boundaryLoss{ 0.995f };
+    float target_c_center{ 0.0f };
+    float target_c_prev{ -0.998f };
+    float target_c_neighbor{ 0.245f };
+    float target_boundaryLoss{ 0.995f };
+    float paramSmoothCoeff{ 0.001f };
 
     __m256 v_c_center{ _mm256_setzero_ps() };
     __m256 v_c_prev{ _mm256_set1_ps(-0.998f) };

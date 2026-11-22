@@ -9,6 +9,9 @@ EarlyReflectionsISM::EarlyReflectionsISM() {
 
 void EarlyReflectionsISM::prepare(double sr, int /*maxBlockSize*/) {
     sampleRate = sr;
+    paramCrossfadeInc = 1.0f / std::max(1.0f, static_cast<float>(sr * 0.030)); // 30ms crossfade
+    paramCrossfadePos = 1.0f;
+    fadingFromParams.reset();
     // Ring capacity from seconds: max pre-delay (0.500 s, the parameter
     // range) + ER window (0.045 s), plus interpolation headroom, rounded
     // up to a power of two at this sample rate (never below the legacy
@@ -30,6 +33,8 @@ void EarlyReflectionsISM::reset() {
     writeIndex = 0;
     smoothedErLevel = 0.0f;
     lastAlgorithmIndex = -1;
+    paramCrossfadePos = 1.0f;
+    fadingFromParams.reset();
 }
 
 EarlyReflectionsISM::StateSnapshot EarlyReflectionsISM::captureState() {
@@ -53,6 +58,8 @@ EarlyReflectionsISM::StateSnapshot EarlyReflectionsISM::captureState() {
 void EarlyReflectionsISM::restoreState(const StateSnapshot& s) {
     if (!s.valid) return;
     currentParams = s.current ? std::make_shared<ISMParameters>(*s.current) : nullptr;
+    fadingFromParams.reset();
+    paramCrossfadePos = 1.0f;
     pendingParams.store(s.pending ? std::make_shared<ISMParameters>(*s.pending) : nullptr,
                         std::memory_order_release);
     lastAlgorithmIndex = s.lastAlgorithmIndex;
@@ -435,29 +442,38 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
         return;
     }
 
-    auto newParams = pendingParams.exchange(nullptr, std::memory_order_acq_rel);
-    if (newParams) {
-        currentParams = newParams;
+    // クロスフェード完了時のみ次のパラメータ更新を受け付ける（ビジー保護によるクリック完全排除）
+    if (paramCrossfadePos >= 1.0f) {
+        fadingFromParams.reset();
+        auto newParams = pendingParams.exchange(nullptr, std::memory_order_acq_rel);
+        if (newParams) {
+            if (currentParams && currentParams->numActiveChunks > 0) {
+                fadingFromParams = currentParams;
+                currentParams = newParams;
+                // LPF 内部状態のウォームスタート継承 (ゼロ飛び防止)
+                for (int c = 0; c < NUM_ISM_CHUNKS; ++c) {
+                    for (int k = 0; k < 8; ++k) {
+                        currentParams->chunks[c].filterState[k] = fadingFromParams->chunks[c].filterState[k];
+                    }
+                }
+                paramCrossfadePos = 0.0f;
+            } else {
+                currentParams = newParams;
+                paramCrossfadePos = 1.0f;
+            }
+        }
     }
 
     if (!currentParams || currentParams->numActiveChunks == 0) return;
 
-    const auto& chunks = currentParams->chunks;
-    const int numChunks = currentParams->numActiveChunks;
     const __m256i maskReg = _mm256_set1_epi32(ringBufferMask);
 
-    for (int i = 0; i < numSamples; ++i) {
-        smoothedErLevel += 0.01f * (erLevel - smoothedErLevel);
-
-        float inSample = (inL[i] + inR[i]) * 0.5f;
-        ringBufferL[writeIndex] = inSample;
-
+    auto evalParams = [&](ISMParameters& prm, __m256i vWriteIdx, float& outSampleL, float& outSampleR) noexcept {
         __m256 sumL = _mm256_setzero_ps();
         __m256 sumR = _mm256_setzero_ps();
-        __m256i vWriteIdx = _mm256_set1_epi32(static_cast<int32_t>(writeIndex));
-
+        const int numChunks = prm.numActiveChunks;
         for (int c = 0; c < numChunks; ++c) {
-            auto& chunk = const_cast<ISMTapChunk&>(chunks[c]);
+            auto& chunk = prm.chunks[c];
 
             __m256i vDelayInt = _mm256_load_si256(reinterpret_cast<const __m256i*>(chunk.delayInt));
             __m256i vReadIdx0 = _mm256_and_si256(_mm256_sub_epi32(vWriteIdx, vDelayInt), maskReg);
@@ -493,11 +509,10 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
             sumR = _mm256_fmadd_ps(state, gR, sumR);
         }
 
-        // 自然で音楽的な初期反射スケーリング (ER-FDN 完全分離)
-        float outL_sample = hsum_m256(sumL) * smoothedErLevel * 0.19f;
-        float outR_sample = hsum_m256(sumR) * smoothedErLevel * 0.19f;
+        outSampleL = hsum_m256(sumL) * smoothedErLevel * 0.19f;
+        outSampleR = hsum_m256(sumR) * smoothedErLevel * 0.19f;
 
-        if (currentParams->useVelvetNoise && numVelvetPulses > 0) {
+        if (prm.useVelvetNoise && numVelvetPulses > 0) {
             float vSumL = 0.0f, vSumR = 0.0f;
             for (int p = 0; p < numVelvetPulses; ++p) {
                 int rIdx = (static_cast<int32_t>(writeIndex) - velvetPulses[p].delaySample) & ringBufferMask;
@@ -505,8 +520,34 @@ void EarlyReflectionsISM::processBlock(const float* inL, const float* inR,
                 vSumL += vSample * velvetPulses[p].gainL;
                 vSumR += vSample * velvetPulses[p].gainR;
             }
-            outL_sample += vSumL * currentParams->velvetGain * smoothedErLevel;
-            outR_sample += vSumR * currentParams->velvetGain * smoothedErLevel;
+            outSampleL += vSumL * prm.velvetGain * smoothedErLevel;
+            outSampleR += vSumR * prm.velvetGain * smoothedErLevel;
+        }
+    };
+
+    for (int i = 0; i < numSamples; ++i) {
+        smoothedErLevel += 0.01f * (erLevel - smoothedErLevel);
+
+        float inSample = (inL[i] + inR[i]) * 0.5f;
+        ringBufferL[writeIndex] = inSample;
+
+        __m256i vWriteIdx = _mm256_set1_epi32(static_cast<int32_t>(writeIndex));
+
+        float outL_sample = 0.0f, outR_sample = 0.0f;
+        evalParams(*currentParams, vWriteIdx, outL_sample, outR_sample);
+
+        if (paramCrossfadePos < 1.0f && fadingFromParams) {
+            float oldL = 0.0f, oldR = 0.0f;
+            evalParams(*fadingFromParams, vWriteIdx, oldL, oldR);
+            const float wNew = paramCrossfadePos;
+            const float wOld = 1.0f - wNew;
+            outL_sample = oldL * wOld + outL_sample * wNew;
+            outR_sample = oldR * wOld + outR_sample * wNew;
+            paramCrossfadePos += paramCrossfadeInc;
+            if (paramCrossfadePos >= 1.0f) {
+                paramCrossfadePos = 1.0f;
+                fadingFromParams.reset();
+            }
         }
 
         earlyWetL[i] += outL_sample;

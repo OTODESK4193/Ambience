@@ -264,11 +264,20 @@ namespace FDNReverb {
             return (idx >= 0 && idx < currentERTapCount) ? currentERGains[idx] : 0.0f;
         }
         bool   isPrepared() const noexcept { return isPreparedFlag; }
+        bool   hasPendingTransitionOrUpdate() const noexcept {
+            return (transitionState != TransitionState::Normal)
+                || topologyUpdatePending
+                || roomSizeUpdatePending
+                || absorptionUpdatePending
+                || sdnParamsUpdatePending
+                || (absoFadeState == AbsoFadeState::FadingToA || absoFadeState == AbsoFadeState::FadingToB);
+        }
         const OutputEQ& getOutputEQ() const noexcept { return outputEQ; }
         float getDuckingReductionDB() const noexcept { return dynamicDucker.getCurrentReductionDB(); }
 
     private:
         void updateTopologyAndRouting();
+        void updateRoomSizeDelaysOnly();
         void calculatePrimePowerDelays();
         void updateAbsorptionFilters(bool targetIsB);
         // [phase3/cpu-opt A-1] SoA 係数への書き込み (float->double は従来 tick のキャストと同値)
@@ -301,6 +310,7 @@ namespace FDNReverb {
         static constexpr int SERIAL_APF_STAGES = 3;
 
         bool topologyUpdatePending{ false };
+        bool roomSizeUpdatePending{ false };
         bool absorptionUpdatePending{ false };
         bool sdnParamsUpdatePending{ false };
         int  samplesSinceLastAbsorptionUpdate{ 0 };
@@ -314,6 +324,9 @@ namespace FDNReverb {
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> diffuserGainSmoothed;
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> apfGainStageSmoothed;
         juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> stereoWidthSmoothed;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> clarityErGainSmoothed;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> clarityLateGainSmoothed;
+        juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> lateInjectGainSmoothed;
 
         // ★ 入力段 Bandwidth LPF ＆ 過渡平滑化 (アタックの過剰入力を防ぎコムフィルタリングを防止)
         float inLpfStateL{ 0.0f };
@@ -574,6 +587,9 @@ namespace FDNReverb {
         float          snapSmApfCur{ 0.0f },      snapSmApfTgt{ 0.0f };
         float          snapSmWidthCur{ 1.0f },    snapSmWidthTgt{ 1.0f };
         float          snapSmMakeupCur{ 0.0f },   snapSmMakeupTgt{ 1.0f };
+        float          snapSmClarityErCur{ 1.0f }, snapSmClarityErTgt{ 1.0f };
+        float          snapSmClarityLateCur{ 1.0f }, snapSmClarityLateTgt{ 1.0f };
+        float          snapSmLateInjectCur{ 0.7071f }, snapSmLateInjectTgt{ 0.7071f };
 
         // ── [phase3/small-fixes 試作] makeup 増加の保留・解放 ──
         // Decay 下方向ドラッグでは rt60Mid の低下で makeup が最大 +6 dB

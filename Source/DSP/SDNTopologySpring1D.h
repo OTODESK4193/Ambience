@@ -54,7 +54,9 @@ public:
             dispTheta[s] = 2.0f * 3.14159265f * freqHz / fsf;
         }
 
+        paramSmoothCoeff = 1.0f - std::exp(-1.0f / (fsf * 0.020f)); // 20ms smoothing
         setParameters(2.5f, 0.3f, 1.0f, 1.0f);
+        snapToTargets();
         reset();
     }
 
@@ -98,17 +100,13 @@ public:
 
         for (int i = 0; i < 8; ++i) {
             const float r = BASE_R[i] * std::clamp(1.0f / std::sqrt(sizeScale), 0.7f, 1.4f);
-            rCoeff[i] = std::clamp(r, -0.65f, 0.65f);
-            tCoeff[i] = std::sqrt(1.0f - rCoeff[i] * rCoeff[i]); // 直交ユニタリ条件 (エネルギー保存)
-            lossVector[i] = std::clamp(lossDamped, 0.85f, 0.998f);
+            targetRCoeff[i] = std::clamp(r, -0.65f, 0.65f);
+            targetTCoeff[i] = std::sqrt(1.0f - targetRCoeff[i] * targetRCoeff[i]); // 直交ユニタリ条件 (エネルギー保存)
+            targetLossVector[i] = std::clamp(lossDamped, 0.85f, 0.998f);
         }
 
-        v_r    = _mm256_loadu_ps(rCoeff.data());
-        v_t    = _mm256_loadu_ps(tCoeff.data());
-        v_loss = _mm256_loadu_ps(lossVector.data());
-
         // 端点境界反射係数（固定端・弾性反転反射）
-        boundaryReflection = -std::clamp(0.96f - hfDamping * 0.06f, 0.80f, 0.98f);
+        targetBoundaryReflection = -std::clamp(0.96f - hfDamping * 0.06f, 0.80f, 0.98f);
 
         // 2次オールパス分散係数の更新
         const float boingScale = std::clamp(boingIntensity, 0.0f, 1.5f);
@@ -121,6 +119,16 @@ public:
         }
     }
 
+    void snapToTargets() noexcept {
+        rCoeff = targetRCoeff;
+        tCoeff = targetTCoeff;
+        lossVector = targetLossVector;
+        boundaryReflection = targetBoundaryReflection;
+        v_r    = _mm256_loadu_ps(rCoeff.data());
+        v_t    = _mm256_loadu_ps(tCoeff.data());
+        v_loss = _mm256_loadu_ps(lossVector.data());
+    }
+
     /**
      * @brief 1サンプル処理（AVX2 散乱 + Boing 分散カスケード + 16ch FDN 直交注入）
      * @param inL, inR ステレオ入力
@@ -128,6 +136,23 @@ public:
      * @param fdn16Out 16ch FDN への直交注入バッファ (float[16])
      */
     inline void processOneSample(float inL, float inR, float& outL, float& outR, float* fdn16Out) noexcept {
+        // 1-pole サンプル平滑化 (ノブ操作時の係数ステップノイズ防止)
+        if (std::abs(targetRCoeff[0] - rCoeff[0]) > 1e-6f ||
+            std::abs(targetLossVector[0] - lossVector[0]) > 1e-6f ||
+            std::abs(targetBoundaryReflection - boundaryReflection) > 1e-6f) [[unlikely]] {
+            for (int i = 0; i < 8; ++i) {
+                rCoeff[i] += paramSmoothCoeff * (targetRCoeff[i] - rCoeff[i]);
+                tCoeff[i] = std::sqrt(std::max(0.0f, 1.0f - rCoeff[i] * rCoeff[i]));
+                lossVector[i] += paramSmoothCoeff * (targetLossVector[i] - lossVector[i]);
+            }
+            boundaryReflection += paramSmoothCoeff * (targetBoundaryReflection - boundaryReflection);
+            v_r    = _mm256_loadu_ps(rCoeff.data());
+            v_t    = _mm256_loadu_ps(tCoeff.data());
+            v_loss = _mm256_loadu_ps(lossVector.data());
+        } else if (rCoeff[0] != targetRCoeff[0] || lossVector[0] != targetLossVector[0] || boundaryReflection != targetBoundaryReflection) [[unlikely]] {
+            snapToTargets();
+        }
+
         const int wIdx = writeIndex;
 
         // ─────────────────────────────────────────────────────────────
@@ -313,7 +338,12 @@ private:
     alignas(32) std::array<float, 8> rCoeff{};
     alignas(32) std::array<float, 8> tCoeff{};
     alignas(32) std::array<float, 8> lossVector{};
+    alignas(32) std::array<float, 8> targetRCoeff{};
+    alignas(32) std::array<float, 8> targetTCoeff{};
+    alignas(32) std::array<float, 8> targetLossVector{};
     float boundaryReflection{ -0.95f };
+    float targetBoundaryReflection{ -0.95f };
+    float paramSmoothCoeff{ 0.001f };
 
     __m256 v_r{ _mm256_setzero_ps() };
     __m256 v_t{ _mm256_setzero_ps() };

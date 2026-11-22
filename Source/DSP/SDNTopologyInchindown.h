@@ -54,8 +54,15 @@ public:
         for (int i = 0; i < 2; ++i)
             longBuffer[i].assign(LONG_BUFFER_SIZE, 0.0f);
 
+        delaySmoothCoeff = 1.0f - std::exp(-1.0f / (fsf * 0.025f)); // 25ms delay smoothing
         setParameters(112.0f, 0.25f, 1.0f, 1.0f);
+        snapToTargets();
         reset();
+    }
+
+    void snapToTargets() noexcept {
+        smoothedDelaysShort = targetDelaysShort;
+        smoothedDelaysLong  = targetDelaysLong;
     }
 
     void reset() noexcept {
@@ -64,6 +71,8 @@ public:
         for (int i = 0; i < 2; ++i)
             std::fill(longBuffer[i].begin(), longBuffer[i].end(), 0.0f);
 
+        smoothedDelaysShort = targetDelaysShort;
+        smoothedDelaysLong  = targetDelaysLong;
         writeIndexShort = 0;
         writeIndexLong  = 0;
         v_airState = _mm256_setzero_ps();
@@ -90,10 +99,12 @@ public:
         for (int i = 0; i < 4; ++i) {
             const float dSmp = (geomDistances[i] * sizeScale / SOUND_SPEED) * fsf;
             delaySamplesShort[i] = std::clamp(static_cast<int>(dSmp), 4, SHORT_BUFFER_SIZE - 4);
+            targetDelaysShort[i] = static_cast<float>(delaySamplesShort[i]);
         }
         for (int i = 0; i < 2; ++i) {
             const float dSmp = (geomDistances[4 + i] * sizeScale / SOUND_SPEED) * fsf;
             delaySamplesLong[i] = std::clamp(static_cast<int>(dSmp), 4, LONG_BUFFER_SIZE - 4);
+            targetDelaysLong[i] = static_cast<float>(delaySamplesLong[i]);
         }
 
         // 2. 幾何学的表面積に基づく非等方 Householder 重みベクトルの計算
@@ -163,17 +174,31 @@ public:
         const int wIdxS = writeIndexShort;
         const int wIdxL = writeIndexLong;
 
-        // 1. 遅延バッファからの読み出し (SoA ベクトルロード)
+        // 1. 遅延バッファからの読み出し (定常時は整数一致、RoomSize変更中のみ Hermite 3次補間スムージング)
         alignas(32) float x_in[8];
         // 短軸 4ノード (X1, X2, Z1, Z2)
         for (int i = 0; i < 4; ++i) {
-            const int rIdx = (wIdxS - delaySamplesShort[i]) & SHORT_BUFFER_MASK;
-            x_in[i] = shortBuffer[i][rIdx];
+            const float tgt = targetDelaysShort[i];
+            if (std::abs(tgt - smoothedDelaysShort[i]) > 1e-4f) [[unlikely]] {
+                smoothedDelaysShort[i] += delaySmoothCoeff * (tgt - smoothedDelaysShort[i]);
+                x_in[i] = readHermite(shortBuffer[i], wIdxS, SHORT_BUFFER_MASK, smoothedDelaysShort[i]);
+            } else {
+                smoothedDelaysShort[i] = tgt;
+                const int rIdx = (wIdxS - delaySamplesShort[i]) & SHORT_BUFFER_MASK;
+                x_in[i] = shortBuffer[i][rIdx];
+            }
         }
         // 長軸 2ノード (Y1, Y2)
         for (int i = 0; i < 2; ++i) {
-            const int rIdx = (wIdxL - delaySamplesLong[i]) & LONG_BUFFER_MASK;
-            x_in[4 + i] = longBuffer[i][rIdx];
+            const float tgt = targetDelaysLong[i];
+            if (std::abs(tgt - smoothedDelaysLong[i]) > 1e-4f) [[unlikely]] {
+                smoothedDelaysLong[i] += delaySmoothCoeff * (tgt - smoothedDelaysLong[i]);
+                x_in[4 + i] = readHermite(longBuffer[i], wIdxL, LONG_BUFFER_MASK, smoothedDelaysLong[i]);
+            } else {
+                smoothedDelaysLong[i] = tgt;
+                const int rIdx = (wIdxL - delaySamplesLong[i]) & LONG_BUFFER_MASK;
+                x_in[4 + i] = longBuffer[i][rIdx];
+            }
         }
         x_in[6] = 0.0f;
         x_in[7] = 0.0f;
@@ -266,6 +291,26 @@ private:
     std::array<float, 6> baseDelays{};
     std::array<int, 4> delaySamplesShort{};
     std::array<int, 2> delaySamplesLong{};
+    std::array<float, 4> targetDelaysShort{};
+    std::array<float, 4> smoothedDelaysShort{};
+    std::array<float, 2> targetDelaysLong{};
+    std::array<float, 2> smoothedDelaysLong{};
+    float delaySmoothCoeff{ 0.001f };
+
+    static inline float readHermite(const std::vector<float>& buf, int wIdx, int mask, float delaySmp) noexcept {
+        const float safeDelay = std::clamp(delaySmp, 2.0f, static_cast<float>(mask - 4));
+        const int id = static_cast<int>(safeDelay);
+        const float frac = safeDelay - static_cast<float>(id);
+        const float y0 = buf[(wIdx - id + 1) & mask];
+        const float y1 = buf[(wIdx - id)     & mask];
+        const float y2 = buf[(wIdx - id - 1) & mask];
+        const float y3 = buf[(wIdx - id - 2) & mask];
+        const float c0 = y1;
+        const float c1 = 0.5f * (y2 - y0);
+        const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+        const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+        return ((c3 * frac + c2) * frac + c1) * frac + c0;
+    }
 
     std::vector<float> shortBuffer[4];
     std::vector<float> longBuffer[2];
